@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Don Salo — Panel Mostrador</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min-height: 100vh; }
+
+/* HEADER */
+.header {
+  background: #111; color: #fff;
+  padding: 18px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+}
+.header-left .brand { font-family: 'Playfair Display', serif; font-size: 22px; letter-spacing: 1px; }
+.header-left .sub { font-size: 10px; letter-spacing: 4px; opacity: 0.4; text-transform: uppercase; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #4ade80;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+.live-label { font-size: 12px; opacity: 0.6; letter-spacing: 2px; }
+.counter-badge {
+  background: #fff; color: #111;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px;
+}
+
+/* MAIN */
+.main { padding: 24px 24px 60px; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 80px 20px; color: #bbb;
+}
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+.empty-title { font-size: 18px; margin-bottom: 8px; color: #ccc; }
+.empty-sub { font-size: 13px; }
+
+/* GRID */
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* ORDER CARD */
+.order-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+  animation: slideIn 0.35s ease;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.order-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.order-card.completado { opacity: 0.45; }
+
+.card-header {
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #f0f0f0;
+}
+.card-header-left .cliente { font-size: 18px; font-weight: 600; }
+.card-header-left .time { font-size: 11px; color: #bbb; margin-top: 2px; letter-spacing: 0.5px; }
+.estado-badge {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 20px; font-weight: 500;
+}
+.estado-nuevo { background: #fef3c7; color: #92400e; }
+.estado-en-preparacion { background: #dbeafe; color: #1e40af; }
+.estado-completado { background: #d1fae5; color: #065f46; }
+
+.card-items { padding: 14px 18px; }
+.card-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 0.5px solid #f5f5f5;
+  font-size: 14px;
+}
+.card-item:last-child { border-bottom: none; }
+.item-name { color: #333; flex: 1; }
+.item-curcuma { font-size: 9px; color: #a08030; letter-spacing: 1px; margin-left: 5px; }
+.item-qty {
+  font-size: 16px; font-weight: 700; color: #111;
+  background: #f5f5f3; border-radius: 6px;
+  padding: 2px 10px; min-width: 36px; text-align: center;
+}
+
+.card-footer {
+  padding: 12px 18px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  display: flex; gap: 8px; align-items: center;
+}
+.total-label { font-size: 12px; color: #aaa; flex: 1; }
+.total-num { font-size: 14px; font-weight: 600; }
+
+.action-btn {
+  padding: 8px 14px; border-radius: 6px; font-size: 12px;
+  font-family: 'DM Sans', sans-serif; cursor: pointer;
+  font-weight: 500; letter-spacing: 0.5px;
+  border: none; transition: all 0.15s;
+}
+.btn-preparar { background: #111; color: #fff; }
+.btn-preparar:hover { background: #333; }
+.btn-completar { background: #4ade80; color: #065f46; }
+.btn-completar:hover { background: #22c55e; }
+.btn-print { background: #f0f0f0; color: #555; }
+.btn-print:hover { background: #e0e0e0; }
+.btn-eliminar { background: #fff; color: #e00; border: 1px solid #fcc; font-size: 11px; padding: 6px 10px; }
+.btn-eliminar:hover { background: #fff0f0; }
+
+/* STATS BAR */
+.stats-bar {
+  display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+}
+.stat-card {
+  background: #fff; border-radius: 10px; border: 1px solid #eee;
+  padding: 14px 20px; flex: 1; min-width: 120px;
+  cursor: pointer; transition: all 0.2s;
+  user-select: none;
+}
+.stat-card:hover { border-color: #bbb; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.stat-card.active-filter { border-color: #111; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+.stat-card.active-filter .stat-label { color: #111; }
+.stat-card.active-filter .stat-num { color: #111; }
+.stat-card.filter-nuevo.active-filter { border-color: #92400e; background: #fffbf0; }
+.stat-card.filter-prep.active-filter { border-color: #1e40af; background: #eff6ff; }
+.stat-card.filter-comp.active-filter { border-color: #065f46; background: #f0fdf4; }
+.stat-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #bbb; margin-bottom: 4px; }
+.stat-num { font-size: 28px; font-weight: 600; color: #111; }
+.filter-hint { font-size: 9px; color: #ccc; margin-top: 2px; letter-spacing: 1px; }
+
+/* PRINT */
+@media print {
+  body { background: #fff; }
+  .header, .stats-bar, .card-footer, .no-print { display: none !important; }
+  .orders-grid { grid-template-columns: 1fr; gap: 12px; }
+  .order-card { break-inside: avoid; border: 1px solid #ccc; }
+  .order-card.completado { display: none; }
+  .fab-btn, .modal-overlay { display: none !important; }
+}
+
+/* MANUAL ORDER BUTTON */
+.fab-btn {
+  position: fixed; bottom: 28px; right: 28px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: #111; color: #fff; border: none;
+  font-size: 30px; cursor: pointer; z-index: 50;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, background 0.15s;
+}
+.fab-btn:hover { background: #333; transform: scale(1.08); }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 100; display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: #fff; border-radius: 14px;
+  width: 90%; max-width: 560px; max-height: 85vh;
+  overflow-y: auto; padding: 28px;
+}
+.modal-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; font-family: 'Playfair Display', serif; }
+.modal-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
+.modal-input {
+  width: 100%; border: 1px solid #ddd; border-radius: 6px;
+  padding: 10px 14px; font-size: 15px; font-family: 'DM Sans', sans-serif;
+  margin-bottom: 20px; outline: none;
+}
+.modal-input:focus { border-color: #111; }
+.modal-emp-list { margin-bottom: 24px; }
+.modal-emp-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 0.5px solid #eee;
+}
+.modal-emp-name { font-size: 14px; font-weight: 500; flex: 1; }
+.modal-curcuma-badge {
+  font-size: 9px; color: #a08030; background: #f5f0e0;
+  padding: 2px 6px; border-radius: 10px; margin-left: 6px;
+}
+.modal-qty-ctrl { display: flex; align-items: center; gap: 10px; }
+.modal-qty-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid #ddd; background: #fff;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; line-height: 1;
+}
+.modal-qty-btn:hover { background: #111; color: #fff; border-color: #111; }
+.modal-qty-num { font-size: 15px; font-weight: 500; min-width: 20px; text-align: center; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-cancel {
+  flex: 1; padding: 13px; border: 1px solid #ddd; border-radius: 8px;
+  background: #fff; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer;
+}
+.modal-confirm {
+  flex: 2; padding: 13px; border: none; border-radius: 8px;
+  background: #111; color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 500; cursor: pointer; letter-spacing: 1px;
+}
+.modal-confirm:hover { background: #333; }
+.modal-confirm:disabled { background: #ccc; cursor: not-allowed; }
+
+/* STATS TAB */
+.stats-panel { display: none; padding: 28px; max-width: 1200px; margin: 0 auto; }
+.stats-panel.active { display: block; }
+.period-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+.s-tab-btn {
+  padding: 7px 18px; border-radius: 20px; border: 1px solid #ddd;
+  background: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 12px; cursor: pointer; color: #666; transition: all 0.15s;
+}
+.s-tab-btn:hover { border-color: #111; color: #111; }
+.s-tab-btn.active { background: #111; color: #fff; border-color: #111; }
+.date-range { display: flex; gap: 6px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+.date-input { border: 1px solid #ddd; border-radius: 6px; padding: 6px 10px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #111; outline: none; }
+.date-apply { padding: 6px 14px; background: #111; color: #fff; border: none; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
+.s-period-label { font-size: 13px; color: #999; margin-bottom: 20px; }
+.s-counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.s-counter { background: #fff; border-radius: 10px; border: 1px solid #eee; padding: 20px; }
+.s-counter.dark { background: #111; border-color: #111; }
+.s-counter.dark .s-c-label { color: rgba(255,255,255,0.4); }
+.s-counter.dark .s-c-num { color: #fff; }
+.s-counter.dark .s-c-sub { color: rgba(255,255,255,0.3); }
+.s-c-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #bbb; margin-bottom: 6px; }
+.s-c-num { font-size: 40px; font-weight: 700; color: #111; line-height: 1; }
+.s-c-sub { font-size: 11px; color: #aaa; margin-top: 4px; }
+.s-section-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #aaa; margin-bottom: 14px; }
+.s-compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.s-compare-card { background: #fff; border-radius: 10px; border: 1px solid #eee; padding: 18px; }
+.s-compare-title { font-size: 13px; font-weight: 500; margin-bottom: 14px; }
+.s-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: #777; margin-bottom: 3px; }
+.s-bar-track { background: #f0f0f0; border-radius: 4px; height: 7px; overflow: hidden; margin-bottom: 10px; }
+.s-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
+.bar-a { background: #111; }
+.bar-b { background: #ddd; }
+.s-result { text-align: center; padding: 10px; border-radius: 6px; font-size: 12px; margin-top: 8px; }
+.s-up { background: #d1fae5; color: #065f46; }
+.s-down { background: #fee2e2; color: #991b1b; }
+.s-eq { background: #f3f4f6; color: #6b7280; }
+.s-ranking { background: #fff; border-radius: 10px; border: 1px solid #eee; padding: 20px; }
+.s-rank-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 0.5px solid #f5f5f5; }
+.s-rank-row:last-child { border-bottom: none; }
+.s-rank-pos { font-size: 13px; font-weight: 700; color: #bbb; min-width: 26px; }
+.s-rank-name { flex: 1; font-size: 13px; font-weight: 500; }
+.s-rank-bar { flex: 2; }
+.s-rank-track { background: #f0f0f0; border-radius: 3px; height: 5px; overflow: hidden; }
+.s-rank-fill { height: 100%; background: #111; border-radius: 3px; transition: width 0.6s; }
+.s-rank-count { font-size: 14px; font-weight: 700; min-width: 30px; text-align: right; }
+.s-loading { text-align: center; padding: 40px; color: #bbb; font-size: 13px; }
+.s-spinner { width: 28px; height: 28px; border: 2px solid #eee; border-top-color: #111; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="brand">DON SALO — Mostrador</div>
+    <div class="sub" id="header-sub">Panel en tiempo real</div>
+  </div>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <div class="live-label">EN VIVO</div>
+    <div style="display:flex;gap:6px;">
+      <button id="tab-pedidos" onclick="switchTab('pedidos')" style="background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">🫔 PEDIDOS</button>
+      <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
+    </div>
+    <div class="counter-badge" id="badge-count">0 pedidos</div>
+  </div>
+</div>
+
+<div class="main" id="main">
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card filter-nuevo" id="filter-nuevo" onclick="setFilter('nuevo')">
+      <div class="stat-label">Nuevos</div>
+      <div class="stat-num" id="stat-nuevo">0</div>
+      <div class="filter-hint">CLICK PARA FILTRAR</div>
+    </div>
+    <div class="stat-card filter-prep" id="filter-prep" onclick="setFilter('en-preparacion')">
+      <div class="stat-label">En preparación</div>
+      <div class="stat-num" id="stat-prep">0</div>
+      <div class="filter-hint">CLICK PARA FILTRAR</div>
+    </div>
+    <div class="stat-card filter-comp" id="filter-comp" onclick="setFilter('completado')">
+      <div class="stat-label">Completados</div>
+      <div class="stat-num" id="stat-comp">0</div>
+      <div class="filter-hint">CLICK PARA FILTRAR</div>
+    </div>
+    <div class="stat-card" onclick="setFilter(null)">
+      <div class="stat-label">Empanadas hoy</div>
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="filter-hint">VER TODOS</div>
+    </div>
+  </div>
+
+  <div id="orders-container">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">🫔</div>
+      <div class="empty-title">Esperando pedidos...</div>
+      <div class="empty-sub">Los pedidos aparecerán aquí en tiempo real</div>
+    </div>
+    <div class="orders-grid" id="orders-grid"></div>
+  </div>
+</div>
+
+<!-- STATS PANEL -->
+<div class="stats-panel" id="stats-panel">
+  <div class="period-tabs">
+    <button class="s-tab-btn active" onclick="sSetPeriod('today')">Hoy</button>
+    <button class="s-tab-btn" onclick="sSetPeriod('yesterday')">Ayer</button>
+    <button class="s-tab-btn" onclick="sSetPeriod('week')">Esta semana</button>
+    <button class="s-tab-btn" onclick="sSetPeriod('month')">Este mes</button>
+    <button class="s-tab-btn" onclick="sSetPeriod('all')">Todo</button>
+    <div class="date-range">
+      <input type="date" class="date-input" id="s-date-from"/>
+      <span style="color:#aaa;font-size:11px;">→</span>
+      <input type="date" class="date-input" id="s-date-to"/>
+      <button class="date-apply" onclick="sApplyRange()">Ver</button>
+    </div>
+  </div>
+  <div class="s-period-label" id="s-period-label"></div>
+  <div class="s-loading" id="s-loading"><div class="s-spinner"></div>Cargando...</div>
+  <div id="s-content" style="display:none;">
+    <div class="s-counters" id="s-counters"></div>
+    <div class="s-section-title">Comparativa</div>
+    <div class="s-compare-grid" id="s-compare"></div>
+    <div class="s-section-title">🏆 Ranking empanadas</div>
+    <div class="s-ranking" id="s-ranking"></div>
+  </div>
+</div>
+
+<!-- FAB Button -->
+<button class="fab-btn no-print" onclick="openModal()" title="Nuevo pedido manual">+</button>
+
+<!-- MODAL Pedido Manual -->
+<div class="modal-overlay no-print" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">🫔 Pedido Manual</div>
+    <label class="modal-label">Nombre del cliente</label>
+    <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco..." autocomplete="off"/>
+    <label class="modal-label">Empanadas</label>
+    <div class="modal-emp-list" id="modal-emp-list"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar Pedido →</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
+  authDomain: "don-salo-torino.firebaseapp.com",
+  projectId: "don-salo-torino",
+  storageBucket: "don-salo-torino.firebasestorage.app",
+  messagingSenderId: "520992510695",
+  appId: "1:520992510695:web:c9c26dad5fa3f954384842"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let orders = [];
+let knownIds = new Set();
+let isFirstLoad = true;
+let activeFilter = null;
+
+window.setFilter = function(estado) {
+  if (activeFilter === estado) {
+    activeFilter = null;
+  } else {
+    activeFilter = estado;
+  }
+  // Update active styles
+  ['filter-nuevo', 'filter-prep', 'filter-comp'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active-filter');
+  });
+  if (activeFilter === 'nuevo') document.getElementById('filter-nuevo')?.classList.add('active-filter');
+  if (activeFilter === 'en-preparacion') document.getElementById('filter-prep')?.classList.add('active-filter');
+  if (activeFilter === 'completado') document.getElementById('filter-comp')?.classList.add('active-filter');
+  renderOrders();
+};
+
+// Audio alert for new orders
+function playAlert() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 150, 300].forEach(delay => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880;
+      o.type = 'sine';
+      g.gain.setValueAtTime(0.4, ctx.currentTime + delay/1000);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay/1000 + 0.3);
+      o.start(ctx.currentTime + delay/1000);
+      o.stop(ctx.currentTime + delay/1000 + 0.3);
+    });
+  } catch(e) {}
+}
+
+// Auto print silently via hidden iframe
+function autoPrintOrder(order) {
+  const ahora = new Date();
+
+  // Remove any existing print iframe
+  const existing = document.getElementById('print-iframe');
+  if (existing) existing.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'print-iframe';
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:80mm;height:auto;border:none;';
+  document.body.appendChild(iframe);
+
+  const content = `
+    <html><head><title>Comanda</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      @media print { body { margin: 0; } }
+      body { font-family: monospace; padding: 8px; font-size: 15px; width: 72mm; }
+      h2 { font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; text-align:center; }
+      .meta { font-size: 12px; margin-bottom: 10px; line-height: 1.6; }
+      .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #ccc; font-size:14px; }
+      .qty { font-weight: bold; font-size: 16px; }
+      .total { font-size: 16px; font-weight: bold; margin-top: 10px; text-align:center; border-top: 2px solid #000; padding-top: 6px; }
+    </style>
+    </head><body>
+    <h2>EMPANADAS DON SALO</h2>
+    <div class="meta">
+      <strong>Cliente: ${order.cliente}</strong><br>
+      Ora: ${ahora.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})}<br>
+      Data: ${ahora.toLocaleDateString('it-IT')}
+    </div>
+    ${(order.items||[]).map(i => `<div class="row"><span>${i.nombre}${i.curcuma?' ✦':''}</span><span class="qty">x${i.cantidad}</span></div>`).join('')}
+    <div class="total">TOTALE: ${order.total} empanada${order.total!==1?'s':''}</div>
+    </body></html>
+  `;
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => iframe.remove(), 2000);
+    }, 500);
+  };
+
+  iframe.srcdoc = content;
+}
+
+// Listen only to today's orders
+const startOfDay = new Date();
+startOfDay.setHours(0,0,0,0);
+
+const q = query(
+  collection(db, 'pedidos'),
+  where('timestamp', '>=', Timestamp.fromDate(startOfDay)),
+  orderBy('timestamp', 'desc')
+);
+
+onSnapshot(q, (snapshot) => {
+  const newOrders = [];
+  const newIds = new Set();
+  const toAutoPrint = [];
+
+  snapshot.forEach(docSnap => {
+    const order = { id: docSnap.id, ...docSnap.data() };
+    newOrders.push(order);
+    newIds.add(docSnap.id);
+
+    // Detect truly new orders (not on first load)
+    if (!isFirstLoad && !knownIds.has(docSnap.id) && order.estado === 'nuevo') {
+      toAutoPrint.push({ order, ref: docSnap.ref });
+    }
+  });
+
+  orders = newOrders;
+  knownIds = newIds;
+  isFirstLoad = false;
+
+  // Process new orders after state is updated
+  toAutoPrint.forEach(({ order, ref }) => {
+    playAlert();
+    // Solo la app Android imprime - el panel web solo alerta
+    setTimeout(() => updateDoc(ref, { estado: 'en-preparacion' }), 2500);
+  });
+
+  renderOrders();
+  updateStats();
+});
+
+function formatFechaPanel(dateStr) {
+  if (!dateStr) return '';
+  const [y,m,d] = dateStr.split('-');
+  const months = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]}`;
+}
+
+function formatTime(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate();
+  return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function estadoLabel(estado) {
+  if (estado === 'nuevo') return 'Nuovo';
+  if (estado === 'en-preparacion') return 'In Preparazione';
+  if (estado === 'completado') return 'Completato';
+  return estado;
+}
+
+function renderOrders() {
+  const grid = document.getElementById('orders-grid');
+  const empty = document.getElementById('empty-state');
+
+  // Apply filter
+  const displayed = activeFilter
+    ? orders.filter(o => o.estado === activeFilter)
+    : orders;
+
+  const activeOrders = orders.filter(o => o.estado !== 'completado');
+
+  if (displayed.length === 0) {
+    empty.style.display = 'block';
+    empty.querySelector('.empty-title').textContent = activeFilter
+      ? 'No hay pedidos en este estado'
+      : 'Esperando pedidos...';
+    grid.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = displayed.map(order => {
+    const estadoClass = `estado-${order.estado}`;
+    const cardClass = order.estado === 'completado' ? 'order-card completado' : 'order-card';
+    const items = (order.items || []).map(item => `
+      <div class="card-item">
+        <span class="item-name">${item.nombre}${item.curcuma ? '<span class="item-curcuma">✦ CURCUMA</span>' : ''}</span>
+        <span class="item-qty">${item.cantidad}</span>
+      </div>
+    `).join('');
+
+    let actionBtns = '';
+    if (order.estado === 'nuevo') {
+      actionBtns = `<button class="action-btn btn-preparar" onclick="cambiarEstado('${order.id}', 'en-preparacion')">En preparación</button>`;
+    } else if (order.estado === 'en-preparacion') {
+      actionBtns = `<button class="action-btn btn-completar" onclick="cambiarEstado('${order.id}', 'completado')">✓ Completado</button>`;
+    }
+
+    const canEdit = order.estado === 'nuevo' || order.estado === 'en-preparacion';
+
+    return `
+      <div class="${cardClass}" id="order-${order.id}">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="cliente">${order.cliente || 'Anonimo'}</div>
+            <div class="time">${formatTime(order.timestamp)}${order.fecha && order.fecha !== new Date().toISOString().split('T')[0] ? ' · <span style="color:#a08030">📅 '+formatFechaPanel(order.fecha)+'</span>' : ''}</div>
+          </div>
+          <span class="estado-badge ${estadoClass}">${estadoLabel(order.estado)}</span>
+        </div>
+        <div class="card-items">${items}</div>
+        <div class="card-footer no-print">
+          <div>
+            <div class="total-label">Totale</div>
+            <div class="total-num">${order.total} emp.</div>
+          </div>
+          ${actionBtns}
+          ${canEdit ? `<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${order.id}')">✏️</button>` : ''}
+          <button class="action-btn btn-print" onclick="printOrder('${order.id}')">🖨</button>
+          <button class="action-btn btn-eliminar" onclick="eliminarOrder('${order.id}')">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('badge-count').textContent =
+    activeOrders.length + (activeOrders.length === 1 ? ' pedido' : ' pedidos');
+}
+
+function updateStats() {
+  const nuevo = orders.filter(o => o.estado === 'nuevo').length;
+  const prep = orders.filter(o => o.estado === 'en-preparacion').length;
+  const comp = orders.filter(o => o.estado === 'completado').length;
+
+  // Solo contar empanadas (no bebidas)
+  let totalEmp = 0;
+  orders.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (!item.tipo || item.tipo === 'empanada') {
+        totalEmp += item.cantidad || 0;
+      }
+    });
+  });
+
+  document.getElementById('stat-nuevo').textContent = nuevo;
+  document.getElementById('stat-prep').textContent = prep;
+  document.getElementById('stat-comp').textContent = comp;
+  document.getElementById('stat-total').textContent = totalEmp;
+}
+
+window.cambiarEstado = async function(id, nuevoEstado) {
+  await updateDoc(doc(db, 'pedidos', id), { estado: nuevoEstado });
+};
+
+window.eliminarOrder = async function(id) {
+  if (confirm('¿Eliminar este pedido?')) {
+    await deleteDoc(doc(db, 'pedidos', id));
+  }
+};
+
+window.printOrder = function(id) {
+  const order = orders.find(o => o.id === id);
+  if (!order) return;
+  const win = window.open('', '_blank', 'width=400,height=500');
+  const ahora = new Date();
+  win.document.write(`
+    <html><head><title>Comanda</title>
+    <style>
+      body { font-family: monospace; padding: 20px; font-size: 14px; }
+      h2 { font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+      .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #ccc; }
+      .total { font-size: 16px; font-weight: bold; margin-top: 12px; }
+      .meta { font-size: 12px; color: #888; margin-bottom: 12px; }
+    </style>
+    </head><body>
+    <h2>EMPANADAS DON SALO</h2>
+    <div class="meta">
+      Cliente: <strong>${order.cliente}</strong><br>
+      Ora: ${ahora.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})}<br>
+      Data: ${ahora.toLocaleDateString('it-IT')}
+    </div>
+    ${(order.items||[]).map(i => `<div class="row"><span>${i.nombre}${i.curcuma?' ✦':''}</span><span>× ${i.cantidad}</span></div>`).join('')}
+    <div class="total">TOTALE: ${order.total} empanada${order.total!==1?'s':''}</div>
+    </body></html>
+  `);
+  win.document.close();
+  win.print();
+};
+
+// ── PEDIDO MANUAL ──
+const EMPANADAS_MANUAL = [
+  { id:1,  nombre:'CARNE',                  curcuma:false },
+  { id:2,  nombre:'VERDURA',                curcuma:false },
+  { id:4,  nombre:'CAPRESE',                curcuma:false },
+  { id:5,  nombre:'PARMIGIANA',             curcuma:false },
+  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', curcuma:false },
+  { id:7,  nombre:'VACIO (BAVETTA)',         curcuma:false },
+  { id:8,  nombre:'TONNO E CIPOLLA',        curcuma:false },
+  { id:9,  nombre:'CHESE BURGER',           curcuma:false },
+  { id:10, nombre:'HUMITA',                 curcuma:false },
+  { id:11, nombre:'FORMAGGIO E CIPOLLA',    curcuma:false },
+  { id:12, nombre:'POLLO — CURCUMA',        curcuma:true  },
+];
+
+const BEBIDAS_MANUAL = [
+  { id:'b1',  nombre:'💧 ACQUA NATURALE',   cat:'Acqua' },
+  { id:'b2',  nombre:'💧 ACQUA FRIZZANTE',  cat:'Acqua' },
+  { id:'b3',  nombre:'🥤 COCA COLA',        cat:'Gassate' },
+  { id:'b4',  nombre:'🥤 COCA COLA ZERO',   cat:'Gassate' },
+  { id:'b5',  nombre:'🥤 7UP',              cat:'Gassate' },
+  { id:'b6',  nombre:'🥤 FANTA',            cat:'Gassate' },
+  { id:'b7',  nombre:'🍋 THÈ LIMONE',       cat:'Gassate' },
+  { id:'b8',  nombre:'🍑 THÈ PESCA',        cat:'Gassate' },
+  { id:'b9',  nombre:'🍺 QUILMES 🇦🇷',      cat:'Birra' },
+  { id:'b10', nombre:'🍺 MORETTI',          cat:'Birra' },
+  { id:'b11', nombre:'🍺 PERONI',           cat:'Birra' },
+  { id:'b12', nombre:'🍺 CORONA',           cat:'Birra' },
+  { id:'b13', nombre:'🍺 HEINEKEN',         cat:'Birra' },
+  { id:'b14', nombre:'🍺 ICHNUSA',          cat:'Birra' },
+];
+
+let manualQtys = {};
+EMPANADAS_MANUAL.forEach(e => manualQtys[e.id] = 0);
+
+let manualBQtys = {};
+BEBIDAS_MANUAL.forEach(b => manualBQtys[b.id] = 0);
+
+window.openModal = function() {
+  editingOrderId = null;
+  EMPANADAS_MANUAL.forEach(e => manualQtys[e.id] = 0);
+  BEBIDAS_MANUAL.forEach(b => manualBQtys[b.id] = 0);
+  document.getElementById('modal-nombre').value = '';
+  document.querySelector('.modal-title').textContent = '🫔 Pedido Manual';
+  document.getElementById('modal-confirm-btn').textContent = 'Confirmar Pedido →';
+  renderModalList();
+  document.getElementById('modal-overlay').classList.add('show');
+  document.getElementById('modal-nombre').focus();
+};
+
+window.closeModal = function() {
+  document.getElementById('modal-overlay').classList.remove('show');
+};
+
+function renderModalList() {
+  const list = document.getElementById('modal-emp-list');
+  let html = '<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:4px 0 8px;">Empanadas</div>';
+  html += EMPANADAS_MANUAL.map(e => `
+    <div class="modal-emp-row">
+      <span class="modal-emp-name">${e.nombre}${e.curcuma ? '<span class="modal-curcuma-badge">✦</span>' : ''}</span>
+      <div class="modal-qty-ctrl">
+        <button class="modal-qty-btn" onclick="changeManualQty(${e.id}, -1)">−</button>
+        <span class="modal-qty-num" id="mq-${e.id}">${manualQtys[e.id]}</span>
+        <button class="modal-qty-btn" onclick="changeManualQty(${e.id}, +1)">+</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Bebidas por categoría
+  const cats = ['Acqua','Gassate','Birra'];
+  cats.forEach(cat => {
+    html += `<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:12px 0 6px;">🥤 ${cat}</div>`;
+    html += BEBIDAS_MANUAL.filter(b => b.cat === cat).map(b => `
+      <div class="modal-emp-row">
+        <span class="modal-emp-name">${b.nombre}</span>
+        <div class="modal-qty-ctrl">
+          <button class="modal-qty-btn" onclick="changeManualBQty('${b.id}', -1)">−</button>
+          <span class="modal-qty-num" id="mbq-${b.id}">${manualBQtys[b.id]}</span>
+          <button class="modal-qty-btn" onclick="changeManualBQty('${b.id}', +1)">+</button>
+        </div>
+      </div>
+    `).join('');
+  });
+
+  list.innerHTML = html;
+}
+
+window.changeManualQty = function(id, delta) {
+  manualQtys[id] = Math.max(0, manualQtys[id] + delta);
+  const el = document.getElementById('mq-' + id);
+  if (el) el.textContent = manualQtys[id];
+};
+
+window.changeManualBQty = function(id, delta) {
+  manualBQtys[id] = Math.max(0, (manualBQtys[id] || 0) + delta);
+  const el = document.getElementById('mbq-' + id);
+  if (el) el.textContent = manualBQtys[id];
+};
+
+// ── EDITAR PEDIDO ──
+let editingOrderId = null;
+
+window.editOrder = function(id) {
+  const order = orders.find(o => o.id === id);
+  if (!order) return;
+
+  editingOrderId = id;
+
+  // Reset all qtys
+  EMPANADAS_MANUAL.forEach(e => manualQtys[e.id] = 0);
+  BEBIDAS_MANUAL.forEach(b => manualBQtys[b.id] = 0);
+
+  // Load existing items
+  (order.items || []).forEach(item => {
+    if (!item.tipo || item.tipo === 'empanada') {
+      const emp = EMPANADAS_MANUAL.find(e => e.nombre === item.nombre);
+      if (emp) manualQtys[emp.id] = item.cantidad || 0;
+    } else if (item.tipo === 'bebida') {
+      const beb = BEBIDAS_MANUAL.find(b => b.nombre === item.nombre.replace(/^[^\s]+ /, ''));
+      if (beb) manualBQtys[beb.id] = item.cantidad || 0;
+      // Try direct match too
+      const beb2 = BEBIDAS_MANUAL.find(b => item.nombre.includes(b.nombre.replace(/^[^\s]+ /,'')));
+      if (beb2 && !beb) manualBQtys[beb2.id] = item.cantidad || 0;
+    }
+  });
+
+  document.getElementById('modal-nombre').value = order.cliente || '';
+  document.querySelector('.modal-title').textContent = '✏️ Modificar Pedido';
+  document.getElementById('modal-confirm-btn').textContent = 'Guardar Cambios →';
+  renderModalList();
+  document.getElementById('modal-overlay').classList.add('show');
+};
+
+window.confirmarManual = async function() {
+  const nombre = document.getElementById('modal-nombre').value.trim() || 'Mostrador';
+  const empItems = EMPANADAS_MANUAL
+    .filter(e => manualQtys[e.id] > 0)
+    .map(e => ({ nombre: e.nombre, cantidad: manualQtys[e.id], curcuma: e.curcuma, tipo: 'empanada' }));
+  const bebItems = BEBIDAS_MANUAL
+    .filter(b => manualBQtys[b.id] > 0)
+    .map(b => ({ nombre: b.nombre, cantidad: manualBQtys[b.id], curcuma: false, tipo: 'bebida' }));
+  const items = [...empItems, ...bebItems];
+
+  if (items.length === 0) {
+    alert('Elegí al menos una empanada o bebida.');
+    return;
+  }
+
+  const btn = document.getElementById('modal-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = editingOrderId ? 'Guardando...' : 'Enviando...';
+
+  const total = items.reduce((acc, i) => acc + i.cantidad, 0);
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    if (editingOrderId) {
+      // UPDATE existing order
+      await updateDoc(doc(db, 'pedidos', editingOrderId), {
+        cliente: nombre,
+        items: items,
+        total: total,
+      });
+    } else {
+      // NEW order
+      await addDoc(collection(db, 'pedidos'), {
+        cliente: nombre,
+        items: items,
+        total: total,
+        estado: 'nuevo',
+        fecha: today,
+        manual: true,
+        timestamp: serverTimestamp()
+      });
+    }
+    closeModal();
+  } catch(err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    editingOrderId = null;
+    btn.textContent = 'Confirmar Pedido →';
+    document.querySelector('.modal-title').textContent = '🫔 Pedido Manual';
+  }
+};
+
+// Close modal clicking outside
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ── TAB SWITCHING ──
+window.switchTab = function(tab) {
+  const isPedidos = tab === 'pedidos';
+  document.getElementById('tab-pedidos').style.cssText = isPedidos
+    ? 'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;'
+    : 'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;';
+  document.getElementById('tab-stats').style.cssText = !isPedidos
+    ? 'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;'
+    : 'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;';
+  document.getElementById('main').style.display = isPedidos ? 'block' : 'none';
+  document.getElementById('stats-panel').style.display = !isPedidos ? 'block' : 'none';
+  document.getElementById('header-sub').textContent = isPedidos ? 'Panel en tiempo real' : 'Dashboard ventas';
+  if (!isPedidos) sLoadData();
+};
+
+// ── STATS FUNCTIONS ──
+let sCurrentPeriod = 'today';
+
+function sDayStart(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function sDayEnd(d)   { const x = new Date(d); x.setHours(23,59,59,999); return x; }
+function sFormatDate(d) { return d.toLocaleDateString('es-AR', {day:'numeric', month:'short'}); }
+
+function sGetRange(period) {
+  const now = new Date();
+  switch(period) {
+    case 'today': return { from: sDayStart(now), to: sDayEnd(now), label: 'Hoy — ' + sFormatDate(now) };
+    case 'yesterday': { const y=new Date(now); y.setDate(y.getDate()-1); return { from: sDayStart(y), to: sDayEnd(y), label: 'Ayer — ' + sFormatDate(y) }; }
+    case 'week': { const m=new Date(now); m.setDate(now.getDate()-((now.getDay()+6)%7)); return { from: sDayStart(m), to: sDayEnd(now), label: 'Esta semana' }; }
+    case 'month': { const f=new Date(now.getFullYear(),now.getMonth(),1); return { from: f, to: sDayEnd(now), label: now.toLocaleString('es-AR',{month:'long',year:'numeric'}) }; }
+    case 'all': return { from: new Date('2024-01-01'), to: sDayEnd(now), label: 'Todo el historial' };
+    default: return null;
+  }
+}
+
+function sGetPrevRange(period) {
+  const now = new Date();
+  switch(period) {
+    case 'today': { const y=new Date(now); y.setDate(y.getDate()-1); return { from: sDayStart(y), to: sDayEnd(y), label: 'Ayer' }; }
+    case 'week': { const m=new Date(now); m.setDate(now.getDate()-((now.getDay()+6)%7)-7); const s=new Date(m); s.setDate(m.getDate()+6); return { from: sDayStart(m), to: sDayEnd(s), label: 'Semana anterior' }; }
+    case 'month': { const f=new Date(now.getFullYear(),now.getMonth()-1,1); const l=new Date(now.getFullYear(),now.getMonth(),0); return { from: f, to: sDayEnd(l), label: 'Mes anterior' }; }
+    default: return null;
+  }
+}
+
+async function sFetch(from, to) {
+  const q = query(collection(db, 'pedidos'),
+    where('timestamp', '>=', Timestamp.fromDate(from)),
+    where('timestamp', '<=', Timestamp.fromDate(to)),
+    orderBy('timestamp','desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({id:d.id,...d.data()}));
+}
+
+function sCountEmp(orders) {
+  let t=0; orders.forEach(o=>(o.items||[]).forEach(i=>{ if(!i.tipo||i.tipo==='empanada') t+=i.cantidad||0; })); return t;
+}
+function sCountBeb(orders) {
+  let t=0; orders.forEach(o=>(o.items||[]).forEach(i=>{ if(i.tipo==='bebida') t+=i.cantidad||0; })); return t;
+}
+function sRanking(orders) {
+  const m={}; orders.forEach(o=>(o.items||[]).forEach(i=>{ if(!i.tipo||i.tipo==='empanada') m[i.nombre]=(m[i.nombre]||0)+(i.cantidad||0); }));
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+
+async function sLoadData() {
+  document.getElementById('s-loading').style.display = 'block';
+  document.getElementById('s-content').style.display = 'none';
+
+  const range = sCurrentPeriod === 'custom' ? window._sCustomRange : sGetRange(sCurrentPeriod);
+  if (!range) return;
+  document.getElementById('s-period-label').textContent = range.label;
+
+  const orders = await sFetch(range.from, range.to);
+  const emp = sCountEmp(orders);
+  const beb = sCountBeb(orders);
+
+  const todayR = sGetRange('today');
+  const weekR  = sGetRange('week');
+  const monthR = sGetRange('month');
+  const [todayO, weekO, monthO] = await Promise.all([
+    sCurrentPeriod==='today'  ? orders : sFetch(todayR.from, todayR.to),
+    sCurrentPeriod==='week'   ? orders : sFetch(weekR.from,  weekR.to),
+    sCurrentPeriod==='month'  ? orders : sFetch(monthR.from, monthR.to),
+  ]);
+
+  document.getElementById('s-counters').innerHTML = `
+    <div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${sCountEmp(todayO)}</div><div class="s-c-sub">${todayO.length} pedidos</div></div>
+    <div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${sCountEmp(weekO)}</div><div class="s-c-sub">${weekO.length} pedidos</div></div>
+    <div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${sCountEmp(monthO)}</div><div class="s-c-sub">${monthO.length} pedidos</div></div>
+    <div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${orders.length} pedidos</div></div>
+  `;
+
+  const prevR = sGetPrevRange(sCurrentPeriod);
+  if (prevR) {
+    const prevO = await sFetch(prevR.from, prevR.to);
+    const prevEmp = sCountEmp(prevO);
+    const mx1 = Math.max(emp, prevEmp) || 1;
+    const mx2 = Math.max(orders.length, prevO.length) || 1;
+    document.getElementById('s-compare').innerHTML = `
+      <div class="s-compare-card">
+        <div class="s-compare-title">🫔 Empanadas</div>
+        <div class="s-bar-label"><span>${range.label.split('—')[0].trim()}</span><span>${emp}</span></div>
+        <div class="s-bar-track"><div class="s-bar-fill bar-a" style="width:${Math.round(emp/mx1*100)}%"></div></div>
+        <div class="s-bar-label"><span>${prevR.label}</span><span>${prevEmp}</span></div>
+        <div class="s-bar-track"><div class="s-bar-fill bar-b" style="width:${Math.round(prevEmp/mx1*100)}%"></div></div>
+        <div class="s-result ${emp>prevEmp?'s-up':emp<prevEmp?'s-down':'s-eq'}">${emp>prevEmp?'▲ +'+(emp-prevEmp)+' más':emp<prevEmp?'▼ '+(prevEmp-emp)+' menos':'= Sin cambios'}</div>
+      </div>
+      <div class="s-compare-card">
+        <div class="s-compare-title">📦 Pedidos</div>
+        <div class="s-bar-label"><span>${range.label.split('—')[0].trim()}</span><span>${orders.length}</span></div>
+        <div class="s-bar-track"><div class="s-bar-fill bar-a" style="width:${Math.round(orders.length/mx2*100)}%"></div></div>
+        <div class="s-bar-label"><span>${prevR.label}</span><span>${prevO.length}</span></div>
+        <div class="s-bar-track"><div class="s-bar-fill bar-b" style="width:${Math.round(prevO.length/mx2*100)}%"></div></div>
+        <div class="s-result ${orders.length>prevO.length?'s-up':orders.length<prevO.length?'s-down':'s-eq'}">${orders.length>prevO.length?'▲ +'+(orders.length-prevO.length)+' más pedidos':orders.length<prevO.length?'▼ '+(prevO.length-orders.length)+' menos pedidos':'= Igual cantidad'}</div>
+      </div>
+    `;
+  } else {
+    document.getElementById('s-compare').innerHTML = '<div style="color:#aaa;font-size:13px;padding:12px;">No hay período anterior para comparar.</div>';
+  }
+
+  const ranking = sRanking(orders);
+  const maxV = ranking.length > 0 ? ranking[0][1] : 1;
+  const medals = ['🏆','🥈','🥉'];
+  document.getElementById('s-ranking').innerHTML = ranking.length === 0
+    ? '<div style="color:#aaa;text-align:center;padding:20px;">Sin datos para este período</div>'
+    : ranking.map(([n,c],i) => `
+      <div class="s-rank-row">
+        <span class="s-rank-pos">${medals[i]||'#'+(i+1)}</span>
+        <span class="s-rank-name">${n}</span>
+        <div class="s-rank-bar"><div class="s-rank-track"><div class="s-rank-fill" style="width:${Math.round(c/maxV*100)}%"></div></div></div>
+        <span class="s-rank-count">${c}</span>
+      </div>`).join('');
+
+  document.getElementById('s-loading').style.display = 'none';
+  document.getElementById('s-content').style.display = 'block';
+}
+
+window.sSetPeriod = function(period) {
+  sCurrentPeriod = period;
+  document.querySelectorAll('.s-tab-btn').forEach(b => b.classList.remove('active'));
+  const map = {today:0,yesterday:1,week:2,month:3,all:4};
+  document.querySelectorAll('.s-tab-btn')[map[period]]?.classList.add('active');
+  sLoadData();
+};
+
+window.sApplyRange = function() {
+  const f = document.getElementById('s-date-from').value;
+  const t = document.getElementById('s-date-to').value;
+  if (!f||!t) { alert('Seleccioná ambas fechas'); return; }
+  sCurrentPeriod = 'custom';
+  document.querySelectorAll('.s-tab-btn').forEach(b => b.classList.remove('active'));
+  window._sCustomRange = { from: new Date(f+'T00:00:00'), to: new Date(t+'T23:59:59'), label: 'Rango: '+f+' → '+t };
+  sLoadData();
+};
+
+const sToday = new Date().toISOString().split('T')[0];
+document.getElementById('s-date-from').value = sToday;
+document.getElementById('s-date-to').value = sToday;
+</script>
+</body>
+</html>
