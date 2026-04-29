@@ -470,6 +470,8 @@ const q = query(
   orderBy('timestamp', 'desc')
 );
 
+let prevEstados = {};
+
 onSnapshot(q, (snapshot) => {
   const newOrders = [];
   const newIds = new Set();
@@ -480,17 +482,21 @@ onSnapshot(q, (snapshot) => {
     newOrders.push(order);
     newIds.add(docSnap.id);
 
-    // Detect truly new orders (not on first load)
-    if (!isFirstLoad && !knownIds.has(docSnap.id) && order.estado === 'nuevo') {
-      toAutoPrint.push({ order, ref: docSnap.ref });
+    if (!isFirstLoad && order.estado === 'nuevo') {
+      // Nuevo pedido (ID no conocido) O pedido modificado que volvió a 'nuevo'
+      const wasNotNuevo = prevEstados[docSnap.id] !== 'nuevo';
+      if (!knownIds.has(docSnap.id) || wasNotNuevo) {
+        toAutoPrint.push({ order, ref: docSnap.ref });
+      }
     }
+    prevEstados[docSnap.id] = order.estado;
   });
 
   orders = newOrders;
   knownIds = newIds;
   isFirstLoad = false;
 
-  // Process new orders after state is updated
+  // Process new/modified orders
   toAutoPrint.forEach(({ order, ref }) => {
     playAlert();
     // Solo la app Android imprime - el panel web solo alerta
