@@ -81,6 +81,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   display: flex; flex-direction: column; gap: 8px;
   box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
 }
+.bottom-bar.hidden { display: flex; }
 .bottom-bar.hidden { display: none; }
 .cart-info { font-size: 13px; color: #999; text-align: center; }
 .confirmar-btn {
@@ -219,8 +220,8 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     </div>
   </div>
 
-  <div class="bottom-bar hidden" id="bottom-bar">
-    <div class="cart-info" id="cart-info-label"></div>
+  <div class="bottom-bar" id="bottom-bar">
+    <div class="cart-info" id="cart-info-label">Scegli le tue empanadas o bevande</div>
     <button class="confirmar-btn" id="confirmar-btn" onclick="confirmarPedido()">
       Conferma Ordine →
     </button>
@@ -384,13 +385,13 @@ function totalUnidades() {
 
 function updateBottomBar() {
   const total = totalUnidades();
-  const bar = document.getElementById('bottom-bar');
   if (total > 0) {
-    bar.classList.remove('hidden');
     document.getElementById('cart-info-label').textContent =
       total + (total === 1 ? ' articolo selezionato' : ' articoli selezionati');
+    document.getElementById('cart-info-label').style.color = '#888';
   } else {
-    bar.classList.add('hidden');
+    document.getElementById('cart-info-label').textContent = 'Scegli le tue empanadas o bevande';
+    document.getElementById('cart-info-label').style.color = '#bbb';
   }
 }
 
@@ -404,7 +405,17 @@ window.confirmarPedido = async function() {
     .map(b => ({ nombre: b.emoji + ' ' + b.nombre, cantidad: bQtys[b.id], curcuma: false, tipo: 'bebida' }));
   const items = [...empItems, ...bebItems];
 
-  if (items.length === 0) return;
+  if (items.length === 0) {
+    // Show error message in Italian
+    const label = document.getElementById('cart-info-label');
+    label.textContent = '⚠️ Non hai selezionato nulla!';
+    label.style.color = '#e00';
+    setTimeout(() => {
+      label.textContent = 'Scegli le tue empanadas o bevande';
+      label.style.color = '#bbb';
+    }, 2500);
+    return;
+  }
 
   const btn = document.getElementById('confirmar-btn');
   btn.disabled = true;
