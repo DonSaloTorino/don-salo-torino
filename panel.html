@@ -499,8 +499,7 @@ onSnapshot(q, (snapshot) => {
   // Process new/modified orders
   toAutoPrint.forEach(({ order, ref }) => {
     playAlert();
-    // Solo la app Android imprime - el panel web solo alerta
-    setTimeout(() => updateDoc(ref, { estado: 'en-preparacion' }), 2500);
+    // La app Android detecta estado 'nuevo' y imprime — no tocar el estado desde el panel web
   });
 
   renderOrders();
