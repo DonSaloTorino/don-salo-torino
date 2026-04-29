@@ -565,7 +565,7 @@ function renderOrders() {
       <div class="${cardClass}" id="order-${order.id}">
         <div class="card-header">
           <div class="card-header-left">
-            <div class="cliente">${order.cliente || 'Anonimo'}</div>
+            <div class="cliente">${order.cliente || 'Anonimo'}${order.modificado ? ' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;letter-spacing:1px;">MODIFICATO</span>' : ''}</div>
             <div class="time">${formatTime(order.timestamp)}${order.fecha && order.fecha !== new Date().toISOString().split('T')[0] ? ' · <span style="color:#a08030">📅 '+formatFechaPanel(order.fecha)+'</span>' : ''}</div>
           </div>
           <span class="estado-badge ${estadoClass}">${estadoLabel(order.estado)}</span>
@@ -806,11 +806,13 @@ window.confirmarManual = async function() {
 
   try {
     if (editingOrderId) {
-      // UPDATE existing order
+      // UPDATE existing order — reset to 'nuevo' so Android app reprints
       await updateDoc(doc(db, 'pedidos', editingOrderId), {
         cliente: nombre,
         items: items,
         total: total,
+        estado: 'nuevo',
+        modificado: true,
       });
     } else {
       // NEW order
