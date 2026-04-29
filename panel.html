@@ -412,25 +412,16 @@ function playAlert() {
   } catch(e) {}
 }
 
-// Auto print silently via hidden iframe
+// Auto print via popup window
 function autoPrintOrder(order) {
   const ahora = new Date();
-
-  // Remove any existing print iframe
-  const existing = document.getElementById('print-iframe');
-  if (existing) existing.remove();
-
-  const iframe = document.createElement('iframe');
-  iframe.id = 'print-iframe';
-  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:80mm;height:auto;border:none;';
-  document.body.appendChild(iframe);
-
-  const content = `
+  const win = window.open('', '_blank', 'width=400,height:500');
+  if (!win) return;
+  win.document.write(`
     <html><head><title>Comanda</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      @media print { body { margin: 0; } }
-      body { font-family: monospace; padding: 8px; font-size: 15px; width: 72mm; }
+      body { font-family: monospace; padding: 10px; font-size: 15px; width: 72mm; }
       h2 { font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; text-align:center; }
       .meta { font-size: 12px; margin-bottom: 10px; line-height: 1.6; }
       .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #ccc; font-size:14px; }
@@ -445,19 +436,11 @@ function autoPrintOrder(order) {
       Data: ${ahora.toLocaleDateString('it-IT')}
     </div>
     ${(order.items||[]).map(i => `<div class="row"><span>${i.nombre}${i.curcuma?' ✦':''}</span><span class="qty">x${i.cantidad}</span></div>`).join('')}
-    <div class="total">TOTALE: ${order.total} empanada${order.total!==1?'s':''}</div>
+    <div class="total">TOTALE: ${(order.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0)} emp.</div>
     </body></html>
-  `;
-
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => iframe.remove(), 2000);
-    }, 500);
-  };
-
-  iframe.srcdoc = content;
+  `);
+  win.document.close();
+  setTimeout(() => { win.print(); win.close(); }, 800);
 }
 
 // Listen only to today's orders
@@ -494,6 +477,7 @@ onSnapshot(q, (snapshot) => {
 
   toAutoPrint.forEach(({ order, ref }) => {
     playAlert();
+    setTimeout(() => autoPrintOrder(order), 500);
   });
 
   renderOrders();
@@ -572,8 +556,8 @@ function renderOrders() {
         <div class="card-items">${items}</div>
         <div class="card-footer no-print">
           <div>
-            <div class="total-label">Empanadas</div>
-            <div class="total-num">${(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada').reduce((a,i)=>a+(i.cantidad||0),0)} emp.</div>
+            <div class="total-label">Totale</div>
+            <div class="total-num">${(order.items||[]).reduce((a,i) => { if(!i.tipo || i.tipo==='empanada') return a+(parseInt(i.cantidad)||0); return a; }, 0)} emp.</div>
           </div>
           ${actionBtns}
           ${canEdit ? `<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${order.id}')">✏️</button>` : ''}
