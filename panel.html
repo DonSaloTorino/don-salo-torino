@@ -482,12 +482,8 @@ onSnapshot(q, (snapshot) => {
     newOrders.push(order);
     newIds.add(docSnap.id);
 
-    if (!isFirstLoad && order.estado === 'nuevo') {
-      // Nuevo pedido (ID no conocido) O pedido modificado que volvió a 'nuevo'
-      const wasNotNuevo = prevEstados[docSnap.id] !== 'nuevo';
-      if (!knownIds.has(docSnap.id) || wasNotNuevo) {
-        toAutoPrint.push({ order, ref: docSnap.ref });
-      }
+    if (!isFirstLoad && !knownIds.has(docSnap.id) && order.estado === 'nuevo') {
+      toAutoPrint.push({ order, ref: docSnap.ref });
     }
     prevEstados[docSnap.id] = order.estado;
   });
@@ -496,10 +492,8 @@ onSnapshot(q, (snapshot) => {
   knownIds = newIds;
   isFirstLoad = false;
 
-  // Process new/modified orders
   toAutoPrint.forEach(({ order, ref }) => {
     playAlert();
-    // La app Android detecta estado 'nuevo' y imprime — no tocar el estado desde el panel web
   });
 
   renderOrders();
@@ -578,8 +572,8 @@ function renderOrders() {
         <div class="card-items">${items}</div>
         <div class="card-footer no-print">
           <div>
-            <div class="total-label">Totale</div>
-            <div class="total-num">${order.total} emp.</div>
+            <div class="total-label">Empanadas</div>
+            <div class="total-num">${(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada').reduce((a,i)=>a+(i.cantidad||0),0)} emp.</div>
           </div>
           ${actionBtns}
           ${canEdit ? `<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${order.id}')">✏️</button>` : ''}
