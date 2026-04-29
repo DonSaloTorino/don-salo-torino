@@ -39,7 +39,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 }
 
 /* EMPANADA LIST */
-.empanada-list { padding: 0 20px 220px; }
+.empanada-list { padding: 0 20px 160px; }
 
 .empanada-card {
   display: flex; align-items: center; justify-content: space-between;
@@ -81,7 +81,6 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   display: flex; flex-direction: column; gap: 8px;
   box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
 }
-.bottom-bar.hidden { display: flex; }
 .bottom-bar.hidden { display: none; }
 .cart-info { font-size: 13px; color: #999; text-align: center; }
 .confirmar-btn {
@@ -120,7 +119,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 
 /* ALLERGEN SECTION */
 .allergen-section {
-  margin: 0 20px 0;
+  margin: 0 20px 120px;
   padding: 18px 18px;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
@@ -219,6 +218,9 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
       <span>ALLERGENI PRESENTI: CEREALI (CONTENENTI GLUTINE); UOVA; SENAPE; LATTE.</span>
     </div>
   </div>
+
+  <!-- Spacer so content doesn't hide behind fixed button -->
+  <div style="height: 100px;"></div>
 
   <div class="bottom-bar" id="bottom-bar">
     <div class="cart-info" id="cart-info-label">Scegli le tue empanadas o bevande</div>
