@@ -17,29 +17,29 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   background: #111; color: #fff; text-align: center;
   padding: 28px 20px 20px; position: sticky; top: 0; z-index: 10;
 }
-.menu-header .brand { font-family: 'Playfair Display', serif; font-size: 28px; letter-spacing: 2px; }
-.menu-header .brand-sub { font-family: 'Playfair Display', serif; font-size: 22px; margin-top: -4px; }
-.menu-header .sub { font-size: 10px; letter-spacing: 5px; text-transform: uppercase; opacity: 0.4; margin-top: 4px; }
+.menu-header .brand { font-family: 'Playfair Display', serif; font-size: 31px; letter-spacing: 2px; }
+.menu-header .brand-sub { font-family: 'Playfair Display', serif; font-size: 25px; margin-top: -4px; }
+.menu-header .sub { font-size: 13px; letter-spacing: 5px; text-transform: uppercase; opacity: 0.4; margin-top: 4px; }
 
 /* NOMBRE */
 .nombre-section { padding: 16px 20px; border-bottom: 1px solid #eee; background: #fafafa; }
-.nombre-section label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
+.nombre-section label { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
 .nombre-input {
   width: 100%; border: 1px solid #ddd; border-radius: 6px;
   padding: 11px 14px; font-family: 'DM Sans', sans-serif;
-  font-size: 16px; color: #111; background: #fff; outline: none;
+  font-size: 19px; color: #111; background: #fff; outline: none;
   transition: border-color 0.2s;
 }
 .nombre-input:focus { border-color: #111; }
 
 /* SECTION TITLE */
 .section-title {
-  padding: 20px 20px 8px; font-size: 10px; letter-spacing: 4px;
+  padding: 20px 20px 8px; font-size: 13px; letter-spacing: 4px;
   text-transform: uppercase; color: #bbb; font-weight: 500;
 }
 
 /* EMPANADA LIST */
-.empanada-list { padding: 0 20px 160px; }
+.empanada-list { padding: 0 20px 0; }
 
 .empanada-card {
   display: flex; align-items: center; justify-content: space-between;
@@ -47,33 +47,56 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 }
 .emp-info { flex: 1; min-width: 0; }
 .emp-badge {
-  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
   background: #f5f0e0; color: #a08030; padding: 2px 8px;
   border-radius: 20px; margin-bottom: 5px; display: inline-block;
 }
-.emp-name { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 3px; letter-spacing: 0.3px; }
-.emp-desc { font-size: 11px; color: #aaa; line-height: 1.5; }
+.emp-name { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 3px; letter-spacing: 0.3px; }
+.emp-desc { font-size: 14px; color: #aaa; line-height: 1.5; }
 
 .qty-control { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .qty-btn {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   border: 1px solid #ddd; background: #fff;
-  font-size: 20px; color: #111; cursor: pointer;
+  font-size: 22px; color: #111; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s; font-family: 'DM Sans', sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 .qty-btn:active { background: #111; color: #fff; border-color: #111; transform: scale(0.92); }
-.qty-num { font-size: 16px; font-weight: 500; min-width: 20px; text-align: center; }
+.qty-num { font-size: 19px; font-weight: 500; min-width: 20px; text-align: center; }
 
 /* BEBIDAS */
 .beb-cat-title {
   padding: 16px 20px 6px;
-  font-size: 10px; letter-spacing: 4px;
+  font-size: 13px; letter-spacing: 4px;
   text-transform: uppercase; color: #bbb; font-weight: 500;
 }
 
-/* BOTTOM BAR */
+/* ALLERGEN SECTION */
+.allergen-section {
+  margin: 20px 20px 0;
+  padding: 18px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.allergen-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  line-height: 1.9;
+  letter-spacing: 0.2px;
+}
+.allergen-text span {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* SPACER para que el contenido no quede tapado por el botón fijo */
+.bottom-spacer { height: 110px; }
+
+/* BOTTOM BAR — siempre fijo abajo */
 .bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: #fff; border-top: 1px solid #eee;
@@ -81,12 +104,11 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   display: flex; flex-direction: column; gap: 8px;
   box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
 }
-.bottom-bar.hidden { display: none; }
-.cart-info { font-size: 13px; color: #999; text-align: center; }
+.cart-info { font-size: 14px; color: #bbb; text-align: center; }
 .confirmar-btn {
   width: 100%; background: #111; color: #fff; border: none;
-  padding: 16px; font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 500; letter-spacing: 2px;
+  padding: 18px; font-family: 'DM Sans', sans-serif;
+  font-size: 17px; font-weight: 500; letter-spacing: 2px;
   text-transform: uppercase; border-radius: 8px; cursor: pointer;
   transition: background 0.2s; -webkit-tap-highlight-color: transparent;
 }
@@ -100,41 +122,21 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   padding: 40px 30px; text-align: center;
 }
 .success-icon { font-size: 56px; margin-bottom: 24px; }
-.success-title { font-family: 'Playfair Display', serif; font-size: 28px; margin-bottom: 12px; }
-.success-name { font-size: 20px; font-weight: 500; color: #111; margin-bottom: 6px; }
-.success-sub { font-size: 15px; color: #999; line-height: 1.6; margin-bottom: 32px; }
+.success-title { font-family: 'Playfair Display', serif; font-size: 31px; margin-bottom: 12px; }
+.success-name { font-size: 23px; font-weight: 500; color: #111; margin-bottom: 6px; }
+.success-sub { font-size: 18px; color: #999; line-height: 1.6; margin-bottom: 32px; }
 .success-items { width: 100%; text-align: left; border-top: 1px solid #eee; margin-bottom: 32px; }
 .success-item {
   display: flex; justify-content: space-between;
-  padding: 10px 0; border-bottom: 0.5px solid #eee; font-size: 14px;
+  padding: 10px 0; border-bottom: 0.5px solid #eee; font-size: 17px;
 }
 .success-item-name { color: #333; }
 .success-item-qty { font-weight: 600; color: #111; }
 .nuevo-btn {
   width: 100%; background: #fff; color: #111;
   border: 1px solid #ddd; padding: 14px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  font-family: 'DM Sans', sans-serif; font-size: 16px;
   border-radius: 8px; cursor: pointer; letter-spacing: 1px;
-}
-
-/* ALLERGEN SECTION */
-.allergen-section {
-  margin: 0 20px 120px;
-  padding: 18px 18px;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  background: #fafafa;
-}
-.allergen-text {
-  font-size: 11px;
-  font-weight: 600;
-  color: #444;
-  line-height: 1.8;
-  letter-spacing: 0.2px;
-}
-.allergen-text span {
-  display: block;
-  margin-bottom: 2px;
 }
 
 /* DATE SECTION */
@@ -143,7 +145,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   border-bottom: 1px solid #eee;
   background: #fafafa;
 }
-.date-section label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
+.date-section label { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
 .date-display {
   display: flex; align-items: center; justify-content: space-between;
   border: 1px solid #ddd; border-radius: 6px;
@@ -151,13 +153,13 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   transition: border-color 0.2s;
 }
 .date-display:active { border-color: #111; }
-.date-text { font-size: 15px; color: #111; font-family: 'DM Sans', sans-serif; }
+.date-text { font-size: 18px; color: #111; font-family: 'DM Sans', sans-serif; }
 .date-today-badge {
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
   background: #111; color: #fff; padding: 2px 8px; border-radius: 20px;
 }
 .date-future-badge {
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
   background: #f5f0e0; color: #a08030; padding: 2px 8px; border-radius: 20px;
 }
 .date-input-hidden { display: none; }
@@ -175,7 +177,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.spinner-label { font-size: 13px; color: #888; letter-spacing: 1px; }
+.spinner-label { font-size: 16px; color: #888; letter-spacing: 1px; }
 
 @media print { body { display: none; } }
 </style>
@@ -219,8 +221,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     </div>
   </div>
 
-  <!-- Spacer so content doesn't hide behind fixed button -->
-  <div style="height: 100px;"></div>
+  <div class="bottom-spacer"></div>
 
   <div class="bottom-bar" id="bottom-bar">
     <div class="cart-info" id="cart-info-label">Scegli le tue empanadas o bevande</div>
