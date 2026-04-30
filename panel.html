@@ -252,13 +252,38 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .s-rank-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 0.5px solid #f5f5f5; }
 .s-rank-row:last-child { border-bottom: none; }
 .s-rank-pos { font-size: 13px; font-weight: 700; color: #bbb; min-width: 26px; }
-.s-rank-name { flex: 1; font-size: 13px; font-weight: 500; }
-.s-rank-bar { flex: 2; }
-.s-rank-track { background: #f0f0f0; border-radius: 3px; height: 5px; overflow: hidden; }
-.s-rank-fill { height: 100%; background: #111; border-radius: 3px; transition: width 0.6s; }
-.s-rank-count { font-size: 14px; font-weight: 700; min-width: 30px; text-align: right; }
-.s-loading { text-align: center; padding: 40px; color: #bbb; font-size: 13px; }
-.s-spinner { width: 28px; height: 28px; border: 2px solid #eee; border-top-color: #111; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+/* CHART */
+.s-chart-wrap { background:#fff; border-radius:10px; border:1px solid #eee; padding:20px; margin-bottom:24px; }
+.s-chart-bars { display:flex; align-items:flex-end; gap:8px; height:120px; margin-top:16px; }
+.s-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.s-bar-rect { width:100%; background:#111; border-radius:4px 4px 0 0; transition:height 0.6s ease; min-height:2px; }
+.s-bar-rect.empty { background:#f0f0f0; }
+.s-bar-day { font-size:10px; color:#aaa; letter-spacing:1px; text-transform:uppercase; }
+.s-bar-val { font-size:11px; font-weight:600; color:#111; }
+
+/* HISTORIAL */
+.hist-panel { display:none; padding:24px; }
+.hist-panel.active { display:block; }
+.hist-search-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.hist-search-input {
+  flex:1; min-width:180px; border:1px solid #ddd; border-radius:6px;
+  padding:9px 14px; font-family:'DM Sans',sans-serif; font-size:14px; outline:none;
+}
+.hist-search-input:focus { border-color:#111; }
+.hist-date-input { border:1px solid #ddd; border-radius:6px; padding:8px 10px; font-family:'DM Sans',sans-serif; font-size:13px; outline:none; }
+.hist-btn { padding:9px 18px; background:#111; color:#fff; border:none; border-radius:6px; font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; }
+.hist-table-wrap { background:#fff; border-radius:10px; border:1px solid #eee; overflow:hidden; }
+.hist-table { width:100%; border-collapse:collapse; }
+.hist-table th { background:#f5f5f3; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#aaa; padding:12px 16px; text-align:left; font-weight:500; }
+.hist-table td { padding:12px 16px; border-top:0.5px solid #f0f0f0; font-size:13px; vertical-align:top; }
+.hist-table tr:hover td { background:#fafafa; }
+.hist-items { font-size:12px; color:#aaa; line-height:1.6; }
+.hist-badge { font-size:10px; padding:2px 8px; border-radius:20px; letter-spacing:1px; }
+.hist-manual { background:#fff7ed; color:#c2410c; }
+.hist-qr { background:#f0fdf4; color:#065f46; }
+.hist-empty { text-align:center; padding:40px; color:#bbb; font-size:14px; }
+.hist-total-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.hist-count { font-size:12px; color:#aaa; }
 </style>
 </head>
 <body>
@@ -274,6 +299,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <div style="display:flex;gap:6px;">
       <button id="tab-pedidos" onclick="switchTab('pedidos')" style="background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">🫔 PEDIDOS</button>
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
+      <button id="tab-hist" onclick="switchTab('hist')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 HISTORIAL</button>
     </div>
     <div class="counter-badge" id="badge-count">0 pedidos</div>
   </div>
@@ -332,10 +358,44 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <div class="s-loading" id="s-loading"><div class="s-spinner"></div>Cargando...</div>
   <div id="s-content" style="display:none;">
     <div class="s-counters" id="s-counters"></div>
+    <div class="s-section-title">📊 Ventas por día de la semana</div>
+    <div class="s-chart-wrap">
+      <div class="s-chart-bars" id="s-chart-bars"></div>
+    </div>
     <div class="s-section-title">Comparativa</div>
     <div class="s-compare-grid" id="s-compare"></div>
     <div class="s-section-title">🏆 Ranking empanadas</div>
     <div class="s-ranking" id="s-ranking"></div>
+  </div>
+</div>
+
+<!-- HISTORIAL PANEL -->
+<div class="hist-panel" id="hist-panel">
+  <div class="hist-search-bar">
+    <input class="hist-search-input" id="hist-search" type="text" placeholder="Buscar por nombre cliente..." oninput="histFilter()"/>
+    <input type="date" class="hist-date-input" id="hist-from"/>
+    <input type="date" class="hist-date-input" id="hist-to"/>
+    <button class="hist-btn" onclick="histLoad()">Buscar</button>
+    <button class="hist-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="histReset()">Reset</button>
+  </div>
+  <div class="hist-total-row">
+    <div class="s-section-title" style="margin:0;">Historial de pedidos</div>
+    <div class="hist-count" id="hist-count"></div>
+  </div>
+  <div class="hist-table-wrap">
+    <table class="hist-table">
+      <thead>
+        <tr>
+          <th>Hora</th>
+          <th>Cliente</th>
+          <th>Items</th>
+          <th>Emp.</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="hist-tbody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -826,18 +886,22 @@ document.getElementById('modal-overlay').addEventListener('click', function(e) {
 });
 
 // ── TAB SWITCHING ──
+const tabStyles = {
+  active: 'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',
+  inactive: 'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'
+};
+
 window.switchTab = function(tab) {
-  const isPedidos = tab === 'pedidos';
-  document.getElementById('tab-pedidos').style.cssText = isPedidos
-    ? 'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;'
-    : 'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;';
-  document.getElementById('tab-stats').style.cssText = !isPedidos
-    ? 'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;'
-    : 'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;';
-  document.getElementById('main').style.display = isPedidos ? 'block' : 'none';
-  document.getElementById('stats-panel').style.display = !isPedidos ? 'block' : 'none';
-  document.getElementById('header-sub').textContent = isPedidos ? 'Panel en tiempo real' : 'Dashboard ventas';
-  if (!isPedidos) sLoadData();
+  ['pedidos','stats','hist'].forEach(t => {
+    document.getElementById('tab-'+t).style.cssText = t===tab ? tabStyles.active : tabStyles.inactive;
+  });
+  document.getElementById('main').style.display = tab==='pedidos' ? 'block' : 'none';
+  document.getElementById('stats-panel').style.display = tab==='stats' ? 'block' : 'none';
+  document.getElementById('hist-panel').style.display = tab==='hist' ? 'block' : 'none';
+  const subs = { pedidos:'Panel en tiempo real', stats:'Dashboard ventas', hist:'Historial pedidos' };
+  document.getElementById('header-sub').textContent = subs[tab];
+  if (tab==='stats') sLoadData();
+  if (tab==='hist') histLoad();
 };
 
 // ── STATS FUNCTIONS ──
@@ -958,6 +1022,24 @@ async function sLoadData() {
         <span class="s-rank-count">${c}</span>
       </div>`).join('');
 
+  // ── CHART — ventas por día de la semana ──
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dayCounts = [0,0,0,0,0,0,0];
+  orders.forEach(o => {
+    if (o.timestamp) {
+      const d = o.timestamp.toDate().getDay();
+      dayCounts[d] += (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a, 0);
+    }
+  });
+  const maxDay = Math.max(...dayCounts, 1);
+  document.getElementById('s-chart-bars').innerHTML = days.map((day, i) => `
+    <div class="s-bar-col">
+      <div class="s-bar-val">${dayCounts[i]||''}</div>
+      <div class="s-bar-rect ${dayCounts[i]===0?'empty':''}" style="height:${Math.round(dayCounts[i]/maxDay*100)}px"></div>
+      <div class="s-bar-day">${day}</div>
+    </div>
+  `).join('');
+
   document.getElementById('s-loading').style.display = 'none';
   document.getElementById('s-content').style.display = 'block';
 }
@@ -983,6 +1065,69 @@ window.sApplyRange = function() {
 const sToday = new Date().toISOString().split('T')[0];
 document.getElementById('s-date-from').value = sToday;
 document.getElementById('s-date-to').value = sToday;
+
+// ── HISTORIAL ──
+let histAllOrders = [];
+
+window.histLoad = async function() {
+  const from = document.getElementById('hist-from').value;
+  const to = document.getElementById('hist-to').value;
+  let fromDate = from ? new Date(from+'T00:00:00') : new Date('2024-01-01');
+  let toDate = to ? new Date(to+'T23:59:59') : new Date();
+
+  const q = query(
+    collection(db, 'pedidos'),
+    where('timestamp', '>=', Timestamp.fromDate(fromDate)),
+    where('timestamp', '<=', Timestamp.fromDate(toDate)),
+    orderBy('timestamp', 'desc')
+  );
+  const snap = await getDocs(q);
+  histAllOrders = snap.docs.map(d => ({id:d.id,...d.data()}));
+  histRender(histAllOrders);
+};
+
+window.histFilter = function() {
+  const q = document.getElementById('hist-search').value.toLowerCase().trim();
+  if (!q) { histRender(histAllOrders); return; }
+  histRender(histAllOrders.filter(o => (o.cliente||'').toLowerCase().includes(q)));
+};
+
+window.histReset = function() {
+  document.getElementById('hist-search').value = '';
+  document.getElementById('hist-from').value = '';
+  document.getElementById('hist-to').value = '';
+  histAllOrders = [];
+  histRender([]);
+};
+
+function histRender(list) {
+  document.getElementById('hist-count').textContent = list.length + ' pedidos';
+  if (list.length === 0) {
+    document.getElementById('hist-tbody').innerHTML = `<tr><td colspan="6" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;
+    return;
+  }
+  document.getElementById('hist-tbody').innerHTML = list.map(o => {
+    const ts = o.timestamp ? o.timestamp.toDate() : null;
+    const hora = ts ? ts.toLocaleString('it-IT', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const empCount = (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a, 0);
+    const itemsStr = (o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ');
+    const tipo = o.manual ? '<span class="hist-badge hist-manual">Manual</span>' : '<span class="hist-badge hist-qr">QR</span>';
+    const estado = o.estado === 'completado' ? '✅' : o.estado === 'en-preparacion' ? '🔵' : '🟡';
+    return `<tr>
+      <td style="white-space:nowrap;color:#888;">${hora}</td>
+      <td style="font-weight:600;">${o.cliente||'—'}</td>
+      <td><div class="hist-items">${itemsStr}</div></td>
+      <td style="font-weight:700;text-align:center;">${empCount}</td>
+      <td>${tipo}</td>
+      <td style="text-align:center;">${estado}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Init historial dates
+const histToday = new Date().toISOString().split('T')[0];
+document.getElementById('hist-from').value = histToday;
+document.getElementById('hist-to').value = histToday;
 </script>
 </body>
 </html>
