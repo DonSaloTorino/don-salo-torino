@@ -477,7 +477,7 @@ onSnapshot(q, (snapshot) => {
 
   toAutoPrint.forEach(({ order, ref }) => {
     playAlert();
-    setTimeout(() => autoPrintOrder(order), 500);
+    // La app Android imprime — el panel web solo alerta con sonido
   });
 
   renderOrders();
