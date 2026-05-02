@@ -404,9 +404,10 @@ function totalUnidades() {
 
 function updateBottomBar() {
   const total = totalUnidades();
-  const empTotal = Object.values(qtys).reduce((a,b) => a+b, 0);
+  // Solo suma IDs numéricos de empanadas
+  const empTotal = EMPANADAS.reduce((a, e) => a + (qtys[e.id] || 0), 0);
 
-  // Update header empanada counter — solo empanadas
+  // Update header empanada counter
   const counter = document.getElementById('header-emp-count');
   if (counter) counter.textContent = empTotal;
 
