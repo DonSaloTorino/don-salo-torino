@@ -164,7 +164,19 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 }
 .date-input-hidden { display: none; }
 
-/* SPINNER */
+/* COUNTER IN HEADER */
+.header-counter {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; justify-content: center;
+}
+.header-counter-label {
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  opacity: 0.5; color: #fff;
+}
+.header-counter-num {
+  font-size: 22px; font-weight: 700; color: #fff;
+  min-width: 32px; text-align: center;
+}
 .spinner-overlay {
   position: fixed; inset: 0; background: rgba(255,255,255,0.85);
   display: none; align-items: center; justify-content: center;
@@ -195,6 +207,10 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     <div class="brand">EMPANADAS</div>
     <div class="brand-sub">DON SALO</div>
     <div class="sub">Torino</div>
+    <div class="header-counter">
+      <span class="header-counter-label">Totale empanadas</span>
+      <span class="header-counter-num" id="header-emp-count">0</span>
+    </div>
   </div>
 
   <div class="nombre-section">
@@ -388,6 +404,11 @@ function totalUnidades() {
 
 function updateBottomBar() {
   const total = totalUnidades();
+  const empTotal = Object.values(qtys).reduce((a,b) => a+b, 0);
+
+  // Update header empanada counter
+  document.getElementById('header-emp-count').textContent = empTotal;
+
   if (total > 0) {
     document.getElementById('cart-info-label').textContent =
       total + (total === 1 ? ' articolo selezionato' : ' articoli selezionati');
