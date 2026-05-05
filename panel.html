@@ -168,17 +168,28 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .modal {
   background: #fff; border-radius: 14px;
   width: 90%; max-width: 560px; max-height: 85vh;
-  overflow-y: auto; padding: 28px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
-.modal-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; font-family: 'Playfair Display', serif; }
+.modal-header-fixed {
+  padding: 28px 28px 0 28px; flex-shrink: 0;
+}
+.modal-body-scroll {
+  flex: 1; overflow-y: auto; padding: 0 28px;
+}
+.modal-footer-fixed {
+  padding: 16px 28px 24px 28px; flex-shrink: 0;
+  border-top: 1px solid #f0f0f0; background: #fff;
+}
+.modal-title { font-size: 20px; font-weight: 600; font-family: 'Playfair Display', serif; }
 .modal-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
 .modal-input {
   width: 100%; border: 1px solid #ddd; border-radius: 6px;
   padding: 10px 14px; font-size: 15px; font-family: 'DM Sans', sans-serif;
-  margin-bottom: 20px; outline: none;
+  margin-bottom: 16px; outline: none;
 }
 .modal-input:focus { border-color: #111; }
-.modal-emp-list { margin-bottom: 24px; }
+.modal-emp-list { margin-bottom: 12px; }
 .modal-emp-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 0; border-bottom: 0.5px solid #eee;
@@ -412,21 +423,34 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 <!-- MODAL Pedido Manual -->
 <div class="modal-overlay no-print" id="modal-overlay">
   <div class="modal">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div class="modal-title" style="margin-bottom:0;">🫔 Pedido Manual</div>
-      <div style="background:#111;color:#fff;border-radius:8px;padding:6px 14px;text-align:center;">
-        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;opacity:0.6;">Empanadas</div>
-        <div style="font-size:22px;font-weight:700;" id="modal-emp-counter">0</div>
+
+    <!-- HEADER FIJO -->
+    <div class="modal-header-fixed">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div class="modal-title">🫔 Pedido Manual</div>
+        <div style="background:#111;color:#fff;border-radius:8px;padding:6px 14px;text-align:center;">
+          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;opacity:0.6;">Empanadas</div>
+          <div style="font-size:22px;font-weight:700;" id="modal-emp-counter">0</div>
+        </div>
+      </div>
+      <label class="modal-label">Nombre del cliente</label>
+      <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco..." autocomplete="off"/>
+      <label class="modal-label">Empanadas</label>
+    </div>
+
+    <!-- LISTA SCROLLEABLE -->
+    <div class="modal-body-scroll">
+      <div class="modal-emp-list" id="modal-emp-list"></div>
+    </div>
+
+    <!-- BOTONES FIJOS -->
+    <div class="modal-footer-fixed">
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+        <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar Pedido →</button>
       </div>
     </div>
-    <label class="modal-label">Nombre del cliente</label>
-    <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco..." autocomplete="off"/>
-    <label class="modal-label">Empanadas</label>
-    <div class="modal-emp-list" id="modal-emp-list"></div>
-    <div class="modal-actions">
-      <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar Pedido →</button>
-    </div>
+
   </div>
 </div>
 
@@ -457,7 +481,6 @@ window.setFilter = function(estado) {
   } else {
     activeFilter = estado;
   }
-  // Update active styles
   ['filter-nuevo', 'filter-prep', 'filter-comp'].forEach(id => {
     document.getElementById(id)?.classList.remove('active-filter');
   });
@@ -467,7 +490,6 @@ window.setFilter = function(estado) {
   renderOrders();
 };
 
-// Audio alert for new orders
 function playAlert() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -485,7 +507,6 @@ function playAlert() {
   } catch(e) {}
 }
 
-// Auto print via popup window
 function autoPrintOrder(order) {
   const ahora = new Date();
   const win = window.open('', '_blank', 'width=400,height:500');
@@ -516,7 +537,6 @@ function autoPrintOrder(order) {
   setTimeout(() => { win.print(); win.close(); }, 800);
 }
 
-// Listen only to today's orders
 const startOfDay = new Date();
 startOfDay.setHours(0,0,0,0);
 
@@ -550,7 +570,6 @@ onSnapshot(q, (snapshot) => {
 
   toAutoPrint.forEach(({ order, ref }) => {
     playAlert();
-    // La app Android imprime — el panel web solo alerta con sonido
   });
 
   renderOrders();
@@ -581,7 +600,6 @@ function renderOrders() {
   const grid = document.getElementById('orders-grid');
   const empty = document.getElementById('empty-state');
 
-  // Apply filter
   const displayed = activeFilter
     ? orders.filter(o => o.estado === activeFilter)
     : orders;
@@ -650,7 +668,6 @@ function updateStats() {
   const prep = orders.filter(o => o.estado === 'en-preparacion').length;
   const comp = orders.filter(o => o.estado === 'completado').length;
 
-  // Solo contar empanadas (no bebidas)
   let totalEmp = 0;
   orders.forEach(o => {
     (o.items || []).forEach(item => {
@@ -763,7 +780,7 @@ window.closeModal = function() {
 
 function renderModalList() {
   const list = document.getElementById('modal-emp-list');
-  let html = '<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:4px 0 8px;">Empanadas</div>';
+  let html = '';
   html += EMPANADAS_MANUAL.map(e => `
     <div class="modal-emp-row">
       <span class="modal-emp-name">${e.nombre}${e.curcuma ? '<span class="modal-curcuma-badge">✦</span>' : ''}</span>
@@ -775,7 +792,6 @@ function renderModalList() {
     </div>
   `).join('');
 
-  // Bebidas por categoría
   const cats = ['Acqua','Gassate','Birra'];
   cats.forEach(cat => {
     html += `<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:12px 0 6px;">🥤 ${cat}</div>`;
@@ -798,7 +814,6 @@ window.changeManualQty = function(id, delta) {
   manualQtys[id] = Math.max(0, manualQtys[id] + delta);
   const el = document.getElementById('mq-' + id);
   if (el) el.textContent = manualQtys[id];
-  // Update empanada counter
   const total = Object.values(manualQtys).reduce((a,b) => a+b, 0);
   const counter = document.getElementById('modal-emp-counter');
   if (counter) counter.textContent = total;
@@ -819,11 +834,9 @@ window.editOrder = function(id) {
 
   editingOrderId = id;
 
-  // Reset all qtys
   EMPANADAS_MANUAL.forEach(e => manualQtys[e.id] = 0);
   BEBIDAS_MANUAL.forEach(b => manualBQtys[b.id] = 0);
 
-  // Load existing items
   (order.items || []).forEach(item => {
     if (!item.tipo || item.tipo === 'empanada') {
       const emp = EMPANADAS_MANUAL.find(e => e.nombre === item.nombre);
@@ -831,7 +844,6 @@ window.editOrder = function(id) {
     } else if (item.tipo === 'bebida') {
       const beb = BEBIDAS_MANUAL.find(b => b.nombre === item.nombre.replace(/^[^\s]+ /, ''));
       if (beb) manualBQtys[beb.id] = item.cantidad || 0;
-      // Try direct match too
       const beb2 = BEBIDAS_MANUAL.find(b => item.nombre.includes(b.nombre.replace(/^[^\s]+ /,'')));
       if (beb2 && !beb) manualBQtys[beb2.id] = item.cantidad || 0;
     }
@@ -868,7 +880,6 @@ window.confirmarManual = async function() {
 
   try {
     if (editingOrderId) {
-      // UPDATE existing order — reset to 'nuevo' so Android app reprints
       await updateDoc(doc(db, 'pedidos', editingOrderId), {
         cliente: nombre,
         items: items,
@@ -877,7 +888,6 @@ window.confirmarManual = async function() {
         modificado: true,
       });
     } else {
-      // NEW order
       await addDoc(collection(db, 'pedidos'), {
         cliente: nombre,
         items: items,
@@ -899,7 +909,6 @@ window.confirmarManual = async function() {
   }
 };
 
-// Close modal clicking outside
 document.getElementById('modal-overlay').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
@@ -1041,7 +1050,6 @@ async function sLoadData() {
         <span class="s-rank-count">${c}</span>
       </div>`).join('');
 
-  // ── CHART — ventas por día de la semana ──
   const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const dayCounts = [0,0,0,0,0,0,0];
   orders.forEach(o => {
@@ -1143,7 +1151,6 @@ function histRender(list) {
   }).join('');
 }
 
-// Init historial dates
 const histToday = new Date().toISOString().split('T')[0];
 document.getElementById('hist-from').value = histToday;
 document.getElementById('hist-to').value = histToday;
