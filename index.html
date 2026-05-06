@@ -54,6 +54,18 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 .emp-name { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 3px; letter-spacing: 0.3px; }
 .emp-desc { font-size: 14px; color: #aaa; line-height: 1.5; }
 
+/* NON DISPONIBILE */
+.empanada-nodisponible { background: #fafafa; }
+.emp-name-nodisponible { color: #ccc; text-decoration: line-through; font-size: 18px; font-weight: 600; margin-bottom: 3px; }
+.emp-desc-nodisponible { font-size: 14px; color: #ddd; line-height: 1.5; }
+.nodisponibile-badge {
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  background: #f5f0e0; color: #c09040;
+  padding: 5px 10px; border-radius: 20px;
+  text-align: center; flex-shrink: 0; white-space: nowrap;
+  line-height: 1.4;
+}
+
 .qty-control { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .qty-btn {
   width: 36px; height: 36px; border-radius: 50%;
@@ -93,10 +105,10 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   margin-bottom: 2px;
 }
 
-/* SPACER para que el contenido no quede tapado por el botón fijo */
+/* SPACER */
 .bottom-spacer { height: 110px; }
 
-/* BOTTOM BAR — siempre fijo abajo */
+/* BOTTOM BAR */
 .bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: #fff; border-top: 1px solid #eee;
@@ -137,6 +149,24 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   border: 1px solid #ddd; padding: 14px;
   font-family: 'DM Sans', sans-serif; font-size: 16px;
   border-radius: 8px; cursor: pointer; letter-spacing: 1px;
+}
+
+/* NUMERO BOX — para clientes sin nombre */
+.success-numero-box {
+  background: #111; color: #fff;
+  border-radius: 14px; padding: 24px 36px;
+  margin: 8px 0 24px; text-align: center; width: 100%;
+}
+.success-numero-label {
+  font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+  opacity: 0.5; margin-bottom: 8px;
+}
+.success-numero-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 72px; font-weight: 700; line-height: 1;
+}
+.success-numero-hint {
+  font-size: 14px; opacity: 0.55; margin-top: 10px; line-height: 1.5;
 }
 
 /* DATE SECTION */
@@ -214,8 +244,8 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   </div>
 
   <div class="nombre-section">
-    <label>Il tuo nome</label>
-    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco..." autocomplete="off"/>
+    <label>Il tuo nome (opzionale)</label>
+    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco... (puoi lasciare vuoto)" autocomplete="off"/>
   </div>
 
   <div class="date-section">
@@ -253,6 +283,12 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     <div class="success-icon">✅</div>
     <div class="success-title">Ordine Ricevuto!</div>
     <div class="success-name" id="suc-nombre"></div>
+    <!-- Numero box: solo visible para clientes sin nombre -->
+    <div class="success-numero-box" id="suc-numero-box" style="display:none;">
+      <div class="success-numero-label">Il tuo numero è</div>
+      <div class="success-numero-val" id="suc-numero-val"></div>
+      <div class="success-numero-hint">Ricordalo per ritirare il tuo ordine</div>
+    </div>
     <div class="success-sub">Il tuo ordine è stato inviato.<br>Lo prepariamo subito per te!</div>
     <div class="success-items" id="suc-items"></div>
     <button class="nuevo-btn" onclick="nuevoPedido()">+ Nuovo ordine</button>
@@ -262,7 +298,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
@@ -286,28 +322,25 @@ const EMPANADAS = [
   { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false },
   { id:9,  nombre:'CHESE BURGER',           desc:'Burger, Formaggio Cheddar, Sale, Pepe, Spezie',                                       curcuma:false },
   { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false },
-  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false },
+  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false, nonDisponibile:true },
   { id:12, nombre:'POLLO — CURCUMA',        desc:'Pollo, Cipolla, Peperoni, Vino Bianco, Sale, Pepe · Impasto Speciale Alla Curcuma',   curcuma:true  },
 ];
 
 const BEBIDAS = [
-  // Acqua
-  { id:'b1', nombre:'ACQUA NATURALE',    cat:'acqua',   emoji:'💧' },
-  { id:'b2', nombre:'ACQUA FRIZZANTE',   cat:'acqua',   emoji:'💧' },
-  // Gassate
-  { id:'b3', nombre:'COCA COLA',         cat:'gassata',  emoji:'🥤' },
-  { id:'b4', nombre:'COCA COLA ZERO',    cat:'gassata',  emoji:'🥤' },
-  { id:'b5', nombre:'7UP',               cat:'gassata',  emoji:'🥤' },
-  { id:'b6', nombre:'FANTA',             cat:'gassata',  emoji:'🥤' },
-  { id:'b7', nombre:'THÈ LIMONE',        cat:'gassata',  emoji:'🍋' },
-  { id:'b8', nombre:'THÈ PESCA',         cat:'gassata',  emoji:'🍑' },
-  // Birra
-  { id:'b9',  nombre:'QUILMES 🇦🇷',      cat:'birra',   emoji:'🍺' },
-  { id:'b10', nombre:'MORETTI',          cat:'birra',   emoji:'🍺' },
-  { id:'b11', nombre:'PERONI',           cat:'birra',   emoji:'🍺' },
-  { id:'b12', nombre:'CORONA',           cat:'birra',   emoji:'🍺' },
-  { id:'b13', nombre:'HEINEKEN',         cat:'birra',   emoji:'🍺' },
-  { id:'b14', nombre:'ICHNUSA',          cat:'birra',   emoji:'🍺' },
+  { id:'b1',  nombre:'ACQUA NATURALE',  cat:'acqua',   emoji:'💧' },
+  { id:'b2',  nombre:'ACQUA FRIZZANTE', cat:'acqua',   emoji:'💧' },
+  { id:'b3',  nombre:'COCA COLA',       cat:'gassata', emoji:'🥤' },
+  { id:'b4',  nombre:'COCA COLA ZERO',  cat:'gassata', emoji:'🥤' },
+  { id:'b5',  nombre:'7UP',             cat:'gassata', emoji:'🥤' },
+  { id:'b6',  nombre:'FANTA',           cat:'gassata', emoji:'🥤' },
+  { id:'b7',  nombre:'THÈ LIMONE',      cat:'gassata', emoji:'🍋' },
+  { id:'b8',  nombre:'THÈ PESCA',       cat:'gassata', emoji:'🍑' },
+  { id:'b9',  nombre:'QUILMES 🇦🇷',     cat:'birra',   emoji:'🍺' },
+  { id:'b10', nombre:'MORETTI',         cat:'birra',   emoji:'🍺' },
+  { id:'b11', nombre:'PERONI',          cat:'birra',   emoji:'🍺' },
+  { id:'b12', nombre:'CORONA',          cat:'birra',   emoji:'🍺' },
+  { id:'b13', nombre:'HEINEKEN',        cat:'birra',   emoji:'🍺' },
+  { id:'b14', nombre:'ICHNUSA',         cat:'birra',   emoji:'🍺' },
 ];
 
 let qtys = {};
@@ -328,9 +361,9 @@ function renderMenu() {
   // BEBIDAS
   html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
   const cats = [
-    { key:'acqua',  label:'Acqua' },
+    { key:'acqua',   label:'Acqua'   },
     { key:'gassata', label:'Gassate' },
-    { key:'birra',  label:'Birra' },
+    { key:'birra',   label:'Birra'   },
   ];
   cats.forEach(cat => {
     html += `<div class="beb-cat-title">${cat.label}</div>`;
@@ -340,6 +373,33 @@ function renderMenu() {
   list.innerHTML = html;
   attachHandlers();
   attachBebHandlers();
+}
+
+function cardHTML(e) {
+  // Non disponibile: sin botones, texto tachado, badge naranja
+  if (e.nonDisponibile) {
+    return `
+    <div class="empanada-card empanada-nodisponible" id="card-${e.id}">
+      <div class="emp-info">
+        <div class="emp-name-nodisponible">${e.nombre}</div>
+        <div class="emp-desc-nodisponible">${e.desc}</div>
+      </div>
+      <div class="nodisponibile-badge">Momentaneamente<br>non disponibile</div>
+    </div>`;
+  }
+  return `
+    <div class="empanada-card" id="card-${e.id}">
+      <div class="emp-info">
+        ${e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}
+        <div class="emp-name">${e.nombre}</div>
+        <div class="emp-desc">${e.desc}</div>
+      </div>
+      <div class="qty-control">
+        <button class="qty-btn" data-id="${e.id}" data-action="minus">−</button>
+        <div class="qty-num" id="qty-${e.id}">0</div>
+        <button class="qty-btn" data-id="${e.id}" data-action="plus">+</button>
+      </div>
+    </div>`;
 }
 
 function bebCardHTML(b) {
@@ -356,6 +416,18 @@ function bebCardHTML(b) {
     </div>`;
 }
 
+function attachHandlers() {
+  document.querySelectorAll('.qty-btn[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id);
+      if (btn.dataset.action === 'plus') qtys[id]++;
+      if (btn.dataset.action === 'minus' && qtys[id] > 0) qtys[id]--;
+      document.getElementById('qty-' + id).textContent = qtys[id];
+      updateBottomBar();
+    });
+  });
+}
+
 function attachBebHandlers() {
   document.querySelectorAll('.qty-btn[data-bid]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -363,34 +435,6 @@ function attachBebHandlers() {
       if (btn.dataset.action === 'plus') bQtys[id]++;
       if (btn.dataset.action === 'minus' && bQtys[id] > 0) bQtys[id]--;
       document.getElementById('bqty-' + id).textContent = bQtys[id];
-      updateBottomBar();
-    });
-  });
-}
-
-function cardHTML(e) {
-  return `
-    <div class="empanada-card" id="card-${e.id}">
-      <div class="emp-info">
-        ${e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}
-        <div class="emp-name">${e.nombre}</div>
-        <div class="emp-desc">${e.desc}</div>
-      </div>
-      <div class="qty-control">
-        <button class="qty-btn" data-id="${e.id}" data-action="minus">−</button>
-        <div class="qty-num" id="qty-${e.id}">0</div>
-        <button class="qty-btn" data-id="${e.id}" data-action="plus">+</button>
-      </div>
-    </div>`;
-}
-
-function attachHandlers() {
-  document.querySelectorAll('.qty-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = parseInt(btn.dataset.id);
-      if (btn.dataset.action === 'plus') qtys[id]++;
-      if (btn.dataset.action === 'minus' && qtys[id] > 0) qtys[id]--;
-      document.getElementById('qty-' + id).textContent = qtys[id];
       updateBottomBar();
     });
   });
@@ -404,10 +448,7 @@ function totalUnidades() {
 
 function updateBottomBar() {
   const total = totalUnidades();
-  // Solo suma IDs numéricos de empanadas
   const empTotal = EMPANADAS.reduce((a, e) => a + (qtys[e.id] || 0), 0);
-
-  // Update header empanada counter
   const counter = document.getElementById('header-emp-count');
   if (counter) counter.textContent = empTotal;
 
@@ -422,7 +463,9 @@ function updateBottomBar() {
 }
 
 window.confirmarPedido = async function() {
-  const nombre = document.getElementById('nombre-input').value.trim() || 'Anonimo';
+  let nombre = document.getElementById('nombre-input').value.trim();
+  let isAutoNumber = false;
+
   const empItems = EMPANADAS
     .filter(e => qtys[e.id] > 0)
     .map(e => ({ nombre: e.nombre, cantidad: qtys[e.id], curcuma: e.curcuma, tipo: 'empanada' }));
@@ -432,7 +475,6 @@ window.confirmarPedido = async function() {
   const items = [...empItems, ...bebItems];
 
   if (items.length === 0) {
-    // Show error message in Italian
     const label = document.getElementById('cart-info-label');
     label.textContent = '⚠️ Non hai selezionato nulla!';
     label.style.color = '#e00';
@@ -448,6 +490,18 @@ window.confirmarPedido = async function() {
   document.getElementById('spinner').classList.add('show');
 
   try {
+    // Si no puso nombre → asignar A1, A2, A3...
+    if (!nombre) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const snap = await getDocs(query(
+        collection(db, 'pedidos'),
+        where('timestamp', '>=', Timestamp.fromDate(startOfDay))
+      ));
+      nombre = 'A' + (snap.size + 1);
+      isAutoNumber = true;
+    }
+
     await addDoc(collection(db, 'pedidos'), {
       cliente: nombre,
       items: items,
@@ -457,8 +511,7 @@ window.confirmarPedido = async function() {
       timestamp: serverTimestamp()
     });
 
-    // Show success screen
-    document.getElementById('suc-nombre').textContent = nombre;
+    // Pantalla de éxito
     let itemsHtml = '';
     items.forEach(i => {
       itemsHtml += `<div class="success-item">
@@ -468,9 +521,20 @@ window.confirmarPedido = async function() {
     });
     document.getElementById('suc-items').innerHTML = itemsHtml;
 
+    if (isAutoNumber) {
+      // Mostrar número grande
+      document.getElementById('suc-nombre').textContent = '';
+      document.getElementById('suc-numero-val').textContent = nombre;
+      document.getElementById('suc-numero-box').style.display = 'block';
+    } else {
+      // Mostrar nombre normal
+      document.getElementById('suc-nombre').textContent = nombre;
+      document.getElementById('suc-numero-box').style.display = 'none';
+    }
+
     document.getElementById('screen-menu').classList.remove('active');
     document.getElementById('screen-success').classList.add('active');
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
 
   } catch(err) {
     alert('Errore nell\'invio dell\'ordine. Riprova.');
@@ -485,16 +549,17 @@ window.nuevoPedido = function() {
   EMPANADAS.forEach(e => qtys[e.id] = 0);
   BEBIDAS.forEach(b => bQtys[b.id] = 0);
   document.getElementById('nombre-input').value = '';
-  document.getElementById('bottom-bar').classList.add('hidden');
   document.getElementById('confirmar-btn').disabled = false;
+  document.getElementById('suc-numero-box').style.display = 'none';
+  document.getElementById('suc-nombre').textContent = '';
   initFecha();
   renderMenu();
   document.getElementById('screen-success').classList.remove('active');
   document.getElementById('screen-menu').classList.add('active');
-  window.scrollTo(0,0);
+  window.scrollTo(0, 0);
 };
 
-// Date picker init
+// Date picker
 function initFecha() {
   const input = document.getElementById('fecha-input');
   const today = new Date();
