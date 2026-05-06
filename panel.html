@@ -78,10 +78,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 /* ══════════════════════════════════════
    MODAL
    .modal            → flex column, altura fija
-   .modal-top        → FIJO: nunca scrollea
-     .modal-top-row  → fila: título | contador | Cancelar | Confirmar
-   .modal-nombre-row → fila: label + input nombre
-   .modal-scroll     → SCROLLEABLE: lista empanadas/bebidas
+   .modal-top        → FIJO: título+contador+botones / nombre / tabs
+   .modal-scroll     → SCROLLEABLE: lista de la categoría activa
    ══════════════════════════════════════ */
 .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;display:none;align-items:center;justify-content:center; }
 .modal-overlay.show { display:flex; }
@@ -100,74 +98,52 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 /* Parte fija arriba */
 .modal-top {
   flex-shrink: 0;
-  padding: 20px 24px 16px;
+  padding: 20px 24px 14px;
   border-bottom: 2px solid #eee;
 }
 
-/* Fila 1: título + contador + botones — todos en línea */
+/* Fila 1: título + contador + botones */
 .modal-top-row {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 14px;
 }
-.modal-title {
-  flex: 1;
-  font-size: 18px;
-  font-weight: 600;
-  font-family: 'Playfair Display', serif;
-}
-.modal-counter-box {
-  background: #111;
-  color: #fff;
-  border-radius: 8px;
-  padding: 6px 12px;
-  text-align: center;
-  flex-shrink: 0;
-}
+.modal-title { flex:1;font-size:18px;font-weight:600;font-family:'Playfair Display',serif; }
+.modal-counter-box { background:#111;color:#fff;border-radius:8px;padding:6px 12px;text-align:center;flex-shrink:0; }
 .modal-counter-label { font-size:9px;letter-spacing:2px;text-transform:uppercase;opacity:0.6; }
 .modal-counter-num { font-size:20px;font-weight:700;line-height:1.2; }
-
-.modal-cancel {
-  flex-shrink: 0;
-  padding: 8px 14px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #fff;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.modal-confirm {
-  flex-shrink: 0;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 8px;
-  background: #111;
-  color: #fff;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  letter-spacing: 0.5px;
-}
+.modal-cancel { flex-shrink:0;padding:8px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;white-space:nowrap; }
+.modal-confirm { flex-shrink:0;padding:8px 14px;border:none;border-radius:8px;background:#111;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;letter-spacing:0.5px; }
 .modal-confirm:hover { background:#333; }
 .modal-confirm:disabled { background:#ccc;cursor:not-allowed; }
 
 /* Fila 2: nombre cliente */
-.modal-nombre-row { display:flex;flex-direction:column; }
-.modal-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;margin-bottom:6px; }
+.modal-nombre-row { display:flex;flex-direction:column;margin-bottom:12px; }
+.modal-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;display:block;margin-bottom:6px; }
 .modal-input { width:100%;border:1px solid #ddd;border-radius:6px;padding:9px 14px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none; }
 .modal-input:focus { border-color:#111; }
 
-/* Parte scrolleable */
-.modal-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 24px 20px;
+/* Fila 3: tabs de categoría */
+.modal-tabs { display:flex;gap:6px;flex-wrap:wrap; }
+.modal-tab-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  background: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #888;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
 }
+.modal-tab-btn:hover { border-color:#111;color:#111; }
+.modal-tab-btn.active { background:#111;color:#fff;border-color:#111; }
+
+/* Parte scrolleable */
+.modal-scroll { flex:1;overflow-y:auto;padding:0 24px 20px; }
 
 .modal-section-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:14px 0 6px; }
 .modal-emp-row { display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #eee; }
@@ -340,19 +316,21 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
 <button class="fab-btn no-print" onclick="openModal()" title="Nuevo pedido manual">+</button>
 
-<!-- ═══════════════════════════════════════════════════
-     MODAL
-     .modal-top → FIJO
-       .modal-top-row → [título][contador][Cancelar][Confirmar] en una línea
-       .modal-nombre-row → [label nombre][input]
-     .modal-scroll → SCROLLEABLE (empanadas y bebidas)
-     ═══════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════
+     MODAL — estructura:
+     .modal-top (FIJO)
+       .modal-top-row  → título | contador | Cancelar | Confirmar
+       .modal-nombre-row → nombre cliente
+       .modal-tabs     → [Empanadas] [Acqua] [Gassate] [Birra]
+     .modal-scroll (SCROLLEABLE) → lista de la categoría activa
+     ═══════════════════════════════════════════════════════ -->
 <div class="modal-overlay no-print" id="modal-overlay">
   <div class="modal">
 
+    <!-- FIJO ARRIBA -->
     <div class="modal-top">
 
-      <!-- FILA 1: título + contador + botones — todo en una línea fija -->
+      <!-- Fila 1: título + contador + botones -->
       <div class="modal-top-row">
         <div class="modal-title" id="modal-title">🫔 Pedido Manual</div>
         <div class="modal-counter-box">
@@ -363,15 +341,23 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar →</button>
       </div>
 
-      <!-- FILA 2: nombre cliente -->
+      <!-- Fila 2: nombre cliente -->
       <div class="modal-nombre-row">
         <label class="modal-label">Nombre del cliente</label>
         <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco..." autocomplete="off"/>
       </div>
 
+      <!-- Fila 3: tabs categoría -->
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" id="mtab-empanadas" onclick="setModalTab('empanadas')">🫔 Empanadas</button>
+        <button class="modal-tab-btn" id="mtab-acqua" onclick="setModalTab('acqua')">💧 Acqua</button>
+        <button class="modal-tab-btn" id="mtab-gassate" onclick="setModalTab('gassate')">🥤 Gassate</button>
+        <button class="modal-tab-btn" id="mtab-birra" onclick="setModalTab('birra')">🍺 Birra</button>
+      </div>
+
     </div>
 
-    <!-- SCROLLEABLE: lista empanadas y bebidas -->
+    <!-- SCROLLEABLE: lista de la categoría seleccionada -->
     <div class="modal-scroll">
       <div id="modal-emp-list"></div>
     </div>
@@ -453,53 +439,117 @@ window.printOrder=function(id){
 
 // ── PEDIDO MANUAL ──
 const EMP=[
-  {id:1,nombre:'CARNE',curcuma:false},{id:2,nombre:'VERDURA',curcuma:false},
-  {id:4,nombre:'CAPRESE',curcuma:false},{id:5,nombre:'PARMIGIANA',curcuma:false},
-  {id:6,nombre:'PROSCIUTTO E FORMAGGIO',curcuma:false},{id:7,nombre:'VACIO (BAVETTA)',curcuma:false},
-  {id:8,nombre:'TONNO E CIPOLLA',curcuma:false},{id:9,nombre:'CHESE BURGER',curcuma:false},
+  {id:1, nombre:'CARNE',curcuma:false},{id:2,nombre:'VERDURA',curcuma:false},
+  {id:4, nombre:'CAPRESE',curcuma:false},{id:5,nombre:'PARMIGIANA',curcuma:false},
+  {id:6, nombre:'PROSCIUTTO E FORMAGGIO',curcuma:false},{id:7,nombre:'VACIO (BAVETTA)',curcuma:false},
+  {id:8, nombre:'TONNO E CIPOLLA',curcuma:false},{id:9,nombre:'CHESE BURGER',curcuma:false},
   {id:10,nombre:'HUMITA',curcuma:false},{id:11,nombre:'FORMAGGIO E CIPOLLA',curcuma:false},
   {id:12,nombre:'POLLO — CURCUMA',curcuma:true},
 ];
 const BEB=[
-  {id:'b1',nombre:'💧 ACQUA NATURALE',cat:'Acqua'},{id:'b2',nombre:'💧 ACQUA FRIZZANTE',cat:'Acqua'},
-  {id:'b3',nombre:'🥤 COCA COLA',cat:'Gassate'},{id:'b4',nombre:'🥤 COCA COLA ZERO',cat:'Gassate'},
-  {id:'b5',nombre:'🥤 7UP',cat:'Gassate'},{id:'b6',nombre:'🥤 FANTA',cat:'Gassate'},
-  {id:'b7',nombre:'🍋 THÈ LIMONE',cat:'Gassate'},{id:'b8',nombre:'🍑 THÈ PESCA',cat:'Gassate'},
-  {id:'b9',nombre:'🍺 QUILMES 🇦🇷',cat:'Birra'},{id:'b10',nombre:'🍺 MORETTI',cat:'Birra'},
-  {id:'b11',nombre:'🍺 PERONI',cat:'Birra'},{id:'b12',nombre:'🍺 CORONA',cat:'Birra'},
-  {id:'b13',nombre:'🍺 HEINEKEN',cat:'Birra'},{id:'b14',nombre:'🍺 ICHNUSA',cat:'Birra'},
+  {id:'b1', nombre:'💧 ACQUA NATURALE', cat:'acqua'},
+  {id:'b2', nombre:'💧 ACQUA FRIZZANTE',cat:'acqua'},
+  {id:'b3', nombre:'🥤 COCA COLA',      cat:'gassate'},
+  {id:'b4', nombre:'🥤 COCA COLA ZERO', cat:'gassate'},
+  {id:'b5', nombre:'🥤 7UP',            cat:'gassate'},
+  {id:'b6', nombre:'🥤 FANTA',          cat:'gassate'},
+  {id:'b7', nombre:'🍋 THÈ LIMONE',     cat:'gassate'},
+  {id:'b8', nombre:'🍑 THÈ PESCA',      cat:'gassate'},
+  {id:'b9', nombre:'🍺 QUILMES 🇦🇷',    cat:'birra'},
+  {id:'b10',nombre:'🍺 MORETTI',        cat:'birra'},
+  {id:'b11',nombre:'🍺 PERONI',         cat:'birra'},
+  {id:'b12',nombre:'🍺 CORONA',         cat:'birra'},
+  {id:'b13',nombre:'🍺 HEINEKEN',       cat:'birra'},
+  {id:'b14',nombre:'🍺 ICHNUSA',        cat:'birra'},
 ];
-let eQ={},bQ={};EMP.forEach(e=>eQ[e.id]=0);BEB.forEach(b=>bQ[b.id]=0);
 
-window.openModal=function(){
-  editId=null;EMP.forEach(e=>eQ[e.id]=0);BEB.forEach(b=>bQ[b.id]=0);
+let eQ={}, bQ={};
+EMP.forEach(e=>eQ[e.id]=0);
+BEB.forEach(b=>bQ[b.id]=0);
+
+// Tab activa del modal
+let activeModalTab = 'empanadas';
+
+// Cambia tab → actualiza estilos → re-renderiza lista
+window.setModalTab = function(tab) {
+  activeModalTab = tab;
+  ['empanadas','acqua','gassate','birra'].forEach(t => {
+    const btn = document.getElementById('mtab-' + t);
+    if (btn) btn.className = 'modal-tab-btn' + (t === tab ? ' active' : '');
+  });
+  renderList();
+  // Scroll al inicio de la lista al cambiar tab
+  const scroll = document.querySelector('.modal-scroll');
+  if (scroll) scroll.scrollTop = 0;
+};
+
+window.openModal = function() {
+  editId=null;
+  EMP.forEach(e=>eQ[e.id]=0);
+  BEB.forEach(b=>bQ[b.id]=0);
   document.getElementById('modal-nombre').value='';
   document.getElementById('modal-title').textContent='🫔 Pedido Manual';
   document.getElementById('modal-confirm-btn').textContent='Confirmar →';
   document.getElementById('modal-emp-counter').textContent='0';
+  // Reset tab a Empanadas
+  activeModalTab = 'empanadas';
+  ['empanadas','acqua','gassate','birra'].forEach(t => {
+    const btn = document.getElementById('mtab-' + t);
+    if (btn) btn.className = 'modal-tab-btn' + (t === 'empanadas' ? ' active' : '');
+  });
   renderList();
   document.getElementById('modal-overlay').classList.add('show');
   document.getElementById('modal-nombre').focus();
 };
-window.closeModal=()=>document.getElementById('modal-overlay').classList.remove('show');
 
-function renderList(){
-  let h=`<div class="modal-section-label">Empanadas</div>`;
-  h+=EMP.map(e=>`<div class="modal-emp-row"><span class="modal-emp-name">${e.nombre}${e.curcuma?'<span class="modal-curcuma-badge">✦</span>':''}</span><div class="modal-qty-ctrl"><button class="modal-qty-btn" onclick="chgE(${e.id},-1)">−</button><span class="modal-qty-num" id="eq${e.id}">${eQ[e.id]}</span><button class="modal-qty-btn" onclick="chgE(${e.id},1)">+</button></div></div>`).join('');
-  ['Acqua','Gassate','Birra'].forEach(cat=>{
-    h+=`<div class="modal-section-label">🥤 ${cat}</div>`;
-    h+=BEB.filter(b=>b.cat===cat).map(b=>`<div class="modal-emp-row"><span class="modal-emp-name">${b.nombre}</span><div class="modal-qty-ctrl"><button class="modal-qty-btn" onclick="chgB('${b.id}',-1)">−</button><span class="modal-qty-num" id="bq${b.id}">${bQ[b.id]}</span><button class="modal-qty-btn" onclick="chgB('${b.id}',1)">+</button></div></div>`).join('');
-  });
-  document.getElementById('modal-emp-list').innerHTML=h;
+window.closeModal = () => document.getElementById('modal-overlay').classList.remove('show');
+
+function renderList() {
+  let h = '';
+  if (activeModalTab === 'empanadas') {
+    // Muestra solo empanadas
+    h = EMP.map(e=>`
+      <div class="modal-emp-row">
+        <span class="modal-emp-name">${e.nombre}${e.curcuma?'<span class="modal-curcuma-badge">✦</span>':''}</span>
+        <div class="modal-qty-ctrl">
+          <button class="modal-qty-btn" onclick="chgE(${e.id},-1)">−</button>
+          <span class="modal-qty-num" id="eq${e.id}">${eQ[e.id]}</span>
+          <button class="modal-qty-btn" onclick="chgE(${e.id},1)">+</button>
+        </div>
+      </div>`).join('');
+  } else {
+    // Muestra solo la categoría de bebida seleccionada
+    const filtered = BEB.filter(b => b.cat === activeModalTab);
+    h = filtered.map(b=>`
+      <div class="modal-emp-row">
+        <span class="modal-emp-name">${b.nombre}</span>
+        <div class="modal-qty-ctrl">
+          <button class="modal-qty-btn" onclick="chgB('${b.id}',-1)">−</button>
+          <span class="modal-qty-num" id="bq${b.id}">${bQ[b.id]}</span>
+          <button class="modal-qty-btn" onclick="chgB('${b.id}',1)">+</button>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('modal-emp-list').innerHTML = h;
 }
 
-window.chgE=function(id,d){eQ[id]=Math.max(0,eQ[id]+d);const el=document.getElementById('eq'+id);if(el)el.textContent=eQ[id];document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);};
-window.chgB=function(id,d){bQ[id]=Math.max(0,(bQ[id]||0)+d);const el=document.getElementById('bq'+id);if(el)el.textContent=bQ[id];};
+window.chgE=function(id,d){
+  eQ[id]=Math.max(0,eQ[id]+d);
+  const el=document.getElementById('eq'+id);if(el)el.textContent=eQ[id];
+  // Actualizar contador (solo empanadas)
+  document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);
+};
+window.chgB=function(id,d){
+  bQ[id]=Math.max(0,(bQ[id]||0)+d);
+  const el=document.getElementById('bq'+id);if(el)el.textContent=bQ[id];
+};
 
 let editId=null;
 window.editOrder=function(id){
   const o=orders.find(x=>x.id===id);if(!o)return;
-  editId=id;EMP.forEach(e=>eQ[e.id]=0);BEB.forEach(b=>bQ[b.id]=0);
+  editId=id;
+  EMP.forEach(e=>eQ[e.id]=0);
+  BEB.forEach(b=>bQ[b.id]=0);
   (o.items||[]).forEach(item=>{
     if(!item.tipo||item.tipo==='empanada'){const e=EMP.find(x=>x.nombre===item.nombre);if(e)eQ[e.id]=item.cantidad||0;}
     else{const b=BEB.find(x=>x.nombre===item.nombre)||BEB.find(x=>item.nombre.includes(x.nombre.replace(/^[^\s]+ /,'')));if(b)bQ[b.id]=item.cantidad||0;}
@@ -507,11 +557,21 @@ window.editOrder=function(id){
   document.getElementById('modal-nombre').value=o.cliente||'';
   document.getElementById('modal-title').textContent='✏️ Modificar Pedido';
   document.getElementById('modal-confirm-btn').textContent='Guardar →';
-  renderList();document.getElementById('modal-overlay').classList.add('show');
+  // Actualizar contador con valores cargados
+  document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);
+  // Reset tab a Empanadas al editar
+  activeModalTab='empanadas';
+  ['empanadas','acqua','gassate','birra'].forEach(t=>{
+    const btn=document.getElementById('mtab-'+t);
+    if(btn)btn.className='modal-tab-btn'+(t==='empanadas'?' active':'');
+  });
+  renderList();
+  document.getElementById('modal-overlay').classList.add('show');
 };
 
 window.confirmarManual=async function(){
   const nombre=document.getElementById('modal-nombre').value.trim()||'Mostrador';
+  // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible)
   const ei=EMP.filter(e=>eQ[e.id]>0).map(e=>({nombre:e.nombre,cantidad:eQ[e.id],curcuma:e.curcuma,tipo:'empanada'}));
   const bi=BEB.filter(b=>bQ[b.id]>0).map(b=>({nombre:b.nombre,cantidad:bQ[b.id],curcuma:false,tipo:'bebida'}));
   const items=[...ei,...bi];
@@ -527,7 +587,7 @@ window.confirmarManual=async function(){
 
 document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('modal-overlay'))closeModal();});
 
-// ── TABS ──
+// ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
   ['pedidos','stats','hist'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
