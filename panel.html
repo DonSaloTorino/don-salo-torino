@@ -2,11 +2,11 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Don Salo — Panel Mostrador</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min-height: 100vh; }
 
 .header { background:#111;color:#fff;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; }
@@ -570,7 +570,13 @@ window.editOrder=function(id){
 };
 
 window.confirmarManual=async function(){
-  const nombre=document.getElementById('modal-nombre').value.trim()||'Mostrador';
+  let nombre=document.getElementById('modal-nombre').value.trim();
+  if(!nombre){
+    // Auto-número: contar pedidos manuales de hoy y asignar "Mostrador N"
+    const sodM=new Date();sodM.setHours(0,0,0,0);
+    const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM)),where('manual','==',true)));
+    nombre='Mostrador '+(snapM.size+1);
+  }
   // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible)
   const ei=EMP.filter(e=>eQ[e.id]>0).map(e=>({nombre:e.nombre,cantidad:eQ[e.id],curcuma:e.curcuma,tipo:'empanada'}));
   const bi=BEB.filter(b=>bQ[b.id]>0).map(b=>({nombre:b.nombre,cantidad:bQ[b.id],curcuma:false,tipo:'bebida'}));
