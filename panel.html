@@ -574,7 +574,7 @@ window.confirmarManual=async function(){
   if(!nombre){
     // Auto-número: contar pedidos manuales de hoy y asignar "Mostrador N"
     const sodM=new Date();sodM.setHours(0,0,0,0);
-    const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM)),where('manual','==',true)));
+    const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
     nombre='Mostrador '+(snapM.size+1);
   }
   // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible)
