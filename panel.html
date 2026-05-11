@@ -796,12 +796,16 @@ async function stockLoadAll(){
 function stockCalcBySabor(){
   const res={};
   EMP.forEach(e=>{res[e.nombre]={entrada:0,venta:0,stock:0};});
-  // Procesar en orden cronológico para que el ajuste funcione correctamente
-  const sorted=[...stockAllData].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  // Ordenar por fecha, y si es el mismo día por timestamp real (para que Ajuste de hoy quede después de ventas de hoy)
+  const sorted=[...stockAllData].sort((a,b)=>{
+    const fa=a.fecha||'';const fb=b.fecha||'';
+    if(fa!==fb)return fa.localeCompare(fb);
+    const ta=a.timestamp?.seconds||0;const tb=b.timestamp?.seconds||0;
+    return ta-tb;
+  });
   sorted.forEach(e=>{
     if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
     if(e.tipo==='ajuste'){
-      // Ajuste: resetea el stock a este valor absoluto, ignora historial previo
       res[e.sabor].entrada=e.cantidad||0;
       res[e.sabor].venta=0;
     }else if(e.tipo==='entrada'){
@@ -868,16 +872,25 @@ window.stockResetFilter=function(){
 
 function stockRenderTable(data){
   if(!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="4" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
-  document.getElementById('stock-tbody').innerHTML=data.map(e=>{
-    const badge=e.tipo==='entrada'
+  // Agrupar por fecha + sabor + tipo, sumando cantidades
+  const groups={};
+  data.forEach(e=>{
+    const key=(e.fecha||'—')+'|'+(e.sabor||'—')+'|'+(e.tipo||'—');
+    if(!groups[key])groups[key]={fecha:e.fecha||'—',sabor:e.sabor||'—',tipo:e.tipo||'—',cantidad:0};
+    groups[key].cantidad+=e.cantidad||0;
+  });
+  // Ordenar por fecha desc
+  const rows=Object.values(groups).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  document.getElementById('stock-tbody').innerHTML=rows.map(g=>{
+    const badge=g.tipo==='entrada'
       ?'<span style="color:#065f46;background:#d1fae5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🟢 ENTRADA</span>'
-      :e.tipo==='ajuste'
+      :g.tipo==='ajuste'
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
     return`<tr>
-      <td style="color:#888;white-space:nowrap;">${e.fecha||'—'}</td>
-      <td style="font-weight:500;">${e.sabor||'—'}</td>
-      <td style="font-weight:700;text-align:center;">${e.cantidad||0}</td>
+      <td style="color:#888;white-space:nowrap;">${g.fecha}</td>
+      <td style="font-weight:500;">${g.sabor}</td>
+      <td style="font-weight:700;text-align:center;">${g.cantidad}</td>
       <td>${badge}</td>
     </tr>`;
   }).join('');
