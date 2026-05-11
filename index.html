@@ -313,7 +313,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const EMPANADAS = [
-  { id:1,  nombre:'CARNE',                  desc:'Carne Bovina, Uova, Cipolla, Peperoni, Sale, Pepe',                                   curcuma:false },
+  { id:1,  nombre:'CARNE',                  desc:'Carne Bovina, Uova, Cipolla, Peperoni, Sale, Pepe',                                   curcuma:false, nonDisponibile:true },
   { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false },
   { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false },
   { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false },
