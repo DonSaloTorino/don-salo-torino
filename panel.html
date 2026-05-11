@@ -833,9 +833,9 @@ function stockRenderAlerts(){
 
 function stockRenderChart(){
   const bySabor=stockCalcBySabor();
-  const entries=Object.entries(bySabor).filter(([,v])=>v.entrada>0||v.stock>0);
   const chartDiv=document.getElementById('stock-chart');
-  if(!entries.length){chartDiv.innerHTML='<div style="color:#bbb;text-align:center;padding:20px;">Sin datos de stock todavía</div>';return;}
+  // Mostrar TODOS los sabores, incluso con stock 0
+  const entries=EMP.map(e=>[e.nombre, bySabor[e.nombre]||{stock:0}]);
   const max=Math.max(...entries.map(([,v])=>Math.max(0,v.stock)),1);
   chartDiv.innerHTML=entries.map(([sabor,v])=>{
     const s=Math.max(0,v.stock);
@@ -873,7 +873,7 @@ window.stockResetFilter=function(){
 let stockGroupMap={};
 function stockRenderTable(data){
   if(!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="5" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
-  // Agrupar por fecha + sabor + tipo, sumando cantidades y guardando IDs
+  // Agrupar por fecha + sabor + tipo
   const groups={};
   data.forEach(e=>{
     const key=(e.fecha||'—')+'|'+(e.sabor||'—')+'|'+(e.tipo||'—');
@@ -883,25 +883,53 @@ function stockRenderTable(data){
   });
   stockGroupMap=groups;
   const rows=Object.values(groups).sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  document.getElementById('stock-tbody').innerHTML=rows.map(g=>{
+
+  // Calcular total vendido por fecha
+  const totalVentaByFecha={};
+  rows.forEach(g=>{
+    if(g.tipo==='venta'){
+      totalVentaByFecha[g.fecha]=(totalVentaByFecha[g.fecha]||0)+g.cantidad;
+    }
+  });
+
+  // Construir filas de la tabla
+  let html='';
+  const fechasVistas=new Set();
+  rows.forEach(g=>{
     const badge=g.tipo==='entrada'
       ?'<span style="color:#065f46;background:#d1fae5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🟢 ENTRADA</span>'
       :g.tipo==='ajuste'
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
     const key=g.fecha+'|'+g.sabor+'|'+g.tipo;
+    // ✏️ solo en entrada/ajuste — ✕ nunca en ventas
     const editBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
-      ?`<button onclick="editStockEntry('${key}')" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">✏️</button>`
-      :'';
-    const delBtn=`<button onclick="deleteStockGroup('${key}')" style="padding:4px 10px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>`;
-    return`<tr>
+      ?`<button onclick="editStockEntry('${key}')" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">✏️</button>`:'';
+    const delBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
+      ?`<button onclick="deleteStockGroup('${key}')" style="padding:4px 10px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>`:'';
+    html+=`<tr>
       <td style="color:#888;white-space:nowrap;">${g.fecha}</td>
       <td style="font-weight:500;">${g.sabor}</td>
       <td style="font-weight:700;text-align:center;">${g.cantidad}</td>
       <td>${badge}</td>
       <td style="white-space:nowrap;">${editBtn}${delBtn}</td>
     </tr>`;
-  }).join('');
+    fechasVistas.add(g.fecha);
+  });
+
+  // Fila total vendidas por fecha al final
+  const fechasOrdenadas=[...Object.keys(totalVentaByFecha)].sort((a,b)=>b.localeCompare(a));
+  fechasOrdenadas.forEach(fecha=>{
+    html+=`<tr style="background:#f5f5f3;border-top:2px solid #e0e0e0;">
+      <td style="color:#888;white-space:nowrap;font-weight:600;">${fecha}</td>
+      <td style="font-weight:700;color:#111;letter-spacing:1px;text-transform:uppercase;font-size:12px;">Total Empanadas Vendidas</td>
+      <td style="font-weight:700;text-align:center;font-size:16px;color:#111;">${totalVentaByFecha[fecha]}</td>
+      <td><span style="color:#374151;background:#e5e7eb;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">📊 CIERRE</span></td>
+      <td></td>
+    </tr>`;
+  });
+
+  document.getElementById('stock-tbody').innerHTML=html;
 }
 
 let editingStockId=null;
