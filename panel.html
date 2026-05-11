@@ -446,6 +446,11 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <select class="modal-input" id="stock-modal-sabor" style="cursor:pointer;"></select>
     <label class="modal-label" style="margin-top:12px;">Cantidad</label>
     <input class="modal-input" id="stock-modal-cantidad" type="number" min="1" placeholder="Ej: 50" style="margin-bottom:12px;"/>
+    <label class="modal-label">Tipo</label>
+    <select class="modal-input" id="stock-modal-tipo" style="cursor:pointer;margin-bottom:12px;">
+      <option value="entrada">🟢 Entrada (llega mercadería)</option>
+      <option value="ajuste">⚪ Ajuste (stock actual ahora mismo)</option>
+    </select>
     <label class="modal-label">Fecha</label>
     <input class="modal-input" id="stock-modal-fecha" type="date" style="margin-bottom:20px;"/>
     <div style="display:flex;gap:10px;">
@@ -692,7 +697,7 @@ window.switchTab=function(tab){
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
   document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock'}[tab];
-  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();stockLoadAll();}
+  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();stockSyncToday().then(()=>stockLoadAll());}
 };
 
 // ── STATS ──
@@ -774,8 +779,13 @@ function stockInitFilters(){
 
 async function stockLoadAll(){
   try{
-    const snap=await getDocs(query(collection(db,'stock'),orderBy('timestamp','desc')));
+    const snap=await getDocs(query(collection(db,'stock')));
     stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Ordenar por fecha desc client-side (no requiere índice Firestore)
+    stockAllData.sort((a,b)=>{
+      if(a.fecha&&b.fecha)return b.fecha.localeCompare(a.fecha);
+      return 0;
+    });
     stockRenderTotal();
     stockRenderAlerts();
     stockRenderChart();
@@ -786,10 +796,19 @@ async function stockLoadAll(){
 function stockCalcBySabor(){
   const res={};
   EMP.forEach(e=>{res[e.nombre]={entrada:0,venta:0,stock:0};});
-  stockAllData.forEach(e=>{
+  // Procesar en orden cronológico para que el ajuste funcione correctamente
+  const sorted=[...stockAllData].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  sorted.forEach(e=>{
     if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
-    if(e.tipo==='entrada')res[e.sabor].entrada+=e.cantidad||0;
-    if(e.tipo==='venta')res[e.sabor].venta+=e.cantidad||0;
+    if(e.tipo==='ajuste'){
+      // Ajuste: resetea el stock a este valor absoluto, ignora historial previo
+      res[e.sabor].entrada=e.cantidad||0;
+      res[e.sabor].venta=0;
+    }else if(e.tipo==='entrada'){
+      res[e.sabor].entrada+=e.cantidad||0;
+    }else if(e.tipo==='venta'){
+      res[e.sabor].venta+=e.cantidad||0;
+    }
     res[e.sabor].stock=res[e.sabor].entrada-res[e.sabor].venta;
   });
   return res;
@@ -852,6 +871,8 @@ function stockRenderTable(data){
   document.getElementById('stock-tbody').innerHTML=data.map(e=>{
     const badge=e.tipo==='entrada'
       ?'<span style="color:#065f46;background:#d1fae5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🟢 ENTRADA</span>'
+      :e.tipo==='ajuste'
+      ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
     return`<tr>
       <td style="color:#888;white-space:nowrap;">${e.fecha||'—'}</td>
@@ -878,18 +899,45 @@ window.guardarStock=async function(){
   const sabor=document.getElementById('stock-modal-sabor').value;
   const cantidad=parseInt(document.getElementById('stock-modal-cantidad').value);
   const fecha=document.getElementById('stock-modal-fecha').value;
+  const tipo=document.getElementById('stock-modal-tipo').value;
   if(!sabor||!cantidad||cantidad<=0){alert('Completá sabor y cantidad.');return;}
   const btn=document.getElementById('stock-modal-save-btn');
   btn.disabled=true;btn.textContent='Guardando...';
   try{
-    await addDoc(collection(db,'stock'),{sabor,cantidad,fecha,tipo:'entrada',timestamp:serverTimestamp()});
+    await addDoc(collection(db,'stock'),{sabor,cantidad,fecha,tipo,timestamp:serverTimestamp()});
     closeStockModal();
     await stockLoadAll();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;btn.textContent='Guardar →';}
 };
 
-// Auto-registra ventas en stock cuando llega pedido nuevo
+// Sincroniza los pedidos de hoy que aún no están registrados en stock
+async function stockSyncToday(){
+  try{
+    const hoy=new Date().toISOString().split('T')[0];
+    const sod=new Date();sod.setHours(0,0,0,0);
+    const snap=await getDocs(query(
+      collection(db,'pedidos'),
+      where('timestamp','>=',Timestamp.fromDate(sod))
+    ));
+    const promises=[];
+    snap.forEach(d=>{
+      const order={id:d.id,...d.data()};
+      const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
+      empItems.forEach(item=>{
+        const docId=order.id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+        // setDoc con merge:false — si ya existe, no hace nada porque el ID es el mismo
+        promises.push(
+          setDoc(doc(db,'stock',docId),{
+            fecha:hoy,sabor:item.nombre,cantidad:item.cantidad,
+            tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
+          }).catch(()=>{}) // ignora si ya existe
+        );
+      });
+    });
+    await Promise.all(promises);
+  }catch(e){console.error('stockSyncToday error',e);}
+}
 async function autoRegisterVentas(order){
   const fecha=new Date().toISOString().split('T')[0];
   const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
