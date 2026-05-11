@@ -381,7 +381,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <!-- Tabla movimientos -->
   <div class="stock-table-wrap">
     <table class="stock-table">
-      <thead><tr><th>Fecha</th><th>Sabor</th><th>Cantidad</th><th>Tipo</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Sabor</th><th>Cantidad</th><th>Tipo</th><th>Acciones</th></tr></thead>
       <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
     </table>
   </div>
@@ -870,16 +870,18 @@ window.stockResetFilter=function(){
   stockRenderTable(stockAllData);
 };
 
+let stockGroupMap={};
 function stockRenderTable(data){
-  if(!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="4" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
-  // Agrupar por fecha + sabor + tipo, sumando cantidades
+  if(!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="5" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
+  // Agrupar por fecha + sabor + tipo, sumando cantidades y guardando IDs
   const groups={};
   data.forEach(e=>{
     const key=(e.fecha||'—')+'|'+(e.sabor||'—')+'|'+(e.tipo||'—');
-    if(!groups[key])groups[key]={fecha:e.fecha||'—',sabor:e.sabor||'—',tipo:e.tipo||'—',cantidad:0};
+    if(!groups[key])groups[key]={fecha:e.fecha||'—',sabor:e.sabor||'—',tipo:e.tipo||'—',cantidad:0,ids:[],firstId:e.id};
     groups[key].cantidad+=e.cantidad||0;
+    groups[key].ids.push(e.id);
   });
-  // Ordenar por fecha desc
+  stockGroupMap=groups;
   const rows=Object.values(groups).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   document.getElementById('stock-tbody').innerHTML=rows.map(g=>{
     const badge=g.tipo==='entrada'
@@ -887,20 +889,53 @@ function stockRenderTable(data){
       :g.tipo==='ajuste'
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
+    const key=g.fecha+'|'+g.sabor+'|'+g.tipo;
+    const editBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
+      ?`<button onclick="editStockEntry('${key}')" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">✏️</button>`
+      :'';
+    const delBtn=`<button onclick="deleteStockGroup('${key}')" style="padding:4px 10px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>`;
     return`<tr>
       <td style="color:#888;white-space:nowrap;">${g.fecha}</td>
       <td style="font-weight:500;">${g.sabor}</td>
       <td style="font-weight:700;text-align:center;">${g.cantidad}</td>
       <td>${badge}</td>
+      <td style="white-space:nowrap;">${editBtn}${delBtn}</td>
     </tr>`;
   }).join('');
 }
 
+let editingStockId=null;
+
+window.deleteStockGroup=async function(key){
+  const group=stockGroupMap[key];
+  if(!group)return;
+  if(!confirm(`¿Borrar ${group.tipo} de ${group.sabor} (${group.cantidad} unidades)?`))return;
+  try{
+    await Promise.all(group.ids.map(id=>deleteDoc(doc(db,'stock',id))));
+    await stockLoadAll();
+  }catch(err){alert('Error al borrar: '+err.message);}
+};
+
+window.editStockEntry=function(key){
+  const group=stockGroupMap[key];
+  if(!group)return;
+  editingStockId=group.firstId;
+  const sel=document.getElementById('stock-modal-sabor');
+  sel.innerHTML=EMP.map(e=>`<option value="${e.nombre}">${e.nombre}</option>`).join('');
+  sel.value=group.sabor;
+  document.getElementById('stock-modal-cantidad').value=group.cantidad;
+  document.getElementById('stock-modal-fecha').value=group.fecha;
+  document.getElementById('stock-modal-tipo').value=group.tipo;
+  document.getElementById('stock-modal-overlay').classList.add('show');
+};
+
 window.openStockModal=function(){
+  editingStockId=null;
   const sel=document.getElementById('stock-modal-sabor');
   sel.innerHTML=EMP.map(e=>`<option value="${e.nombre}">${e.nombre}</option>`).join('');
   document.getElementById('stock-modal-fecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('stock-modal-cantidad').value='';
+  document.getElementById('stock-modal-tipo').value='entrada';
   document.getElementById('stock-modal-overlay').classList.add('show');
 };
 
@@ -917,7 +952,12 @@ window.guardarStock=async function(){
   const btn=document.getElementById('stock-modal-save-btn');
   btn.disabled=true;btn.textContent='Guardando...';
   try{
-    await addDoc(collection(db,'stock'),{sabor,cantidad,fecha,tipo,timestamp:serverTimestamp()});
+    if(editingStockId){
+      await updateDoc(doc(db,'stock',editingStockId),{sabor,cantidad,fecha,tipo});
+    }else{
+      await addDoc(collection(db,'stock'),{sabor,cantidad,fecha,tipo,timestamp:serverTimestamp()});
+    }
+    editingStockId=null;
     closeStockModal();
     await stockLoadAll();
   }catch(err){alert('Error: '+err.message);}
