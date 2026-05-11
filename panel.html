@@ -221,6 +221,38 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .hist-empty{text-align:center;padding:40px;color:#bbb;font-size:14px;}
 .hist-total-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
 .hist-count{font-size:12px;color:#aaa;}
+
+/* ── STOCK ── */
+.stock-panel{display:none;padding:24px;max-width:1200px;margin:0 auto;}
+.stock-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.stock-total-box{background:#111;color:#fff;border-radius:12px;padding:16px 28px;}
+.stock-total-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;opacity:0.5;margin-bottom:4px;}
+.stock-total-num{font-size:52px;font-weight:700;line-height:1;}
+.stock-add-btn{padding:12px 24px;background:#111;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:0.5px;}
+.stock-add-btn:hover{background:#333;}
+.stock-alerts{margin-bottom:16px;}
+.stock-alert{background:#fee2e2;color:#991b1b;padding:8px 16px;border-radius:8px;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.stock-chart-wrap{background:#fff;border-radius:10px;border:1px solid #eee;padding:20px;margin-bottom:20px;}
+.stock-chart-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#aaa;margin-bottom:16px;}
+.stock-bar-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:0.5px solid #f5f5f5;}
+.stock-bar-row:last-child{border-bottom:none;}
+.stock-bar-label{font-size:12px;font-weight:500;min-width:190px;color:#333;}
+.stock-bar-track{flex:1;background:#f0f0f0;border-radius:4px;height:10px;overflow:hidden;}
+.stock-bar-fill{height:100%;border-radius:4px;transition:width 0.6s;}
+.stock-bar-val{font-size:14px;font-weight:700;min-width:40px;text-align:right;}
+.stock-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.stock-select{border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#fff;cursor:pointer;}
+.stock-date-input{border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+.stock-btn{padding:9px 18px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;}
+.stock-btn-sec{background:#fff;color:#111;border:1px solid #ddd;}
+.stock-table-wrap{background:#fff;border-radius:10px;border:1px solid #eee;overflow:hidden;}
+.stock-table{width:100%;border-collapse:collapse;}
+.stock-table th{background:#f5f5f3;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;padding:12px 16px;text-align:left;font-weight:500;}
+.stock-table td{padding:12px 16px;border-top:0.5px solid #f0f0f0;font-size:13px;vertical-align:middle;}
+.stock-table tr:hover td{background:#fafafa;}
+.stock-empty{text-align:center;padding:40px;color:#bbb;font-size:14px;}
+.stock-modal-box{background:#fff;border-radius:14px;width:90%;max-width:420px;padding:28px;}
+.stock-modal-title{font-size:20px;font-weight:600;font-family:'Playfair Display',serif;margin-bottom:20px;}
 </style>
 </head>
 <body>
@@ -237,6 +269,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <button id="tab-pedidos" onclick="switchTab('pedidos')" style="background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">🫔 PEDIDOS</button>
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
       <button id="tab-hist" onclick="switchTab('hist')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 HISTORIAL</button>
+      <button id="tab-stock" onclick="switchTab('stock')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📦 STOCK</button>
     </div>
     <div class="counter-badge" id="badge-count">0 pedidos</div>
   </div>
@@ -314,6 +347,46 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   </div>
 </div>
 
+<!-- STOCK PANEL -->
+<div class="stock-panel" id="stock-panel">
+  <!-- Total siempre visible -->
+  <div class="stock-top">
+    <div class="stock-total-box">
+      <div class="stock-total-label">Total Empanadas en Stock</div>
+      <div class="stock-total-num" id="stock-total-num">—</div>
+    </div>
+    <button class="stock-add-btn" onclick="openStockModal()">+ Cargar Stock</button>
+  </div>
+  <!-- Alertas stock bajo -->
+  <div id="stock-alerts"></div>
+  <!-- Gráfico barras por sabor -->
+  <div class="stock-chart-wrap">
+    <div class="stock-chart-title">📊 Stock actual por sabor</div>
+    <div id="stock-chart"><div style="color:#bbb;text-align:center;padding:20px;">Cargando...</div></div>
+  </div>
+  <!-- Filtros tabla -->
+  <div class="stock-filters">
+    <select class="stock-select" id="stock-filter-sabor"><option value="">Todos los sabores</option></select>
+    <input type="date" class="stock-date-input" id="stock-filter-from"/>
+    <span style="color:#aaa;font-size:11px;">→</span>
+    <input type="date" class="stock-date-input" id="stock-filter-to"/>
+    <select class="stock-select" id="stock-filter-tipo">
+      <option value="">Entradas + Ventas</option>
+      <option value="entrada">Solo Entradas</option>
+      <option value="venta">Solo Ventas</option>
+    </select>
+    <button class="stock-btn" onclick="stockApplyFilter()">Ver</button>
+    <button class="stock-btn stock-btn-sec" onclick="stockResetFilter()">Reset</button>
+  </div>
+  <!-- Tabla movimientos -->
+  <div class="stock-table-wrap">
+    <table class="stock-table">
+      <thead><tr><th>Fecha</th><th>Sabor</th><th>Cantidad</th><th>Tipo</th></tr></thead>
+      <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
 <button class="fab-btn no-print" onclick="openModal()" title="Nuevo pedido manual">+</button>
 
 <!-- ═══════════════════════════════════════════════════════
@@ -365,9 +438,26 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   </div>
 </div>
 
+<!-- STOCK MODAL -->
+<div class="modal-overlay no-print" id="stock-modal-overlay">
+  <div class="stock-modal-box">
+    <div class="stock-modal-title">📦 Cargar Stock</div>
+    <label class="modal-label">Sabor</label>
+    <select class="modal-input" id="stock-modal-sabor" style="cursor:pointer;"></select>
+    <label class="modal-label" style="margin-top:12px;">Cantidad</label>
+    <input class="modal-input" id="stock-modal-cantidad" type="number" min="1" placeholder="Ej: 50" style="margin-bottom:12px;"/>
+    <label class="modal-label">Fecha</label>
+    <input class="modal-input" id="stock-modal-fecha" type="date" style="margin-bottom:20px;"/>
+    <div style="display:flex;gap:10px;">
+      <button class="modal-cancel" style="flex:1;" onclick="closeStockModal()">Cancelar</button>
+      <button class="modal-confirm" style="flex:2;" id="stock-modal-save-btn" onclick="guardarStock()">Guardar →</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
@@ -395,7 +485,7 @@ function playAlert(){try{const c=new(window.AudioContext||window.webkitAudioCont
 const sod=new Date();sod.setHours(0,0,0,0);
 onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sod)),orderBy('timestamp','desc')),snap=>{
   const no=[],ni=new Set();
-  snap.forEach(d=>{const o={id:d.id,...d.data()};no.push(o);ni.add(d.id);if(!isFirstLoad&&!knownIds.has(d.id)&&o.estado==='nuevo')playAlert();});
+  snap.forEach(d=>{const o={id:d.id,...d.data()};no.push(o);ni.add(d.id);if(!isFirstLoad&&!knownIds.has(d.id)&&o.estado==='nuevo'){playAlert();autoRegisterVentas(o);}});
   orders=no;knownIds=ni;isFirstLoad=false;renderOrders();updateStats();
 });
 
@@ -596,12 +686,13 @@ document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.targe
 // ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
-  ['pedidos','stats','hist'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
+  ['pedidos','stats','hist','stock'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
   document.getElementById('main').style.display=tab==='pedidos'?'block':'none';
   document.getElementById('stats-panel').style.display=tab==='stats'?'block':'none';
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
-  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos'}[tab];
-  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();
+  document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
+  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock'}[tab];
+  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();stockLoadAll();}
 };
 
 // ── STATS ──
@@ -672,6 +763,153 @@ function hRender(list){
   }).join('');
 }
 document.getElementById('hist-from').value=td;document.getElementById('hist-to').value=td;
+
+// ── STOCK ──
+let stockAllData=[];
+
+function stockInitFilters(){
+  const sel=document.getElementById('stock-filter-sabor');
+  sel.innerHTML='<option value="">Todos los sabores</option>'+EMP.map(e=>`<option value="${e.nombre}">${e.nombre}</option>`).join('');
+}
+
+async function stockLoadAll(){
+  try{
+    const snap=await getDocs(query(collection(db,'stock'),orderBy('timestamp','desc')));
+    stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
+    stockRenderTotal();
+    stockRenderAlerts();
+    stockRenderChart();
+    stockRenderTable(stockAllData);
+  }catch(e){console.error('stock load error',e);}
+}
+
+function stockCalcBySabor(){
+  const res={};
+  EMP.forEach(e=>{res[e.nombre]={entrada:0,venta:0,stock:0};});
+  stockAllData.forEach(e=>{
+    if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
+    if(e.tipo==='entrada')res[e.sabor].entrada+=e.cantidad||0;
+    if(e.tipo==='venta')res[e.sabor].venta+=e.cantidad||0;
+    res[e.sabor].stock=res[e.sabor].entrada-res[e.sabor].venta;
+  });
+  return res;
+}
+
+function stockRenderTotal(){
+  const bySabor=stockCalcBySabor();
+  const total=Object.values(bySabor).reduce((a,b)=>a+Math.max(0,b.stock),0);
+  document.getElementById('stock-total-num').textContent=total;
+}
+
+function stockRenderAlerts(){
+  const bySabor=stockCalcBySabor();
+  const alerts=Object.entries(bySabor).filter(([,v])=>v.stock>0&&v.stock<20);
+  const div=document.getElementById('stock-alerts');
+  div.innerHTML=alerts.map(([sabor,v])=>`<div class="stock-alert">⚠️ <strong>${sabor}</strong>: solo ${v.stock} unidades</div>`).join('');
+}
+
+function stockRenderChart(){
+  const bySabor=stockCalcBySabor();
+  const entries=Object.entries(bySabor).filter(([,v])=>v.entrada>0||v.stock>0);
+  const chartDiv=document.getElementById('stock-chart');
+  if(!entries.length){chartDiv.innerHTML='<div style="color:#bbb;text-align:center;padding:20px;">Sin datos de stock todavía</div>';return;}
+  const max=Math.max(...entries.map(([,v])=>Math.max(0,v.stock)),1);
+  chartDiv.innerHTML=entries.map(([sabor,v])=>{
+    const s=Math.max(0,v.stock);
+    const pct=Math.round(s/max*100);
+    const color=s===0?'#e5e7eb':s<20?'#ef4444':s<50?'#f59e0b':'#111';
+    return`<div class="stock-bar-row">
+      <div class="stock-bar-label">${sabor}</div>
+      <div class="stock-bar-track"><div class="stock-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+      <div class="stock-bar-val" style="color:${color};">${s}</div>
+    </div>`;
+  }).join('');
+}
+
+window.stockApplyFilter=async function(){
+  const sabor=document.getElementById('stock-filter-sabor').value;
+  const from=document.getElementById('stock-filter-from').value;
+  const to=document.getElementById('stock-filter-to').value;
+  const tipo=document.getElementById('stock-filter-tipo').value;
+  let data=[...stockAllData];
+  if(sabor)data=data.filter(e=>e.sabor===sabor);
+  if(from)data=data.filter(e=>e.fecha>=from);
+  if(to)data=data.filter(e=>e.fecha<=to);
+  if(tipo)data=data.filter(e=>e.tipo===tipo);
+  stockRenderTable(data);
+};
+
+window.stockResetFilter=function(){
+  document.getElementById('stock-filter-sabor').value='';
+  document.getElementById('stock-filter-from').value='';
+  document.getElementById('stock-filter-to').value='';
+  document.getElementById('stock-filter-tipo').value='';
+  stockRenderTable(stockAllData);
+};
+
+function stockRenderTable(data){
+  if(!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="4" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
+  document.getElementById('stock-tbody').innerHTML=data.map(e=>{
+    const badge=e.tipo==='entrada'
+      ?'<span style="color:#065f46;background:#d1fae5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🟢 ENTRADA</span>'
+      :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
+    return`<tr>
+      <td style="color:#888;white-space:nowrap;">${e.fecha||'—'}</td>
+      <td style="font-weight:500;">${e.sabor||'—'}</td>
+      <td style="font-weight:700;text-align:center;">${e.cantidad||0}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.openStockModal=function(){
+  const sel=document.getElementById('stock-modal-sabor');
+  sel.innerHTML=EMP.map(e=>`<option value="${e.nombre}">${e.nombre}</option>`).join('');
+  document.getElementById('stock-modal-fecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('stock-modal-cantidad').value='';
+  document.getElementById('stock-modal-overlay').classList.add('show');
+};
+
+window.closeStockModal=function(){
+  document.getElementById('stock-modal-overlay').classList.remove('show');
+};
+
+window.guardarStock=async function(){
+  const sabor=document.getElementById('stock-modal-sabor').value;
+  const cantidad=parseInt(document.getElementById('stock-modal-cantidad').value);
+  const fecha=document.getElementById('stock-modal-fecha').value;
+  if(!sabor||!cantidad||cantidad<=0){alert('Completá sabor y cantidad.');return;}
+  const btn=document.getElementById('stock-modal-save-btn');
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    await addDoc(collection(db,'stock'),{sabor,cantidad,fecha,tipo:'entrada',timestamp:serverTimestamp()});
+    closeStockModal();
+    await stockLoadAll();
+  }catch(err){alert('Error: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='Guardar →';}
+};
+
+// Auto-registra ventas en stock cuando llega pedido nuevo
+async function autoRegisterVentas(order){
+  const fecha=new Date().toISOString().split('T')[0];
+  const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
+  for(const item of empItems){
+    // ID determinístico: evita duplicados si el listener se ejecuta dos veces
+    const docId=order.id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+    try{
+      await setDoc(doc(db,'stock',docId),{
+        fecha,sabor:item.nombre,cantidad:item.cantidad,
+        tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
+      },{merge:false});
+    }catch(e){console.error('autoRegisterVentas error',e);}
+  }
+  // Refrescar stock si la pestaña está abierta
+  if(document.getElementById('stock-panel').style.display==='block'){
+    await stockLoadAll();
+  }
+}
+
+document.getElementById('stock-modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('stock-modal-overlay'))closeStockModal();});
 </script>
 </body>
 </html>
