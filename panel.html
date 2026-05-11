@@ -385,7 +385,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('fecha')">Fecha <span id="sort-ind-fecha"></span></th>
         <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('sabor')">Sabor <span id="sort-ind-sabor"></span></th>
         <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('cantidad')">Cantidad <span id="sort-ind-cantidad"></span></th>
-        <th>Tipo</th><th>Acciones</th>
+        <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('tipo')">Tipo <span id="sort-ind-tipo"></span></th><th>Acciones</th>
       </tr></thead>
       <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
     </table>
@@ -782,7 +782,7 @@ let stockCurrentTableData=[];
 window.stockSortBy=function(col){
   if(stockSortCol===col){stockSortDir=stockSortDir==='asc'?'desc':'asc';}
   else{stockSortCol=col;stockSortDir=col==='cantidad'?'desc':'asc';}
-  ['fecha','sabor','cantidad'].forEach(c=>{
+  ['fecha','sabor','cantidad','tipo'].forEach(c=>{
     const el=document.getElementById('sort-ind-'+c);
     if(el)el.textContent=c===stockSortCol?(stockSortDir==='asc'?' ▲':' ▼'):'';
   });
