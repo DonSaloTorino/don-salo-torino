@@ -361,7 +361,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <div id="stock-alerts"></div>
   <!-- Gráfico barras por sabor -->
   <div class="stock-chart-wrap">
-    <div class="stock-chart-title">📊 Stock actual por sabor</div>
+    <div class="stock-chart-title" id="stock-chart-title">📊 Stock actual por sabor</div>
     <div id="stock-chart"><div style="color:#bbb;text-align:center;padding:20px;">Cargando...</div></div>
   </div>
   <!-- Filtros tabla -->
@@ -381,7 +381,12 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <!-- Tabla movimientos -->
   <div class="stock-table-wrap">
     <table class="stock-table">
-      <thead><tr><th>Fecha</th><th>Sabor</th><th>Cantidad</th><th>Tipo</th><th>Acciones</th></tr></thead>
+      <thead><tr>
+        <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('fecha')">Fecha <span id="sort-ind-fecha"></span></th>
+        <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('sabor')">Sabor <span id="sort-ind-sabor"></span></th>
+        <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('cantidad')">Cantidad <span id="sort-ind-cantidad"></span></th>
+        <th>Tipo</th><th>Acciones</th>
+      </tr></thead>
       <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
     </table>
   </div>
@@ -771,6 +776,18 @@ document.getElementById('hist-from').value=td;document.getElementById('hist-to')
 
 // ── STOCK ──
 let stockAllData=[];
+let stockSortCol='fecha', stockSortDir='desc';
+let stockCurrentTableData=[];
+
+window.stockSortBy=function(col){
+  if(stockSortCol===col){stockSortDir=stockSortDir==='asc'?'desc':'asc';}
+  else{stockSortCol=col;stockSortDir=col==='cantidad'?'desc':'asc';}
+  ['fecha','sabor','cantidad'].forEach(c=>{
+    const el=document.getElementById('sort-ind-'+c);
+    if(el)el.textContent=c===stockSortCol?(stockSortDir==='asc'?' ▲':' ▼'):'';
+  });
+  stockRenderTable(stockCurrentTableData);
+};
 
 function stockInitFilters(){
   const sel=document.getElementById('stock-filter-sabor');
@@ -793,11 +810,11 @@ async function stockLoadAll(){
   }catch(e){console.error('stock load error',e);}
 }
 
-function stockCalcBySabor(){
+function stockCalcBySabor(sourceData){
+  const data=sourceData||stockAllData;
   const res={};
   EMP.forEach(e=>{res[e.nombre]={entrada:0,venta:0,stock:0};});
-  // Ordenar por fecha, y si es el mismo día por timestamp real (para que Ajuste de hoy quede después de ventas de hoy)
-  const sorted=[...stockAllData].sort((a,b)=>{
+  const sorted=[...data].sort((a,b)=>{
     const fa=a.fecha||'';const fb=b.fecha||'';
     if(fa!==fb)return fa.localeCompare(fb);
     const ta=a.timestamp?.seconds||0;const tb=b.timestamp?.seconds||0;
@@ -805,21 +822,16 @@ function stockCalcBySabor(){
   });
   sorted.forEach(e=>{
     if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
-    if(e.tipo==='ajuste'){
-      res[e.sabor].entrada=e.cantidad||0;
-      res[e.sabor].venta=0;
-    }else if(e.tipo==='entrada'){
-      res[e.sabor].entrada+=e.cantidad||0;
-    }else if(e.tipo==='venta'){
-      res[e.sabor].venta+=e.cantidad||0;
-    }
+    if(e.tipo==='ajuste'){res[e.sabor].entrada=e.cantidad||0;res[e.sabor].venta=0;}
+    else if(e.tipo==='entrada'){res[e.sabor].entrada+=e.cantidad||0;}
+    else if(e.tipo==='venta'){res[e.sabor].venta+=e.cantidad||0;}
     res[e.sabor].stock=res[e.sabor].entrada-res[e.sabor].venta;
   });
   return res;
 }
 
-function stockRenderTotal(){
-  const bySabor=stockCalcBySabor();
+function stockRenderTotal(sourceData){
+  const bySabor=stockCalcBySabor(sourceData);
   const total=Object.values(bySabor).reduce((a,b)=>a+Math.max(0,b.stock),0);
   document.getElementById('stock-total-num').textContent=total;
 }
@@ -831,10 +843,9 @@ function stockRenderAlerts(){
   div.innerHTML=alerts.map(([sabor,v])=>`<div class="stock-alert">⚠️ <strong>${sabor}</strong>: solo ${v.stock} unidades</div>`).join('');
 }
 
-function stockRenderChart(){
-  const bySabor=stockCalcBySabor();
+function stockRenderChart(sourceData){
+  const bySabor=stockCalcBySabor(sourceData);
   const chartDiv=document.getElementById('stock-chart');
-  // Mostrar TODOS los sabores, incluso con stock 0
   const entries=EMP.map(e=>[e.nombre, bySabor[e.nombre]||{stock:0}]);
   const max=Math.max(...entries.map(([,v])=>Math.max(0,v.stock)),1);
   chartDiv.innerHTML=entries.map(([sabor,v])=>{
@@ -854,6 +865,13 @@ window.stockApplyFilter=async function(){
   const from=document.getElementById('stock-filter-from').value;
   const to=document.getElementById('stock-filter-to').value;
   const tipo=document.getElementById('stock-filter-tipo').value;
+  // Gráfico y total: mostrar stock histórico hasta la fecha "to" si está definida
+  const chartData=to?stockAllData.filter(e=>e.fecha<=to):stockAllData;
+  stockRenderChart(chartData);
+  stockRenderTotal(chartData);
+  const title=document.getElementById('stock-chart-title');
+  if(title)title.textContent=to?`📊 Stock al ${to}`:'📊 Stock actual por sabor';
+  // Tabla: filtrar por todos los criterios
   let data=[...stockAllData];
   if(sabor)data=data.filter(e=>e.sabor===sabor);
   if(from)data=data.filter(e=>e.fecha>=from);
@@ -867,12 +885,17 @@ window.stockResetFilter=function(){
   document.getElementById('stock-filter-from').value='';
   document.getElementById('stock-filter-to').value='';
   document.getElementById('stock-filter-tipo').value='';
+  const title=document.getElementById('stock-chart-title');
+  if(title)title.textContent='📊 Stock actual por sabor';
+  stockRenderChart();
+  stockRenderTotal();
   stockRenderTable(stockAllData);
 };
 
 let stockGroupMap={};
 function stockRenderTable(data){
-  if(!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="5" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
+  stockCurrentTableData=data||[];
+  if(!data||!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="5" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
   // Agrupar por fecha + sabor + tipo
   const groups={};
   data.forEach(e=>{
@@ -882,19 +905,18 @@ function stockRenderTable(data){
     groups[key].ids.push(e.id);
   });
   stockGroupMap=groups;
-  const rows=Object.values(groups).sort((a,b)=>b.fecha.localeCompare(a.fecha));
-
-  // Calcular total vendido por fecha
-  const totalVentaByFecha={};
-  rows.forEach(g=>{
-    if(g.tipo==='venta'){
-      totalVentaByFecha[g.fecha]=(totalVentaByFecha[g.fecha]||0)+g.cantidad;
-    }
+  let rows=Object.values(groups);
+  // Aplicar ordenamiento de columna
+  rows.sort((a,b)=>{
+    let va=a[stockSortCol]||'', vb=b[stockSortCol]||'';
+    if(stockSortCol==='cantidad'){va=a.cantidad;vb=b.cantidad;}
+    const cmp=typeof va==='number'?va-vb:String(va).localeCompare(String(vb));
+    return stockSortDir==='asc'?cmp:-cmp;
   });
-
-  // Construir filas de la tabla
+  // Total vendido por fecha
+  const totalVentaByFecha={};
+  rows.forEach(g=>{if(g.tipo==='venta')totalVentaByFecha[g.fecha]=(totalVentaByFecha[g.fecha]||0)+g.cantidad;});
   let html='';
-  const fechasVistas=new Set();
   rows.forEach(g=>{
     const badge=g.tipo==='entrada'
       ?'<span style="color:#065f46;background:#d1fae5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🟢 ENTRADA</span>'
@@ -902,7 +924,6 @@ function stockRenderTable(data){
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
     const key=g.fecha+'|'+g.sabor+'|'+g.tipo;
-    // ✏️ solo en entrada/ajuste — ✕ nunca en ventas
     const editBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
       ?`<button onclick="editStockEntry('${key}')" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">✏️</button>`:'';
     const delBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
@@ -914,21 +935,17 @@ function stockRenderTable(data){
       <td>${badge}</td>
       <td style="white-space:nowrap;">${editBtn}${delBtn}</td>
     </tr>`;
-    fechasVistas.add(g.fecha);
   });
-
-  // Fila total vendidas por fecha al final
-  const fechasOrdenadas=[...Object.keys(totalVentaByFecha)].sort((a,b)=>b.localeCompare(a));
-  fechasOrdenadas.forEach(fecha=>{
+  // Fila cierre por fecha
+  Object.keys(totalVentaByFecha).sort((a,b)=>b.localeCompare(a)).forEach(fecha=>{
     html+=`<tr style="background:#f5f5f3;border-top:2px solid #e0e0e0;">
       <td style="color:#888;white-space:nowrap;font-weight:600;">${fecha}</td>
-      <td style="font-weight:700;color:#111;letter-spacing:1px;text-transform:uppercase;font-size:12px;">Total Empanadas Vendidas</td>
+      <td style="font-weight:700;color:#111;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Total Empanadas Vendidas</td>
       <td style="font-weight:700;text-align:center;font-size:16px;color:#111;">${totalVentaByFecha[fecha]}</td>
       <td><span style="color:#374151;background:#e5e7eb;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">📊 CIERRE</span></td>
       <td></td>
     </tr>`;
   });
-
   document.getElementById('stock-tbody').innerHTML=html;
 }
 
