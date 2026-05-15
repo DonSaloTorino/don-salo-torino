@@ -454,6 +454,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <label class="modal-label">Tipo</label>
     <select class="modal-input" id="stock-modal-tipo" style="cursor:pointer;margin-bottom:12px;">
       <option value="entrada">🟢 Entrada (llega mercadería)</option>
+      <option value="devolucion">🔵 Devolución / Rotura (resta stock)</option>
       <option value="ajuste">⚪ Ajuste (stock actual ahora mismo)</option>
     </select>
     <label class="modal-label">Fecha</label>
@@ -824,7 +825,7 @@ function stockCalcBySabor(sourceData){
     if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
     if(e.tipo==='ajuste'){res[e.sabor].entrada=e.cantidad||0;res[e.sabor].venta=0;}
     else if(e.tipo==='entrada'){res[e.sabor].entrada+=e.cantidad||0;}
-    else if(e.tipo==='venta'){res[e.sabor].venta+=e.cantidad||0;}
+    else if(e.tipo==='venta'||e.tipo==='devolucion'){res[e.sabor].venta+=e.cantidad||0;}
     res[e.sabor].stock=res[e.sabor].entrada-res[e.sabor].venta;
   });
   return res;
@@ -922,11 +923,13 @@ function stockRenderTable(data){
       ?'<span style="color:#065f46;background:#d1fae5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🟢 ENTRADA</span>'
       :g.tipo==='ajuste'
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
+      :g.tipo==='devolucion'
+      ?'<span style="color:#1e40af;background:#dbeafe;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔵 DEVOLUCIÓN</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
     const key=g.fecha+'|'+g.sabor+'|'+g.tipo;
-    const editBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
+    const editBtn=(g.tipo==='entrada'||g.tipo==='ajuste'||g.tipo==='devolucion')
       ?`<button onclick="editStockEntry('${key}')" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">✏️</button>`:'';
-    const delBtn=(g.tipo==='entrada'||g.tipo==='ajuste')
+    const delBtn=(g.tipo==='entrada'||g.tipo==='ajuste'||g.tipo==='devolucion')
       ?`<button onclick="deleteStockGroup('${key}')" style="padding:4px 10px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>`:'';
     html+=`<tr>
       <td style="color:#888;white-space:nowrap;">${g.fecha}</td>
