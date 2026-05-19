@@ -455,7 +455,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <select class="modal-input" id="stock-modal-tipo" style="cursor:pointer;margin-bottom:12px;">
       <option value="entrada">🟢 Entrada (llega mercadería)</option>
       <option value="devolucion">🔵 Devolución / Rotura (resta stock)</option>
-      <option value="ajuste">⚪ Ajuste (stock actual ahora mismo)</option>
+      <option value="ajuste">⚪ Ajuste (fija el stock a este número exacto)</option>
     </select>
     <label class="modal-label">Fecha</label>
     <input class="modal-input" id="stock-modal-fecha" type="date" style="margin-bottom:20px;"/>
@@ -468,7 +468,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
@@ -1016,7 +1016,8 @@ window.guardarStock=async function(){
   finally{btn.disabled=false;btn.textContent='Guardar →';}
 };
 
-// Sincroniza los pedidos de hoy que aún no están registrados en stock
+// Sincroniza los pedidos de hoy — SOLO crea docs nuevos, nunca sobreescribe
+// Esto preserva los timestamps originales para que el ajuste funcione correctamente
 async function stockSyncToday(){
   try{
     const hoy=new Date().toISOString().split('T')[0];
@@ -1031,12 +1032,17 @@ async function stockSyncToday(){
       const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
       empItems.forEach(item=>{
         const docId=order.id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
-        // setDoc con merge:false — si ya existe, no hace nada porque el ID es el mismo
+        const ref=doc(db,'stock',docId);
+        // Primero verifica si ya existe — si existe, NO sobreescribe (preserva timestamp original)
         promises.push(
-          setDoc(doc(db,'stock',docId),{
-            fecha:hoy,sabor:item.nombre,cantidad:item.cantidad,
-            tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
-          }).catch(()=>{}) // ignora si ya existe
+          getDoc(ref).then(existing=>{
+            if(!existing.exists()){
+              return setDoc(ref,{
+                fecha:hoy,sabor:item.nombre,cantidad:item.cantidad,
+                tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
+              });
+            }
+          }).catch(()=>{})
         );
       });
     });
