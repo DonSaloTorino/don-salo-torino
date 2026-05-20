@@ -314,18 +314,18 @@ const db = getFirestore(app);
 
 const EMPANADAS = [
   { id:1,  nombre:'CARNE',                  desc:'Carne Bovina, Uova, Cipolla, Peperoni, Sale, Pepe',                                   curcuma:false },
-  { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false },
-  { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false },
-  { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false },
-  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false },
-  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Carne Bovina Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false },
-  { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false },
-  { id:9,  nombre:'CHESE BURGER',           desc:'Burger, Formaggio Cheddar, Sale, Pepe, Spezie',                                       curcuma:false },
-  { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false },
-  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false },
   { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe',      curcuma:false },
-  { id:14, nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO', desc:'Prosciutto E Mozzarella Senza Lattosio',                              curcuma:false },
+  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Carne Bovina Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false },
+  { id:9,  nombre:'CHESE BURGER',           desc:'Burger, Formaggio Cheddar, Sale, Pepe, Spezie',                                       curcuma:false },
+  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false },
+  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false },
+  { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false },
+  { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false },
+  { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false },
+  { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false },
+  { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false },
   { id:12, nombre:'POLLO — CURCUMA',        desc:'Pollo, Cipolla, Peperoni, Vino Bianco, Sale, Pepe · Impasto Speciale Alla Curcuma',   curcuma:true  },
+  { id:14, nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO', desc:'Prosciutto E Mozzarella Senza Lattosio',                              curcuma:false, senzaLattosio:true },
 ];
 
 const BEBIDAS = [
@@ -355,12 +355,15 @@ BEBIDAS.forEach(b => bQtys[b.id] = 0);
 
 function renderMenu() {
   const list = document.getElementById('empanada-list');
-  const regular = EMPANADAS.filter(e => !e.curcuma);
+  const regular = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
   const especial = EMPANADAS.filter(e => e.curcuma);
+  const senzaLatt = EMPANADAS.filter(e => e.senzaLattosio);
   let html = '<div class="section-title">Le Nostre Empanadas</div>';
   regular.forEach(e => { html += cardHTML(e); });
   html += '<div class="section-title" style="margin-top:8px;">Impasto Speciale</div>';
   especial.forEach(e => { html += cardHTML(e); });
+  html += '<div class="section-title" style="margin-top:8px;">Senza Lattosio</div>';
+  senzaLatt.forEach(e => { html += cardHTML(e); });
 
   // BEBIDAS
   html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
