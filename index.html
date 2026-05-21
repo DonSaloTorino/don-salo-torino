@@ -298,7 +298,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, Timestamp, onSnapshot, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
@@ -313,10 +313,10 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const EMPANADAS = [
-  { id:1,  nombre:'CARNE',                  desc:'Carne Bovina, Uova, Cipolla, Peperoni, Sale, Pepe',                                   curcuma:false },
-  { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe',      curcuma:false },
-  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Carne Bovina Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false },
-  { id:9,  nombre:'CHESE BURGER',           desc:'Burger, Formaggio Cheddar, Sale, Pepe, Spezie',                                       curcuma:false },
+  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false },
+  { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false },
+  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false },
+  { id:9,  nombre:'CHESE BURGER',           desc:'Burger 100% ANGUS 🇦🇷🇺🇾, Formaggio Cheddar, Sale, Pepe, Spezie',                      curcuma:false },
   { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false },
   { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false },
   { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false },
@@ -353,6 +353,9 @@ EMPANADAS.forEach(e => qtys[e.id] = 0);
 let bQtys = {};
 BEBIDAS.forEach(b => bQtys[b.id] = 0);
 
+// Stock disponibilidad en tiempo real — se actualiza via Firebase
+let stockDisponibilidad = {};
+
 function renderMenu() {
   const list = document.getElementById('empanada-list');
   const regular = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
@@ -383,13 +386,14 @@ function renderMenu() {
 }
 
 function cardHTML(e) {
-  // Non disponibile: sin botones, texto tachado, badge naranja
-  if (e.nonDisponibile) {
+  // Non disponibile: manual (nonDisponibile:true) O stock llegó a 0 automáticamente
+  const sinStock = stockDisponibilidad[e.nombre] === 0;
+  if (e.nonDisponibile || sinStock) {
     return `
     <div class="empanada-card empanada-nodisponible" id="card-${e.id}">
       <div class="emp-info">
         <div class="emp-name-nodisponible">${e.nombre}</div>
-        <div class="emp-desc-nodisponible">${e.desc}</div>
+        <div class="emp-desc-nodisponible">${e.desc||''}</div>
       </div>
       <div class="nodisponibile-badge">Momentaneamente<br>non disponibile</div>
     </div>`;
@@ -605,6 +609,50 @@ function updateFechaDisplay(dateStr, isToday) {
 
 initFecha();
 renderMenu();
+
+// ── DISPONIBILIDAD EN TIEMPO REAL ──
+// Lee Firebase config/disponibilidad y re-renderiza el menú cuando cambia
+onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
+  if (snap.exists()) {
+    stockDisponibilidad = snap.data();
+    // Re-renderiza el menú preservando las cantidades ya seleccionadas
+    const listEl = document.getElementById('empanada-list');
+    if (listEl) {
+      const regular = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
+      const especial = EMPANADAS.filter(e => e.curcuma);
+      const senzaLatt = EMPANADAS.filter(e => e.senzaLattosio);
+      let html = '<div class="section-title">Le Nostre Empanadas</div>';
+      regular.forEach(e => { html += cardHTML(e); });
+      html += '<div class="section-title" style="margin-top:8px;">Impasto Speciale</div>';
+      especial.forEach(e => { html += cardHTML(e); });
+      html += '<div class="section-title" style="margin-top:8px;">Senza Lattosio</div>';
+      senzaLatt.forEach(e => { html += cardHTML(e); });
+      // Bebidas no cambian
+      const cats = [
+        { key:'acqua', label:'Acqua' },
+        { key:'gassata', label:'Gassate' },
+        { key:'birra', label:'Birra' },
+      ];
+      cats.forEach(cat => {
+        html += `<div class="beb-cat-title">${cat.label}</div>`;
+        BEBIDAS.filter(b => b.cat === cat.key).forEach(b => { html += bebCardHTML(b); });
+      });
+      listEl.innerHTML = html;
+      // Restaurar cantidades ya seleccionadas
+      EMPANADAS.forEach(e => {
+        const el = document.getElementById('qty-' + e.id);
+        if (el) el.textContent = qtys[e.id] || 0;
+      });
+      BEBIDAS.forEach(b => {
+        const el = document.getElementById('bqty-' + b.id);
+        if (el) el.textContent = bQtys[b.id] || 0;
+      });
+      attachHandlers();
+      attachBebHandlers();
+      updateBottomBar();
+    }
+  }
+});
 </script>
 </body>
 </html>
