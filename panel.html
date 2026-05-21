@@ -355,6 +355,11 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="stock-total-label">Total Empanadas en Stock</div>
       <div class="stock-total-num" id="stock-total-num">—</div>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 20px;flex-wrap:wrap;">
+      <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">⚠️ Alerta mínima</span>
+      <input type="number" id="stock-umbral-input" min="1" value="20" style="width:60px;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;text-align:center;"/>
+      <button onclick="saveUmbral()" style="padding:6px 14px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Guardar</button>
+    </div>
     <button class="stock-add-btn" onclick="openStockModal()">+ Cargar Stock</button>
   </div>
   <!-- Alertas stock bajo -->
@@ -712,7 +717,7 @@ window.switchTab=function(tab){
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
   document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock'}[tab];
-  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();stockSyncToday().then(()=>stockLoadAll());}
+  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}
 };
 
 // ── STATS ──
@@ -808,7 +813,6 @@ async function stockLoadAll(){
   try{
     const snap=await getDocs(query(collection(db,'stock')));
     stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
-    // Ordenar por fecha desc client-side (no requiere índice Firestore)
     stockAllData.sort((a,b)=>{
       if(a.fecha&&b.fecha)return b.fecha.localeCompare(a.fecha);
       return 0;
@@ -817,6 +821,7 @@ async function stockLoadAll(){
     stockRenderAlerts();
     stockRenderChart();
     stockRenderTable(stockAllData);
+    await syncDisponibilidad(); // Sincroniza disponibilidad con menú cliente
   }catch(e){console.error('stock load error',e);}
 }
 
@@ -848,7 +853,8 @@ function stockRenderTotal(sourceData){
 
 function stockRenderAlerts(){
   const bySabor=stockCalcBySabor();
-  const alerts=Object.entries(bySabor).filter(([,v])=>v.stock>0&&v.stock<20);
+  const umbral=parseInt(document.getElementById('stock-umbral-input')?.value)||20;
+  const alerts=Object.entries(bySabor).filter(([,v])=>v.stock>0&&v.stock<=umbral);
   const div=document.getElementById('stock-alerts');
   div.innerHTML=alerts.map(([sabor,v])=>`<div class="stock-alert">⚠️ <strong>${sabor}</strong>: solo ${v.stock} unidades</div>`).join('');
 }
@@ -1058,7 +1064,6 @@ async function autoRegisterVentas(order){
   const fecha=new Date().toISOString().split('T')[0];
   const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
   for(const item of empItems){
-    // ID determinístico: evita duplicados si el listener se ejecuta dos veces
     const docId=order.id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
     try{
       await setDoc(doc(db,'stock',docId),{
@@ -1069,11 +1074,65 @@ async function autoRegisterVentas(order){
   }
   // Refrescar stock si la pestaña está abierta
   if(document.getElementById('stock-panel').style.display==='block'){
-    await stockLoadAll();
+    await stockLoadAll(); // stockLoadAll ya llama syncDisponibilidad internamente
+  } else {
+    // Aunque el panel esté cerrado, sincroniza disponibilidad con el menú del cliente
+    await syncDisponibilidadFromDB();
   }
 }
 
 document.getElementById('stock-modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('stock-modal-overlay'))closeStockModal();});
+
+// ── DISPONIBILIDAD AUTOMÁTICA ──
+
+// Calcula stock actual y escribe en Firebase config/disponibilidad
+// El menú del cliente lee esto en tiempo real
+async function syncDisponibilidad(){
+  try{
+    const bySabor=stockCalcBySabor();
+    const data={};
+    EMP.forEach(e=>{
+      data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
+    });
+    await setDoc(doc(db,'config','disponibilidad'),data);
+  }catch(e){console.error('syncDisponibilidad error',e);}
+}
+
+// Versión que lee el stock de Firebase en tiempo real (cuando panel stock está cerrado)
+async function syncDisponibilidadFromDB(){
+  try{
+    const snap=await getDocs(query(collection(db,'stock')));
+    const tempData=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const bySabor=stockCalcBySabor(tempData);
+    const data={};
+    EMP.forEach(e=>{
+      data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
+    });
+    await setDoc(doc(db,'config','disponibilidad'),data);
+  }catch(e){console.error('syncDisponibilidadFromDB error',e);}
+}
+
+// Cargar umbral desde Firebase
+async function loadUmbral(){
+  try{
+    const snap=await getDoc(doc(db,'config','settings'));
+    if(snap.exists()&&snap.data().umbralMinimo){
+      const input=document.getElementById('stock-umbral-input');
+      if(input)input.value=snap.data().umbralMinimo;
+    }
+  }catch(e){console.error('loadUmbral error',e);}
+}
+
+// Guardar umbral en Firebase
+window.saveUmbral=async function(){
+  const val=parseInt(document.getElementById('stock-umbral-input')?.value);
+  if(!val||val<1){alert('Ingresá un número válido.');return;}
+  try{
+    await setDoc(doc(db,'config','settings'),{umbralMinimo:val});
+    stockRenderAlerts(); // Actualiza alertas con el nuevo umbral
+    alert(`✅ Umbral guardado: ${val} unidades`);
+  }catch(e){alert('Error al guardar: '+e.message);}
+};
 </script>
 </body>
 </html>
