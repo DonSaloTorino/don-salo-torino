@@ -143,16 +143,51 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .modal-tab-btn.active { background:#111;color:#fff;border-color:#111; }
 
 /* Parte scrolleable */
-.modal-scroll { flex:1;overflow-y:auto;padding:0 24px 20px; }
+.modal-scroll { flex:1;overflow-y:auto;padding:0 16px 20px; }
 
-.modal-section-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:14px 0 6px; }
-.modal-emp-row { display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #eee; }
-.modal-emp-name { font-size:14px;font-weight:500;flex:1; }
-.modal-curcuma-badge { font-size:9px;color:#a08030;background:#f5f0e0;padding:2px 6px;border-radius:10px;margin-left:6px; }
-.modal-qty-ctrl { display:flex;align-items:center;gap:10px; }
-.modal-qty-btn { width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;line-height:1; }
-.modal-qty-btn:hover { background:#111;color:#fff;border-color:#111; }
-.modal-qty-num { font-size:15px;font-weight:500;min-width:20px;text-align:center; }
+.modal-section-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:14px 0 8px; }
+
+/* Grilla de tarjetas tipo caja */
+.modal-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:8px; }
+.modal-card {
+  background:#22c55e;color:#fff;border-radius:8px;
+  padding:10px 8px 8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;
+  min-height:72px;position:relative;
+  transition:transform 0.1s,background 0.1s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+.modal-card:active { transform:scale(0.95); }
+.modal-card.selected { background:#16a34a; }
+.modal-card.agotado { background:#e5e7eb;cursor:not-allowed; }
+.modal-card-name {
+  font-size:11px;font-weight:600;text-align:center;
+  line-height:1.3;flex:1;display:flex;align-items:center;justify-content:center;
+  letter-spacing:0.3px;
+}
+.modal-card.agotado .modal-card-name { color:#aaa; }
+.modal-card-footer {
+  width:100%;display:flex;justify-content:space-between;
+  align-items:flex-end;margin-top:6px;
+}
+.modal-card-stock { font-size:10px;opacity:0.75;font-weight:500; }
+.modal-card-qty {
+  background:rgba(0,0,0,0.25);border-radius:12px;
+  padding:2px 8px;font-size:13px;font-weight:700;
+  min-width:24px;text-align:center;
+}
+.modal-card-qty.has-qty { background:rgba(0,0,0,0.45); }
+/* Botón menos en cada tarjeta */
+.modal-card-minus {
+  position:absolute;top:4px;right:4px;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(0,0,0,0.3);color:#fff;
+  border:none;font-size:14px;cursor:pointer;
+  display:none;align-items:center;justify-content:center;
+  line-height:1;padding:0;
+}
+.modal-card.selected .modal-card-minus { display:flex; }
 
 /* STATS */
 .stats-panel { display:none;padding:28px;max-width:1200px;margin:0 auto; }
@@ -622,41 +657,60 @@ window.closeModal = () => document.getElementById('modal-overlay').classList.rem
 function renderList() {
   let h = '';
   if (activeModalTab === 'empanadas') {
-    // Muestra solo empanadas
-    h = EMP.map(e=>`
-      <div class="modal-emp-row">
-        <span class="modal-emp-name">${e.nombre}${e.curcuma?'<span class="modal-curcuma-badge">✦</span>':''}</span>
-        <div class="modal-qty-ctrl">
-          <button class="modal-qty-btn" onclick="chgE(${e.id},-1)">−</button>
-          <span class="modal-qty-num" id="eq${e.id}">${eQ[e.id]}</span>
-          <button class="modal-qty-btn" onclick="chgE(${e.id},1)">+</button>
-        </div>
-      </div>`).join('');
+    h = `<div class="modal-section-label">Empanadas</div><div class="modal-grid">`;
+    h += EMP.map(e => {
+      const qty = eQ[e.id] || 0;
+      const stockCalc = stockAllData.length > 0 ? stockCalcBySabor() : null;
+      const stock = stockCalc ? Math.max(0, stockCalc[e.nombre]?.stock || 0) : null;
+      const agotado = stock !== null && stock === 0;
+      const cardClass = agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card';
+      const clickFn = agotado ? '' : `onclick="chgE(${e.id},1)"`;
+      const stockLabel = stock !== null ? `<span class="modal-card-stock">${stock}</span>` : `<span></span>`;
+      const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : '';
+      return `<div class="${cardClass}" id="mcard-${e.id}" ${clickFn}>
+        <button class="modal-card-minus" onclick="event.stopPropagation();chgE(${e.id},-1)">−</button>
+        <div class="modal-card-name">${e.nombre}${badge}</div>
+        <div class="modal-card-footer">${stockLabel}<span class="modal-card-qty${qty>0?' has-qty':''}" id="eq${e.id}">${qty}</span></div>
+      </div>`;
+    }).join('');
+    h += `</div>`;
   } else {
-    // Muestra solo la categoría de bebida seleccionada
     const filtered = BEB.filter(b => b.cat === activeModalTab);
-    h = filtered.map(b=>`
-      <div class="modal-emp-row">
-        <span class="modal-emp-name">${b.nombre}</span>
-        <div class="modal-qty-ctrl">
-          <button class="modal-qty-btn" onclick="chgB('${b.id}',-1)">−</button>
-          <span class="modal-qty-num" id="bq${b.id}">${bQ[b.id]}</span>
-          <button class="modal-qty-btn" onclick="chgB('${b.id}',1)">+</button>
-        </div>
-      </div>`).join('');
+    const label = activeModalTab==='acqua'?'Acqua':activeModalTab==='gassate'?'Gassate':'Birra';
+    h = `<div class="modal-section-label">${label}</div><div class="modal-grid">`;
+    h += filtered.map(b => {
+      const qty = bQ[b.id] || 0;
+      const cardClass = qty > 0 ? 'modal-card selected' : 'modal-card';
+      return `<div class="${cardClass}" id="mbcard-${b.id}" onclick="chgB('${b.id}',1)">
+        <button class="modal-card-minus" onclick="event.stopPropagation();chgB('${b.id}',-1)">−</button>
+        <div class="modal-card-name">${b.nombre}</div>
+        <div class="modal-card-footer"><span></span><span class="modal-card-qty${qty>0?' has-qty':''}" id="bq${b.id}">${qty}</span></div>
+      </div>`;
+    }).join('');
+    h += `</div>`;
   }
   document.getElementById('modal-emp-list').innerHTML = h;
 }
 
 window.chgE=function(id,d){
   eQ[id]=Math.max(0,eQ[id]+d);
-  const el=document.getElementById('eq'+id);if(el)el.textContent=eQ[id];
-  // Actualizar contador (solo empanadas)
+  // Actualizar número en tarjeta
+  const el=document.getElementById('eq'+id);
+  if(el){el.textContent=eQ[id];el.className='modal-card-qty'+(eQ[id]>0?' has-qty':'');}
+  // Actualizar estilo de tarjeta
+  const card=document.getElementById('mcard-'+id);
+  if(card&&!card.classList.contains('agotado')){
+    card.className=eQ[id]>0?'modal-card selected':'modal-card';
+  }
+  // Actualizar contador empanadas
   document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);
 };
 window.chgB=function(id,d){
   bQ[id]=Math.max(0,(bQ[id]||0)+d);
-  const el=document.getElementById('bq'+id);if(el)el.textContent=bQ[id];
+  const el=document.getElementById('bq'+id);
+  if(el){el.textContent=bQ[id];el.className='modal-card-qty'+(bQ[id]>0?' has-qty':'');}
+  const card=document.getElementById('mbcard-'+id);
+  if(card)card.className=bQ[id]>0?'modal-card selected':'modal-card';
 };
 
 let editId=null;
