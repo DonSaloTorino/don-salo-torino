@@ -642,15 +642,22 @@ window.openModal = function() {
   document.getElementById('modal-title').textContent='🫔 Pedido Manual';
   document.getElementById('modal-confirm-btn').textContent='Confirmar →';
   document.getElementById('modal-emp-counter').textContent='0';
-  // Reset tab a Empanadas
   activeModalTab = 'empanadas';
   ['empanadas','acqua','gassate','birra'].forEach(t => {
     const btn = document.getElementById('mtab-' + t);
     if (btn) btn.className = 'modal-tab-btn' + (t === 'empanadas' ? ' active' : '');
   });
-  renderList();
   document.getElementById('modal-overlay').classList.add('show');
   document.getElementById('modal-nombre').focus();
+  // Si el stock no está cargado aún (panel STOCK no fue abierto), lo carga antes de renderizar
+  if(stockAllData.length === 0){
+    getDocs(query(collection(db,'stock'))).then(snap=>{
+      stockAllData = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderList();
+    }).catch(()=>renderList());
+  } else {
+    renderList();
+  }
 };
 
 window.closeModal = () => document.getElementById('modal-overlay').classList.remove('show');
