@@ -45,6 +45,11 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   display: flex; align-items: center; justify-content: space-between;
   padding: 15px 0; border-bottom: 0.5px solid #eee; gap: 12px;
 }
+.emp-emoji {
+  font-size: 32px; flex-shrink: 0;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+}
 .emp-info { flex: 1; min-width: 0; }
 .emp-badge {
   font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
@@ -313,19 +318,19 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const EMPANADAS = [
-  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false },
-  { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false },
-  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false },
-  { id:9,  nombre:'CHESE BURGER',           desc:'Burger 100% ANGUS 🇦🇷🇺🇾, Formaggio Cheddar, Sale, Pepe, Spezie',                      curcuma:false },
-  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false },
-  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false },
-  { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false },
-  { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false },
-  { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false },
-  { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false },
-  { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false },
-  { id:12, nombre:'POLLO — CURCUMA',        desc:'Pollo, Cipolla, Peperoni, Vino Bianco, Sale, Pepe · Impasto Speciale Alla Curcuma',   curcuma:true  },
-  { id:14, nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO', desc:'Prosciutto E Mozzarella Senza Lattosio',                              curcuma:false, senzaLattosio:true },
+  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, emoji:'🥩' },
+  { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false, emoji:'🥩' },
+  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false, emoji:'🥩' },
+  { id:9,  nombre:'CHESE BURGER',           desc:'Burger 100% ANGUS 🇦🇷🇺🇾, Formaggio Cheddar, Sale, Pepe, Spezie',                      curcuma:false, emoji:'🍔' },
+  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false, emoji:'🥓' },
+  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false, emoji:'🧀' },
+  { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false, emoji:'🐟' },
+  { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false, emoji:'🥬' },
+  { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false, emoji:'🍆' },
+  { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false, emoji:'🍅' },
+  { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false, emoji:'🌽' },
+  { id:12, nombre:'POLLO — CURCUMA',        desc:'Pollo, Cipolla, Peperoni, Vino Bianco, Sale, Pepe · Impasto Speciale Alla Curcuma',   curcuma:true,  emoji:'🍗' },
+  { id:14, nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO', desc:'Prosciutto E Mozzarella Senza Lattosio',                              curcuma:false, senzaLattosio:true, emoji:'🥛' },
 ];
 
 const BEBIDAS = [
@@ -386,11 +391,12 @@ function renderMenu() {
 }
 
 function cardHTML(e) {
-  // Non disponibile: manual (nonDisponibile:true) O stock llegó a 0 automáticamente
   const sinStock = stockDisponibilidad[e.nombre] === 0;
+  const icon = e.emoji ? `<div class="emp-emoji">${e.emoji}</div>` : '';
   if (e.nonDisponibile || sinStock) {
     return `
     <div class="empanada-card empanada-nodisponible" id="card-${e.id}">
+      ${icon}
       <div class="emp-info">
         <div class="emp-name-nodisponible">${e.nombre}</div>
         <div class="emp-desc-nodisponible">${e.desc||''}</div>
@@ -400,6 +406,7 @@ function cardHTML(e) {
   }
   return `
     <div class="empanada-card" id="card-${e.id}">
+      ${icon}
       <div class="emp-info">
         ${e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}
         <div class="emp-name">${e.nombre}</div>
