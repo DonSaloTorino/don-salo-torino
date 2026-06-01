@@ -8,224 +8,72 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; overscroll-behavior: none; }
-
 .screen { display: none; }
 .screen.active { display: block; }
-
-/* HEADER */
-.menu-header {
-  background: #111; color: #fff; text-align: center;
-  padding: 28px 20px 20px; position: sticky; top: 0; z-index: 10;
-}
+.menu-header { background: #111; color: #fff; text-align: center; padding: 28px 20px 20px; position: sticky; top: 0; z-index: 10; }
 .menu-header .brand { font-family: 'Playfair Display', serif; font-size: 31px; letter-spacing: 2px; }
 .menu-header .brand-sub { font-family: 'Playfair Display', serif; font-size: 25px; margin-top: -4px; }
 .menu-header .sub { font-size: 13px; letter-spacing: 5px; text-transform: uppercase; opacity: 0.4; margin-top: 4px; }
-
-/* NOMBRE */
 .nombre-section { padding: 16px 20px; border-bottom: 1px solid #eee; background: #fafafa; }
 .nombre-section label { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
-.nombre-input {
-  width: 100%; border: 1px solid #ddd; border-radius: 6px;
-  padding: 11px 14px; font-family: 'DM Sans', sans-serif;
-  font-size: 19px; color: #111; background: #fff; outline: none;
-  transition: border-color 0.2s;
-}
+.nombre-input { width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 19px; color: #111; background: #fff; outline: none; transition: border-color 0.2s; }
 .nombre-input:focus { border-color: #111; }
-
-/* SECTION TITLE */
-.section-title {
-  padding: 20px 20px 8px; font-size: 13px; letter-spacing: 4px;
-  text-transform: uppercase; color: #bbb; font-weight: 500;
-}
-
-/* EMPANADA LIST */
+.section-title { padding: 20px 20px 8px; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #bbb; font-weight: 500; }
 .empanada-list { padding: 0 20px 0; }
-
-.empanada-card {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 15px 0; border-bottom: 0.5px solid #eee; gap: 12px;
-}
-.emp-emoji {
-  font-size: 32px; flex-shrink: 0;
-  width: 44px; height: 44px;
-  display: flex; align-items: center; justify-content: center;
-}
+.empanada-card { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 0.5px solid #eee; gap: 12px; }
+.emp-emoji { font-size: 32px; flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
 .emp-info { flex: 1; min-width: 0; }
-.emp-badge {
-  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
-  background: #f5f0e0; color: #a08030; padding: 2px 8px;
-  border-radius: 20px; margin-bottom: 5px; display: inline-block;
-}
+.emp-badge { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; background: #f5f0e0; color: #a08030; padding: 2px 8px; border-radius: 20px; margin-bottom: 5px; display: inline-block; }
 .emp-name { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 3px; letter-spacing: 0.3px; }
 .emp-desc { font-size: 14px; color: #aaa; line-height: 1.5; }
-
-/* NON DISPONIBILE */
 .empanada-nodisponible { background: #fafafa; }
 .emp-name-nodisponible { color: #ccc; text-decoration: line-through; font-size: 18px; font-weight: 600; margin-bottom: 3px; }
 .emp-desc-nodisponible { font-size: 14px; color: #ddd; line-height: 1.5; }
-.nodisponibile-badge {
-  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-  background: #f5f0e0; color: #c09040;
-  padding: 5px 10px; border-radius: 20px;
-  text-align: center; flex-shrink: 0; white-space: nowrap;
-  line-height: 1.4;
-}
-
+.nodisponibile-badge { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; background: #f5f0e0; color: #c09040; padding: 5px 10px; border-radius: 20px; text-align: center; flex-shrink: 0; white-space: nowrap; line-height: 1.4; }
 .qty-control { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.qty-btn {
-  width: 36px; height: 36px; border-radius: 50%;
-  border: 1px solid #ddd; background: #fff;
-  font-size: 22px; color: #111; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; font-family: 'DM Sans', sans-serif;
-  -webkit-tap-highlight-color: transparent;
-}
+.qty-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ddd; background: #fff; font-size: 22px; color: #111; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-family: 'DM Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
 .qty-btn:active { background: #111; color: #fff; border-color: #111; transform: scale(0.92); }
 .qty-num { font-size: 19px; font-weight: 500; min-width: 20px; text-align: center; }
-
-/* BEBIDAS */
-.beb-cat-title {
-  padding: 16px 20px 6px;
-  font-size: 13px; letter-spacing: 4px;
-  text-transform: uppercase; color: #bbb; font-weight: 500;
-}
-
-/* ALLERGEN SECTION */
-.allergen-section {
-  margin: 20px 20px 0;
-  padding: 18px;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  background: #fafafa;
-}
-.allergen-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: #444;
-  line-height: 1.9;
-  letter-spacing: 0.2px;
-}
-.allergen-text span {
-  display: block;
-  margin-bottom: 2px;
-}
-
-/* SPACER */
+.beb-cat-title { padding: 16px 20px 6px; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #bbb; font-weight: 500; }
+.allergen-section { margin: 20px 20px 0; padding: 18px; border: 1px solid #e8e8e8; border-radius: 8px; background: #fafafa; }
+.allergen-text { font-size: 13px; font-weight: 600; color: #444; line-height: 1.9; letter-spacing: 0.2px; }
+.allergen-text span { display: block; margin-bottom: 2px; }
 .bottom-spacer { height: 110px; }
-
-/* BOTTOM BAR */
-.bottom-bar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: #fff; border-top: 1px solid #eee;
-  padding: 12px 20px 28px; z-index: 50;
-  display: flex; flex-direction: column; gap: 8px;
-  box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
-}
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; padding: 12px 20px 28px; z-index: 50; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 -4px 16px rgba(0,0,0,0.08); }
 .cart-info { font-size: 14px; color: #bbb; text-align: center; }
-.confirmar-btn {
-  width: 100%; background: #111; color: #fff; border: none;
-  padding: 18px; font-family: 'DM Sans', sans-serif;
-  font-size: 17px; font-weight: 500; letter-spacing: 2px;
-  text-transform: uppercase; border-radius: 8px; cursor: pointer;
-  transition: background 0.2s; -webkit-tap-highlight-color: transparent;
-}
+.confirmar-btn { width: 100%; background: #111; color: #fff; border: none; padding: 18px; font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; border-radius: 8px; cursor: pointer; transition: background 0.2s; -webkit-tap-highlight-color: transparent; }
 .confirmar-btn:active { background: #333; }
 .confirmar-btn:disabled { background: #ccc; cursor: not-allowed; }
-
-/* SUCCESS SCREEN */
-.success-wrap {
-  min-height: 100vh; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 40px 30px; text-align: center;
-}
+.success-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 30px; text-align: center; }
 .success-icon { font-size: 56px; margin-bottom: 24px; }
 .success-title { font-family: 'Playfair Display', serif; font-size: 31px; margin-bottom: 12px; }
 .success-name { font-size: 23px; font-weight: 500; color: #111; margin-bottom: 6px; }
 .success-sub { font-size: 18px; color: #999; line-height: 1.6; margin-bottom: 32px; }
 .success-items { width: 100%; text-align: left; border-top: 1px solid #eee; margin-bottom: 32px; }
-.success-item {
-  display: flex; justify-content: space-between;
-  padding: 10px 0; border-bottom: 0.5px solid #eee; font-size: 17px;
-}
+.success-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 0.5px solid #eee; font-size: 17px; }
 .success-item-name { color: #333; }
 .success-item-qty { font-weight: 600; color: #111; }
-.nuevo-btn {
-  width: 100%; background: #fff; color: #111;
-  border: 1px solid #ddd; padding: 14px;
-  font-family: 'DM Sans', sans-serif; font-size: 16px;
-  border-radius: 8px; cursor: pointer; letter-spacing: 1px;
-}
-
-/* NUMERO BOX — para clientes sin nombre */
-.success-numero-box {
-  background: #111; color: #fff;
-  border-radius: 14px; padding: 24px 36px;
-  margin: 8px 0 24px; text-align: center; width: 100%;
-}
-.success-numero-label {
-  font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
-  opacity: 0.5; margin-bottom: 8px;
-}
-.success-numero-val {
-  font-family: 'Playfair Display', serif;
-  font-size: 72px; font-weight: 700; line-height: 1;
-}
-.success-numero-hint {
-  font-size: 14px; opacity: 0.55; margin-top: 10px; line-height: 1.5;
-}
-
-/* DATE SECTION */
-.date-section {
-  padding: 12px 20px 14px;
-  border-bottom: 1px solid #eee;
-  background: #fafafa;
-}
+.nuevo-btn { width: 100%; background: #fff; color: #111; border: 1px solid #ddd; padding: 14px; font-family: 'DM Sans', sans-serif; font-size: 16px; border-radius: 8px; cursor: pointer; letter-spacing: 1px; }
+.success-numero-box { background: #111; color: #fff; border-radius: 14px; padding: 24px 36px; margin: 8px 0 24px; text-align: center; width: 100%; }
+.success-numero-label { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.5; margin-bottom: 8px; }
+.success-numero-val { font-family: 'Playfair Display', serif; font-size: 72px; font-weight: 700; line-height: 1; }
+.success-numero-hint { font-size: 14px; opacity: 0.55; margin-top: 10px; line-height: 1.5; }
+.date-section { padding: 12px 20px 14px; border-bottom: 1px solid #eee; background: #fafafa; }
 .date-section label { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
-.date-display {
-  display: flex; align-items: center; justify-content: space-between;
-  border: 1px solid #ddd; border-radius: 6px;
-  padding: 11px 14px; background: #fff; cursor: pointer;
-  transition: border-color 0.2s;
-}
+.date-display { display: flex; align-items: center; justify-content: space-between; border: 1px solid #ddd; border-radius: 6px; padding: 11px 14px; background: #fff; cursor: pointer; transition: border-color 0.2s; }
 .date-display:active { border-color: #111; }
 .date-text { font-size: 18px; color: #111; font-family: 'DM Sans', sans-serif; }
-.date-today-badge {
-  font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
-  background: #111; color: #fff; padding: 2px 8px; border-radius: 20px;
-}
-.date-future-badge {
-  font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
-  background: #f5f0e0; color: #a08030; padding: 2px 8px; border-radius: 20px;
-}
+.date-today-badge { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; background: #111; color: #fff; padding: 2px 8px; border-radius: 20px; }
+.date-future-badge { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; background: #f5f0e0; color: #a08030; padding: 2px 8px; border-radius: 20px; }
 .date-input-hidden { display: none; }
-
-/* COUNTER IN HEADER */
-.header-counter {
-  display: flex; align-items: center; gap: 8px;
-  margin-top: 10px; justify-content: center;
-}
-.header-counter-label {
-  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
-  opacity: 0.5; color: #fff;
-}
-.header-counter-num {
-  font-size: 22px; font-weight: 700; color: #fff;
-  min-width: 32px; text-align: center;
-}
-.spinner-overlay {
-  position: fixed; inset: 0; background: rgba(255,255,255,0.85);
-  display: none; align-items: center; justify-content: center;
-  z-index: 100; flex-direction: column; gap: 16px;
-}
+.header-counter { display: flex; align-items: center; gap: 8px; margin-top: 10px; justify-content: center; }
+.header-counter-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.5; color: #fff; }
+.header-counter-num { font-size: 22px; font-weight: 700; color: #fff; min-width: 32px; text-align: center; }
+.spinner-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; align-items: center; justify-content: center; z-index: 100; flex-direction: column; gap: 16px; }
 .spinner-overlay.show { display: flex; }
-.spinner {
-  width: 36px; height: 36px; border: 3px solid #eee;
-  border-top-color: #111; border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
+.spinner { width: 36px; height: 36px; border: 3px solid #eee; border-top-color: #111; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner-label { font-size: 16px; color: #888; letter-spacing: 1px; }
-
 @media print { body { display: none; } }
 </style>
 </head>
@@ -236,7 +84,6 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   <div class="spinner-label">Inviando il tuo ordine...</div>
 </div>
 
-<!-- MENU -->
 <div class="screen active" id="screen-menu">
   <div class="menu-header">
     <div class="brand">EMPANADAS</div>
@@ -275,20 +122,18 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   <div class="bottom-spacer"></div>
 
   <div class="bottom-bar" id="bottom-bar">
-    <div class="cart-info" id="cart-info-label">Scegli le tue empanadas o bevande</div>
+    <div class="cart-info" id="cart-info-label">Scegli le tue empanadas</div>
     <button class="confirmar-btn" id="confirmar-btn" onclick="confirmarPedido()">
       Conferma Ordine →
     </button>
   </div>
 </div>
 
-<!-- SUCCESS -->
 <div class="screen" id="screen-success">
   <div class="success-wrap">
     <div class="success-icon">✅</div>
     <div class="success-title">Ordine Ricevuto!</div>
     <div class="success-name" id="suc-nombre"></div>
-    <!-- Numero box: solo visible para clientes sin nombre -->
     <div class="success-numero-box" id="suc-numero-box" style="display:none;">
       <div class="success-numero-label">Il tuo numero è</div>
       <div class="success-numero-val" id="suc-numero-val"></div>
@@ -300,7 +145,6 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   </div>
 </div>
 
-<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, Timestamp, onSnapshot, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -316,6 +160,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// ── DETECTA SI VIENE DEL SITIO WEB ──
+const urlParams = new URLSearchParams(window.location.search);
+const isWebOrder = urlParams.get('web') === '1';
 
 const EMPANADAS = [
   { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, emoji:'🥩' },
@@ -355,11 +203,8 @@ const BEBIDAS = [
 
 let qtys = {};
 EMPANADAS.forEach(e => qtys[e.id] = 0);
-
 let bQtys = {};
 BEBIDAS.forEach(b => bQtys[b.id] = 0);
-
-// Stock disponibilidad en tiempo real — se actualiza via Firebase
 let stockDisponibilidad = {};
 
 function renderMenu() {
@@ -374,65 +219,40 @@ function renderMenu() {
   html += '<div class="section-title" style="margin-top:8px;">Senza Lattosio</div>';
   senzaLatt.forEach(e => { html += cardHTML(e); });
 
-  // BEBIDAS
-  html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
-  const cats = [
-    { key:'acqua',   label:'Acqua'   },
-    { key:'gassata', label:'Gassate' },
-    { key:'birra',   label:'Birra'   },
-  ];
-  cats.forEach(cat => {
-    html += `<div class="beb-cat-title">${cat.label}</div>`;
-    BEBIDAS.filter(b => b.cat === cat.key).forEach(b => { html += bebCardHTML(b); });
-  });
+  // ── BEVANDE: solo se NON viene dal sito web ──
+  if (!isWebOrder) {
+    html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
+    const cats = [
+      { key:'acqua',   label:'Acqua'   },
+      { key:'gassata', label:'Gassate' },
+      { key:'birra',   label:'Birra'   },
+    ];
+    cats.forEach(cat => {
+      html += `<div class="beb-cat-title">${cat.label}</div>`;
+      BEBIDAS.filter(b => b.cat === cat.key).forEach(b => { html += bebCardHTML(b); });
+    });
+  }
 
   list.innerHTML = html;
   attachHandlers();
-  attachBebHandlers();
+  if (!isWebOrder) attachBebHandlers();
+
+  // Aggiorna testo bottom bar
+  const label = document.getElementById('cart-info-label');
+  if (label) label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande';
 }
 
 function cardHTML(e) {
   const sinStock = stockDisponibilidad[e.nombre] === 0;
   const icon = e.emoji ? `<div class="emp-emoji">${e.emoji}</div>` : '';
   if (e.nonDisponibile || sinStock) {
-    return `
-    <div class="empanada-card empanada-nodisponible" id="card-${e.id}">
-      ${icon}
-      <div class="emp-info">
-        <div class="emp-name-nodisponible">${e.nombre}</div>
-        <div class="emp-desc-nodisponible">${e.desc||''}</div>
-      </div>
-      <div class="nodisponibile-badge">Momentaneamente<br>non disponibile</div>
-    </div>`;
+    return `<div class="empanada-card empanada-nodisponible" id="card-${e.id}">${icon}<div class="emp-info"><div class="emp-name-nodisponible">${e.nombre}</div><div class="emp-desc-nodisponible">${e.desc||''}</div></div><div class="nodisponibile-badge">Momentaneamente<br>non disponibile</div></div>`;
   }
-  return `
-    <div class="empanada-card" id="card-${e.id}">
-      ${icon}
-      <div class="emp-info">
-        ${e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}
-        <div class="emp-name">${e.nombre}</div>
-        <div class="emp-desc">${e.desc}</div>
-      </div>
-      <div class="qty-control">
-        <button class="qty-btn" data-id="${e.id}" data-action="minus">−</button>
-        <div class="qty-num" id="qty-${e.id}">0</div>
-        <button class="qty-btn" data-id="${e.id}" data-action="plus">+</button>
-      </div>
-    </div>`;
+  return `<div class="empanada-card" id="card-${e.id}">${icon}<div class="emp-info">${e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}<div class="emp-name">${e.nombre}</div><div class="emp-desc">${e.desc}</div></div><div class="qty-control"><button class="qty-btn" data-id="${e.id}" data-action="minus">−</button><div class="qty-num" id="qty-${e.id}">0</div><button class="qty-btn" data-id="${e.id}" data-action="plus">+</button></div></div>`;
 }
 
 function bebCardHTML(b) {
-  return `
-    <div class="empanada-card" id="bcard-${b.id}">
-      <div class="emp-info">
-        <div class="emp-name">${b.emoji} ${b.nombre}</div>
-      </div>
-      <div class="qty-control">
-        <button class="qty-btn" data-bid="${b.id}" data-action="minus">−</button>
-        <div class="qty-num" id="bqty-${b.id}">${bQtys[b.id]}</div>
-        <button class="qty-btn" data-bid="${b.id}" data-action="plus">+</button>
-      </div>
-    </div>`;
+  return `<div class="empanada-card" id="bcard-${b.id}"><div class="emp-info"><div class="emp-name">${b.emoji} ${b.nombre}</div></div><div class="qty-control"><button class="qty-btn" data-bid="${b.id}" data-action="minus">−</button><div class="qty-num" id="bqty-${b.id}">${bQtys[b.id]}</div><button class="qty-btn" data-bid="${b.id}" data-action="plus">+</button></div></div>`;
 }
 
 function attachHandlers() {
@@ -461,7 +281,7 @@ function attachBebHandlers() {
 
 function totalUnidades() {
   const emp = Object.values(qtys).reduce((a,b) => a+b, 0);
-  const beb = Object.values(bQtys).reduce((a,b) => a+b, 0);
+  const beb = isWebOrder ? 0 : Object.values(bQtys).reduce((a,b) => a+b, 0);
   return emp + beb;
 }
 
@@ -470,91 +290,59 @@ function updateBottomBar() {
   const empTotal = EMPANADAS.reduce((a, e) => a + (qtys[e.id] || 0), 0);
   const counter = document.getElementById('header-emp-count');
   if (counter) counter.textContent = empTotal;
-
+  const label = document.getElementById('cart-info-label');
   if (total > 0) {
-    document.getElementById('cart-info-label').textContent =
-      total + (total === 1 ? ' articolo selezionato' : ' articoli selezionati');
-    document.getElementById('cart-info-label').style.color = '#888';
+    label.textContent = total + (total === 1 ? ' articolo selezionato' : ' articoli selezionati');
+    label.style.color = '#888';
   } else {
-    document.getElementById('cart-info-label').textContent = 'Scegli le tue empanadas o bevande';
-    document.getElementById('cart-info-label').style.color = '#bbb';
+    label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande';
+    label.style.color = '#bbb';
   }
 }
 
 window.confirmarPedido = async function() {
   let nombre = document.getElementById('nombre-input').value.trim();
   let isAutoNumber = false;
-
-  const empItems = EMPANADAS
-    .filter(e => qtys[e.id] > 0)
-    .map(e => ({ nombre: e.nombre, cantidad: qtys[e.id], curcuma: e.curcuma, tipo: 'empanada' }));
-  const bebItems = BEBIDAS
-    .filter(b => bQtys[b.id] > 0)
-    .map(b => ({ nombre: b.emoji + ' ' + b.nombre, cantidad: bQtys[b.id], curcuma: false, tipo: 'bebida' }));
+  const empItems = EMPANADAS.filter(e => qtys[e.id] > 0).map(e => ({ nombre: e.nombre, cantidad: qtys[e.id], curcuma: e.curcuma, tipo: 'empanada' }));
+  const bebItems = isWebOrder ? [] : BEBIDAS.filter(b => bQtys[b.id] > 0).map(b => ({ nombre: b.emoji + ' ' + b.nombre, cantidad: bQtys[b.id], curcuma: false, tipo: 'bebida' }));
   const items = [...empItems, ...bebItems];
-
   if (items.length === 0) {
     const label = document.getElementById('cart-info-label');
     label.textContent = '⚠️ Non hai selezionato nulla!';
     label.style.color = '#e00';
-    setTimeout(() => {
-      label.textContent = 'Scegli le tue empanadas o bevande';
-      label.style.color = '#bbb';
-    }, 2500);
+    setTimeout(() => { label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande'; label.style.color = '#bbb'; }, 2500);
     return;
   }
-
   const btn = document.getElementById('confirmar-btn');
   btn.disabled = true;
   document.getElementById('spinner').classList.add('show');
-
   try {
-    // Si no puso nombre → asignar A1, A2, A3...
     if (!nombre) {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const snap = await getDocs(query(
-        collection(db, 'pedidos'),
-        where('timestamp', '>=', Timestamp.fromDate(startOfDay))
-      ));
+      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+      const snap = await getDocs(query(collection(db, 'pedidos'), where('timestamp', '>=', Timestamp.fromDate(startOfDay))));
       nombre = 'A' + (snap.size + 1);
       isAutoNumber = true;
     }
-
     await addDoc(collection(db, 'pedidos'), {
-      cliente: nombre,
-      items: items,
-      total: totalUnidades(),
-      estado: 'nuevo',
+      cliente: nombre, items: items, total: totalUnidades(), estado: 'nuevo',
       fecha: document.getElementById('fecha-input').value,
+      canale: isWebOrder ? 'web' : 'locale',
       timestamp: serverTimestamp()
     });
-
-    // Pantalla de éxito
     let itemsHtml = '';
-    items.forEach(i => {
-      itemsHtml += `<div class="success-item">
-        <span class="success-item-name">${i.nombre}${i.curcuma ? ' ✦' : ''}</span>
-        <span class="success-item-qty">× ${i.cantidad}</span>
-      </div>`;
-    });
+    items.forEach(i => { itemsHtml += `<div class="success-item"><span class="success-item-name">${i.nombre}${i.curcuma ? ' ✦' : ''}</span><span class="success-item-qty">× ${i.cantidad}</span></div>`; });
     document.getElementById('suc-items').innerHTML = itemsHtml;
-
     if (isAutoNumber) {
-      // Mostrar número grande
       document.getElementById('suc-nombre').textContent = '';
       document.getElementById('suc-numero-val').textContent = nombre;
       document.getElementById('suc-numero-box').style.display = 'block';
     } else {
-      // Mostrar nombre normal
       document.getElementById('suc-nombre').textContent = nombre;
       document.getElementById('suc-numero-box').style.display = 'none';
     }
-
     document.getElementById('screen-menu').classList.remove('active');
     document.getElementById('screen-success').classList.add('active');
     window.scrollTo(0, 0);
-
   } catch(err) {
     alert('Errore nell\'invio dell\'ordine. Riprova.');
     console.error(err);
@@ -578,7 +366,6 @@ window.nuevoPedido = function() {
   window.scrollTo(0, 0);
 };
 
-// Date picker
 function initFecha() {
   const input = document.getElementById('fecha-input');
   const today = new Date();
@@ -606,68 +393,26 @@ window.onFechaChange = function() {
 function updateFechaDisplay(dateStr, isToday) {
   document.getElementById('fecha-display').textContent = formatFechaIT(dateStr);
   const badge = document.getElementById('fecha-badge');
-  if (isToday) {
-    badge.textContent = 'Oggi';
-    badge.className = 'date-today-badge';
-  } else {
-    badge.textContent = 'Prenotazione';
-    badge.className = 'date-future-badge';
-  }
+  if (isToday) { badge.textContent = 'Oggi'; badge.className = 'date-today-badge'; }
+  else { badge.textContent = 'Prenotazione'; badge.className = 'date-future-badge'; }
 }
 
 initFecha();
 renderMenu();
 
-// ── Leggi parametri dall'URL (es. da Tiller) ──
-// URL: ?nome=JUAN+PEREZ&data=2026-06-02
-const urlParams = new URLSearchParams(window.location.search);
-if(urlParams.get('nome')) {
-  document.getElementById('nombre-input').value = urlParams.get('nome');
-}
-if(urlParams.get('data')) {
-  document.getElementById('fecha-input').value = urlParams.get('data');
-  onFechaChange(); // aggiorna la visualizzazione della data
-}
+// ── Pre-compila nome e data da URL ──
+if(urlParams.get('nome')) document.getElementById('nombre-input').value = urlParams.get('nome');
+if(urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); onFechaChange(); }
 
 // ── DISPONIBILIDAD EN TIEMPO REAL ──
-// Lee Firebase config/disponibilidad y re-renderiza el menú cuando cambia
 onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
   if (snap.exists()) {
     stockDisponibilidad = snap.data();
-    // Re-renderiza el menú preservando las cantidades ya seleccionadas
     const listEl = document.getElementById('empanada-list');
     if (listEl) {
-      const regular = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
-      const especial = EMPANADAS.filter(e => e.curcuma);
-      const senzaLatt = EMPANADAS.filter(e => e.senzaLattosio);
-      let html = '<div class="section-title">Le Nostre Empanadas</div>';
-      regular.forEach(e => { html += cardHTML(e); });
-      html += '<div class="section-title" style="margin-top:8px;">Impasto Speciale</div>';
-      especial.forEach(e => { html += cardHTML(e); });
-      html += '<div class="section-title" style="margin-top:8px;">Senza Lattosio</div>';
-      senzaLatt.forEach(e => { html += cardHTML(e); });
-      // Bebidas no cambian
-      const cats = [
-        { key:'acqua', label:'Acqua' },
-        { key:'gassata', label:'Gassate' },
-        { key:'birra', label:'Birra' },
-      ];
-      cats.forEach(cat => {
-        html += `<div class="beb-cat-title">${cat.label}</div>`;
-        BEBIDAS.filter(b => b.cat === cat.key).forEach(b => { html += bebCardHTML(b); });
-      });
-      listEl.innerHTML = html;
-      // Restaurar cantidades ya seleccionadas
-      EMPANADAS.forEach(e => {
-        const el = document.getElementById('qty-' + e.id);
-        if (el) el.textContent = qtys[e.id] || 0;
-      });
-      BEBIDAS.forEach(b => {
-        const el = document.getElementById('bqty-' + b.id);
-        if (el) el.textContent = bQtys[b.id] || 0;
-      });
-      attachHandlers();
-      attachBebHandlers();
+      renderMenu();
+      EMPANADAS.forEach(e => { const el = document.getElementById('qty-' + e.id); if (el) el.textContent = qtys[e.id] || 0; });
+      if (!isWebOrder) BEBIDAS.forEach(b => { const el = document.getElementById('bqty-' + b.id); if (el) el.textContent = bQtys[b.id] || 0; });
       updateBottomBar();
     }
   }
