@@ -69,6 +69,53 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 .header-counter { display: flex; align-items: center; gap: 8px; margin-top: 10px; justify-content: center; }
 .header-counter-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.5; color: #fff; }
 .header-counter-num { font-size: 22px; font-weight: 700; color: #fff; min-width: 32px; text-align: center; }
+
+/* ── BANNER CANTIDAD PAGADA ── */
+.qty-required-banner {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.qty-required-text { font-size: 14px; line-height: 1.5; }
+.qty-required-text strong { display: block; font-size: 15px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+.qty-required-badge {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  min-width: 70px;
+  height: 44px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 1px;
+  transition: background 0.25s, color 0.25s;
+  padding: 0 12px;
+}
+.qty-required-badge.ok   { background: #22c55e; color: #fff; }
+.qty-required-badge.over { background: #ef4444; color: #fff; }
+
+/* ── STATUS BAR DINÁMICA ── */
+.qty-status-bar {
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: background 0.25s, color 0.25s;
+}
+.qty-status-bar.neutral { background: #f5f5f5; color: #999; }
+.qty-status-bar.ok      { background: #f0fdf4; color: #16a34a; }
+.qty-status-bar.under   { background: #fffbeb; color: #b45309; }
+.qty-status-bar.over    { background: #fef2f2; color: #dc2626; }
+
 .spinner-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; align-items: center; justify-content: center; z-index: 100; flex-direction: column; gap: 16px; }
 .spinner-overlay.show { display: flex; }
 .spinner { width: 36px; height: 36px; border: 3px solid #eee; border-top-color: #111; border-radius: 50%; animation: spin 0.7s linear infinite; }
@@ -94,6 +141,19 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
       <span class="header-counter-num" id="header-emp-count">0</span>
     </div>
   </div>
+
+  <!-- Banner cantidad pagada — solo visible si viene con ?qty= desde web -->
+  <div class="qty-required-banner" id="qty-required-banner" style="display:none;">
+    <div class="qty-required-text">
+      <strong>Scegli le tue empanadas</strong>
+      Hai già pagato per <span id="qty-required-text-num">0</span> empanadas.<br>
+      Seleziona <em>esattamente</em> quella quantità per confermare.
+    </div>
+    <div class="qty-required-badge" id="qty-required-badge">0/0</div>
+  </div>
+
+  <!-- Status bar dinámica — solo visible si viene con ?qty= -->
+  <div class="qty-status-bar neutral" id="qty-status-bar" style="display:none;"></div>
 
   <div class="nombre-section">
     <label>Il tuo nome (opzionale)</label>
@@ -161,9 +221,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ── DETECTA SI VIENE DEL SITIO WEB ──
+// ── URL PARAMS ──
 const urlParams = new URLSearchParams(window.location.search);
-const isWebOrder = urlParams.get('web') === '1';
+const isWebOrder  = urlParams.get('web') === '1';
+const qtyParam    = urlParams.get('qty');
+const qtyPagada   = qtyParam ? parseInt(qtyParam) : null;
+const tieneControlQty = isWebOrder && qtyPagada !== null && qtyPagada > 0;
 
 const EMPANADAS = [
   { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, emoji:'🥩' },
@@ -207,27 +270,89 @@ let bQtys = {};
 BEBIDAS.forEach(b => bQtys[b.id] = 0);
 let stockDisponibilidad = {};
 
+// ─────────────────────────────────────────────
+//  CONTROL DE CANTIDAD PAGADA
+// ─────────────────────────────────────────────
+
+function initQtyBanner() {
+  if (!tieneControlQty) return;
+  document.getElementById('qty-required-banner').style.display = 'flex';
+  document.getElementById('qty-status-bar').style.display     = 'block';
+  document.getElementById('qty-required-text-num').textContent = qtyPagada;
+  // El label normal no hace falta cuando hay banner
+  const label = document.getElementById('cart-info-label');
+  if (label) label.style.display = 'none';
+  updateQtyStatus(0);
+}
+
+function updateQtyStatus(empTotal) {
+  if (!tieneControlQty) return;
+
+  const badge     = document.getElementById('qty-required-badge');
+  const statusBar = document.getElementById('qty-status-bar');
+  const btn       = document.getElementById('confirmar-btn');
+  const diff      = empTotal - qtyPagada;
+
+  // ── Badge "X/N" ──
+  badge.textContent = empTotal + '/' + qtyPagada;
+  badge.className   = 'qty-required-badge';
+  if (diff === 0)  badge.classList.add('ok');
+  else if (diff > 0) badge.classList.add('over');
+
+  // ── Status bar ──
+  statusBar.className = 'qty-status-bar';
+  if (empTotal === 0) {
+    statusBar.classList.add('neutral');
+    statusBar.textContent = `Seleziona esattamente ${qtyPagada} empanadas per confermare`;
+  } else if (diff === 0) {
+    statusBar.classList.add('ok');
+    statusBar.textContent = `✓ Perfetto! Hai selezionato ${qtyPagada} empanadas`;
+  } else if (diff < 0) {
+    statusBar.classList.add('under');
+    const mancano = Math.abs(diff);
+    statusBar.textContent = `Ne mancano ancora ${mancano} — selezionate ${empTotal} su ${qtyPagada}`;
+  } else {
+    statusBar.classList.add('over');
+    statusBar.textContent = `⚠️ Ne hai ${diff} in più — togli ${diff} per continuare`;
+  }
+
+  // ── Botón ──
+  if (diff === 0) {
+    btn.disabled     = false;
+    btn.textContent  = 'Conferma Ordine →';
+  } else {
+    btn.disabled = true;
+    if (empTotal === 0) {
+      btn.textContent = `Seleziona ${qtyPagada} empanadas`;
+    } else if (diff < 0) {
+      const mancano = Math.abs(diff);
+      btn.textContent = `Aggiungi ancora ${mancano} empanada${mancano !== 1 ? 's' : ''}`;
+    } else {
+      btn.textContent = `Togli ${diff} empanada${diff !== 1 ? 's' : ''}`;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────────────
+
 function renderMenu() {
   const list = document.getElementById('empanada-list');
-  const regular = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
-  const especial = EMPANADAS.filter(e => e.curcuma);
+  const regular   = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
+  const especial  = EMPANADAS.filter(e => e.curcuma);
   const senzaLatt = EMPANADAS.filter(e => e.senzaLattosio);
+
   let html = '<div class="section-title">Le Nostre Empanadas</div>';
-  regular.forEach(e => { html += cardHTML(e); });
+  regular.forEach(e  => { html += cardHTML(e); });
   html += '<div class="section-title" style="margin-top:8px;">Impasto Speciale</div>';
   especial.forEach(e => { html += cardHTML(e); });
   html += '<div class="section-title" style="margin-top:8px;">Senza Lattosio</div>';
   senzaLatt.forEach(e => { html += cardHTML(e); });
 
-  // ── BEVANDE: solo se NON viene dal sito web ──
   if (!isWebOrder) {
     html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
-    const cats = [
-      { key:'acqua',   label:'Acqua'   },
-      { key:'gassata', label:'Gassate' },
-      { key:'birra',   label:'Birra'   },
-    ];
-    cats.forEach(cat => {
+    [{ key:'acqua', label:'Acqua' }, { key:'gassata', label:'Gassate' }, { key:'birra', label:'Birra' }].forEach(cat => {
       html += `<div class="beb-cat-title">${cat.label}</div>`;
       BEBIDAS.filter(b => b.cat === cat.key).forEach(b => { html += bebCardHTML(b); });
     });
@@ -237,9 +362,12 @@ function renderMenu() {
   attachHandlers();
   if (!isWebOrder) attachBebHandlers();
 
-  // Aggiorna testo bottom bar
   const label = document.getElementById('cart-info-label');
-  if (label) label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande';
+  if (tieneControlQty) {
+    if (label) label.style.display = 'none';
+  } else {
+    if (label) { label.style.display = 'block'; label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande'; }
+  }
 }
 
 function cardHTML(e) {
@@ -259,7 +387,7 @@ function attachHandlers() {
   document.querySelectorAll('.qty-btn[data-id]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.id);
-      if (btn.dataset.action === 'plus') qtys[id]++;
+      if (btn.dataset.action === 'plus')  qtys[id]++;
       if (btn.dataset.action === 'minus' && qtys[id] > 0) qtys[id]--;
       document.getElementById('qty-' + id).textContent = qtys[id];
       updateBottomBar();
@@ -271,7 +399,7 @@ function attachBebHandlers() {
   document.querySelectorAll('.qty-btn[data-bid]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.bid;
-      if (btn.dataset.action === 'plus') bQtys[id]++;
+      if (btn.dataset.action === 'plus')  bQtys[id]++;
       if (btn.dataset.action === 'minus' && bQtys[id] > 0) bQtys[id]--;
       document.getElementById('bqty-' + id).textContent = bQtys[id];
       updateBottomBar();
@@ -279,43 +407,84 @@ function attachBebHandlers() {
   });
 }
 
+function totalEmpanadas() {
+  return EMPANADAS.reduce((a, e) => a + (qtys[e.id] || 0), 0);
+}
+
 function totalUnidades() {
-  const emp = Object.values(qtys).reduce((a,b) => a+b, 0);
-  const beb = isWebOrder ? 0 : Object.values(bQtys).reduce((a,b) => a+b, 0);
+  const emp = totalEmpanadas();
+  const beb = isWebOrder ? 0 : Object.values(bQtys).reduce((a, b) => a + b, 0);
   return emp + beb;
 }
 
 function updateBottomBar() {
-  const total = totalUnidades();
-  const empTotal = EMPANADAS.reduce((a, e) => a + (qtys[e.id] || 0), 0);
+  const empTotal = totalEmpanadas();
+  const total    = totalUnidades();
+
+  // Counter en el header siempre
   const counter = document.getElementById('header-emp-count');
   if (counter) counter.textContent = empTotal;
+
+  if (tieneControlQty) {
+    // Con control: el status bar maneja todo, el label está oculto
+    updateQtyStatus(empTotal);
+    return;
+  }
+
+  // Sin control: modo normal
   const label = document.getElementById('cart-info-label');
-  if (total > 0) {
-    label.textContent = total + (total === 1 ? ' articolo selezionato' : ' articoli selezionati');
-    label.style.color = '#888';
-  } else {
-    label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande';
-    label.style.color = '#bbb';
+  if (label) {
+    label.style.display = 'block';
+    if (total > 0) {
+      label.textContent = total + (total === 1 ? ' articolo selezionato' : ' articoli selezionati');
+      label.style.color = '#888';
+    } else {
+      label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande';
+      label.style.color = '#bbb';
+    }
   }
 }
 
+// ─────────────────────────────────────────────
+//  CONFIRMAR PEDIDO
+// ─────────────────────────────────────────────
+
 window.confirmarPedido = async function() {
+  // Doble verificación server-side antes de enviar
+  if (tieneControlQty) {
+    const empTotal = totalEmpanadas();
+    if (empTotal !== qtyPagada) {
+      updateQtyStatus(empTotal);
+      return;
+    }
+  }
+
   let nombre = document.getElementById('nombre-input').value.trim();
   let isAutoNumber = false;
-  const empItems = EMPANADAS.filter(e => qtys[e.id] > 0).map(e => ({ nombre: e.nombre, cantidad: qtys[e.id], curcuma: e.curcuma, tipo: 'empanada' }));
+
+  const empItems = EMPANADAS.filter(e => qtys[e.id]  > 0).map(e => ({ nombre: e.nombre, cantidad: qtys[e.id],  curcuma: e.curcuma, tipo: 'empanada' }));
   const bebItems = isWebOrder ? [] : BEBIDAS.filter(b => bQtys[b.id] > 0).map(b => ({ nombre: b.emoji + ' ' + b.nombre, cantidad: bQtys[b.id], curcuma: false, tipo: 'bebida' }));
   const items = [...empItems, ...bebItems];
+
   if (items.length === 0) {
     const label = document.getElementById('cart-info-label');
-    label.textContent = '⚠️ Non hai selezionato nulla!';
-    label.style.color = '#e00';
-    setTimeout(() => { label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande'; label.style.color = '#bbb'; }, 2500);
+    if (label) {
+      label.style.display = 'block';
+      label.textContent   = '⚠️ Non hai selezionato nulla!';
+      label.style.color   = '#e00';
+      setTimeout(() => {
+        label.textContent = isWebOrder ? 'Scegli le tue empanadas' : 'Scegli le tue empanadas o bevande';
+        label.style.color = '#bbb';
+        if (tieneControlQty) label.style.display = 'none';
+      }, 2500);
+    }
     return;
   }
+
   const btn = document.getElementById('confirmar-btn');
   btn.disabled = true;
   document.getElementById('spinner').classList.add('show');
+
   try {
     if (!nombre) {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
@@ -323,63 +492,80 @@ window.confirmarPedido = async function() {
       nombre = 'A' + (snap.size + 1);
       isAutoNumber = true;
     }
+
     await addDoc(collection(db, 'pedidos'), {
-      cliente: nombre, items: items, total: totalUnidades(), estado: 'nuevo',
-      fecha: document.getElementById('fecha-input').value,
-      canale: isWebOrder ? 'web' : 'locale',
-      timestamp: serverTimestamp()
+      cliente:    nombre,
+      items:      items,
+      total:      totalUnidades(),
+      estado:     'nuevo',
+      fecha:      document.getElementById('fecha-input').value,
+      canale:     isWebOrder ? 'web' : 'locale',
+      qtyPagata:  tieneControlQty ? qtyPagada : null,
+      timestamp:  serverTimestamp()
     });
+
     let itemsHtml = '';
-    items.forEach(i => { itemsHtml += `<div class="success-item"><span class="success-item-name">${i.nombre}${i.curcuma ? ' ✦' : ''}</span><span class="success-item-qty">× ${i.cantidad}</span></div>`; });
+    items.forEach(i => {
+      itemsHtml += `<div class="success-item"><span class="success-item-name">${i.nombre}${i.curcuma ? ' ✦' : ''}</span><span class="success-item-qty">× ${i.cantidad}</span></div>`;
+    });
     document.getElementById('suc-items').innerHTML = itemsHtml;
+
     if (isAutoNumber) {
-      document.getElementById('suc-nombre').textContent = '';
+      document.getElementById('suc-nombre').textContent    = '';
       document.getElementById('suc-numero-val').textContent = nombre;
       document.getElementById('suc-numero-box').style.display = 'block';
     } else {
-      document.getElementById('suc-nombre').textContent = nombre;
+      document.getElementById('suc-nombre').textContent     = nombre;
       document.getElementById('suc-numero-box').style.display = 'none';
     }
+
     document.getElementById('screen-menu').classList.remove('active');
     document.getElementById('screen-success').classList.add('active');
     window.scrollTo(0, 0);
+
   } catch(err) {
-    alert('Errore nell\'invio dell\'ordine. Riprova.');
+    alert("Errore nell'invio dell'ordine. Riprova.");
     console.error(err);
     btn.disabled = false;
+    if (tieneControlQty) updateQtyStatus(totalEmpanadas());
   } finally {
     document.getElementById('spinner').classList.remove('show');
   }
 };
 
 window.nuevoPedido = function() {
-  EMPANADAS.forEach(e => qtys[e.id] = 0);
-  BEBIDAS.forEach(b => bQtys[b.id] = 0);
+  EMPANADAS.forEach(e => qtys[e.id]  = 0);
+  BEBIDAS.forEach(b   => bQtys[b.id] = 0);
   document.getElementById('nombre-input').value = '';
   document.getElementById('confirmar-btn').disabled = false;
   document.getElementById('suc-numero-box').style.display = 'none';
   document.getElementById('suc-nombre').textContent = '';
   initFecha();
   renderMenu();
+  initQtyBanner();
   document.getElementById('screen-success').classList.remove('active');
   document.getElementById('screen-menu').classList.add('active');
   window.scrollTo(0, 0);
 };
 
+// ─────────────────────────────────────────────
+//  FECHA
+// ─────────────────────────────────────────────
+
 function initFecha() {
-  const input = document.getElementById('fecha-input');
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth()+1).padStart(2,'0');
-  const dd = String(today.getDate()).padStart(2,'0');
+  const input   = document.getElementById('fecha-input');
+  const today   = new Date();
+  const yyyy    = today.getFullYear();
+  const mm      = String(today.getMonth()+1).padStart(2,'0');
+  const dd      = String(today.getDate()).padStart(2,'0');
   const todayStr = `${yyyy}-${mm}-${dd}`;
   input.value = todayStr;
-  input.min = todayStr;
+  input.min   = todayStr;
   updateFechaDisplay(todayStr, true);
 }
 
 function formatFechaIT(dateStr) {
-  const [y,m,d] = dateStr.split('-');
+  const [y, m, d] = dateStr.split('-');
   const months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
   return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
 }
@@ -394,15 +580,20 @@ function updateFechaDisplay(dateStr, isToday) {
   document.getElementById('fecha-display').textContent = formatFechaIT(dateStr);
   const badge = document.getElementById('fecha-badge');
   if (isToday) { badge.textContent = 'Oggi'; badge.className = 'date-today-badge'; }
-  else { badge.textContent = 'Prenotazione'; badge.className = 'date-future-badge'; }
+  else         { badge.textContent = 'Prenotazione'; badge.className = 'date-future-badge'; }
 }
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
 
 initFecha();
 renderMenu();
+initQtyBanner();
 
-// ── Pre-compila nome e data da URL ──
-if(urlParams.get('nome')) document.getElementById('nombre-input').value = urlParams.get('nome');
-if(urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); onFechaChange(); }
+// Pre-compila nome e data da URL
+if (urlParams.get('nome')) document.getElementById('nombre-input').value = urlParams.get('nome');
+if (urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); onFechaChange(); }
 
 // ── DISPONIBILIDAD EN TIEMPO REAL ──
 onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
@@ -411,7 +602,7 @@ onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
     const listEl = document.getElementById('empanada-list');
     if (listEl) {
       renderMenu();
-      EMPANADAS.forEach(e => { const el = document.getElementById('qty-' + e.id); if (el) el.textContent = qtys[e.id] || 0; });
+      EMPANADAS.forEach(e  => { const el = document.getElementById('qty-'  + e.id);  if (el) el.textContent = qtys[e.id]  || 0; });
       if (!isWebOrder) BEBIDAS.forEach(b => { const el = document.getElementById('bqty-' + b.id); if (el) el.textContent = bQtys[b.id] || 0; });
       updateBottomBar();
     }
