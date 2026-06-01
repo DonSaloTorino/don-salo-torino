@@ -228,6 +228,20 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .s-result { text-align:center;padding:10px;border-radius:6px;font-size:12px;margin-top:8px; }
 .s-up{background:#d1fae5;color:#065f46;}.s-down{background:#fee2e2;color:#991b1b;}.s-eq{background:#f3f4f6;color:#6b7280;}
 .s-ranking { background:#fff;border-radius:10px;border:1px solid #eee;padding:20px; }
+.s-rank-total { display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;margin-top:8px;border-top:2px solid #111; }
+.s-rank-total-label { font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#111; }
+.s-rank-total-num { font-size:20px;font-weight:700;color:#111; }
+.s-period-total-box { background:#111;color:#fff;border-radius:12px;padding:20px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between; }
+.s-period-total-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:0.5; }
+.s-period-total-num { font-size:56px;font-weight:700;line-height:1; }
+.s-period-total-sub { font-size:12px;opacity:0.4;margin-top:4px; }
+.s-weekly-wrap { background:#fff;border-radius:10px;border:1px solid #eee;padding:20px;margin-bottom:24px; }
+.s-weekly-row { display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #eee; }
+.s-weekly-row:last-child { border-bottom:none; }
+.s-weekly-label { font-size:13px;font-weight:500;color:#333;flex:1; }
+.s-weekly-dates { font-size:11px;color:#aaa;margin-left:8px; }
+.s-weekly-bar { flex:2;margin:0 16px; }
+.s-weekly-num { font-size:15px;font-weight:700;color:#111;min-width:36px;text-align:right; }
 .s-rank-row { display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #eee; }
 .s-rank-row:last-child{border-bottom:none;}
 .s-rank-pos{font-size:13px;font-weight:700;color:#bbb;min-width:26px;}
@@ -377,9 +391,11 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <div class="s-counters" id="s-counters"></div>
     <div class="s-section-title">📊 Ventas por día de la semana</div>
     <div class="s-chart-wrap"><div class="s-chart-bars" id="s-chart-bars"></div></div>
+    <div id="s-weekly-section"></div>
     <div class="s-section-title">Comparativa</div>
     <div class="s-compare-grid" id="s-compare"></div>
     <div class="s-section-title">🏆 Ranking empanadas</div>
+    <div id="s-period-total-box"></div>
     <div class="s-ranking" id="s-ranking"></div>
   </div>
 </div>
@@ -839,8 +855,65 @@ async function sLoadData(){
   if(pR){const pO=await sFt(pR.from,pR.to),pE=cE(pO),mx1=Math.max(emp,pE)||1,mx2=Math.max(os.length,pO.length)||1;
     document.getElementById('s-compare').innerHTML=`<div class="s-compare-card"><div class="s-compare-title">🫔 Empanadas</div><div class="s-bar-label"><span>${r.label.split('—')[0].trim()}</span><span>${emp}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-a" style="width:${Math.round(emp/mx1*100)}%"></div></div><div class="s-bar-label"><span>${pR.label}</span><span>${pE}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-b" style="width:${Math.round(pE/mx1*100)}%"></div></div><div class="s-result ${emp>pE?'s-up':emp<pE?'s-down':'s-eq'}">${emp>pE?'▲ +'+(emp-pE)+' más':emp<pE?'▼ '+(pE-emp)+' menos':'= Sin cambios'}</div></div><div class="s-compare-card"><div class="s-compare-title">📦 Pedidos</div><div class="s-bar-label"><span>${r.label.split('—')[0].trim()}</span><span>${os.length}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-a" style="width:${Math.round(os.length/mx2*100)}%"></div></div><div class="s-bar-label"><span>${pR.label}</span><span>${pO.length}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-b" style="width:${Math.round(pO.length/mx2*100)}%"></div></div><div class="s-result ${os.length>pO.length?'s-up':os.length<pO.length?'s-down':'s-eq'}">${os.length>pO.length?'▲ +'+(os.length-pO.length)+' más pedidos':os.length<pO.length?'▼ '+(pO.length-os.length)+' menos pedidos':'= Igual cantidad'}</div></div>`;
   }else{document.getElementById('s-compare').innerHTML='<div style="color:#aaa;font-size:13px;padding:12px;">No hay período anterior para comparar.</div>';}
+  // ── RANKING con total al final ──
   const rk=cR(os),mx=rk.length>0?rk[0][1]:1,md=['🏆','🥈','🥉'];
-  document.getElementById('s-ranking').innerHTML=rk.length?rk.map(([n,c],i)=>`<div class="s-rank-row"><span class="s-rank-pos">${md[i]||'#'+(i+1)}</span><span class="s-rank-name">${n}</span><div class="s-rank-bar"><div class="s-rank-track"><div class="s-rank-fill" style="width:${Math.round(c/mx*100)}%"></div></div></div><span class="s-rank-count">${c}</span></div>`).join(''):'<div style="color:#aaa;text-align:center;padding:20px;">Sin datos</div>';
+  const rankTotal=rk.reduce((a,[,c])=>a+c,0);
+  document.getElementById('s-ranking').innerHTML=rk.length
+    ?rk.map(([n,c],i)=>`<div class="s-rank-row"><span class="s-rank-pos">${md[i]||'#'+(i+1)}</span><span class="s-rank-name">${n}</span><div class="s-rank-bar"><div class="s-rank-track"><div class="s-rank-fill" style="width:${Math.round(c/mx*100)}%"></div></div></div><span class="s-rank-count">${c}</span></div>`).join('')
+      +`<div class="s-rank-total"><span class="s-rank-total-label">Total Empanadas</span><span class="s-rank-total-num">${rankTotal}</span></div>`
+    :'<div style="color:#aaa;text-align:center;padding:20px;">Sin datos</div>';
+
+  // ── TOTAL GRANDE DEL PERÍODO ──
+  document.getElementById('s-period-total-box').innerHTML=emp>0?`
+    <div class="s-period-total-box">
+      <div>
+        <div class="s-period-total-label">${r.label}</div>
+        <div class="s-period-total-num">${emp}</div>
+        <div class="s-period-total-sub">${os.length} pedidos</div>
+      </div>
+      <div style="font-size:48px;opacity:0.15;">🫔</div>
+    </div>`:'';
+
+  // ── DESGLOSE SEMANAL ──
+  // Calcular semanas dentro del rango
+  const weekData=[];
+  const rangeFrom=new Date(r.from);
+  const rangeTo=new Date(r.to);
+  // Agrupar pedidos por semana ISO
+  const byWeek={};
+  os.forEach(o=>{
+    if(!o.timestamp)return;
+    const d=o.timestamp.toDate();
+    // Inicio de semana (lunes)
+    const dow=d.getDay();
+    const mon=new Date(d);
+    mon.setDate(d.getDate()-((dow+6)%7));
+    mon.setHours(0,0,0,0);
+    const key=mon.toISOString().split('T')[0];
+    if(!byWeek[key])byWeek[key]={from:new Date(mon),total:0,orders:0};
+    byWeek[key].total+=cE([o]);
+    byWeek[key].orders++;
+  });
+  const weeks=Object.entries(byWeek).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(weeks.length>1){
+    const maxW=Math.max(...weeks.map(([,v])=>v.total),1);
+    const weekRows=weeks.map(([key,v],i)=>{
+      const monD=new Date(key);
+      const sunD=new Date(monD);sunD.setDate(monD.getDate()+6);
+      const fmt=d=>d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
+      const pct=Math.round(v.total/maxW*100);
+      return`<div class="s-weekly-row">
+        <div style="min-width:80px;"><span class="s-weekly-label">Sem. ${i+1}</span><br><span class="s-weekly-dates">${fmt(monD)} → ${fmt(sunD)}</span></div>
+        <div class="s-weekly-bar"><div class="s-rank-track"><div class="s-rank-fill" style="width:${pct}%"></div></div></div>
+        <span class="s-weekly-num">${v.total}</span>
+      </div>`;
+    }).join('');
+    document.getElementById('s-weekly-section').innerHTML=`
+      <div class="s-section-title">📅 Desglose semanal</div>
+      <div class="s-weekly-wrap">${weekRows}</div>`;
+  } else {
+    document.getElementById('s-weekly-section').innerHTML='';
+  }
   const days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],dc=[0,0,0,0,0,0,0];
   os.forEach(o=>{if(o.timestamp){const d=o.timestamp.toDate().getDay();dc[d]+=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);}});
   const mxd=Math.max(...dc,1);
