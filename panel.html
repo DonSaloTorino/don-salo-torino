@@ -191,6 +191,15 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
 /* STATS */
 .stats-panel { display:none;padding:28px;max-width:1200px;margin:0 auto; }
+.s-fixed-row { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px; }
+.s-fixed-card { background:#fff;border-radius:10px;border:1px solid #eee;padding:16px 20px;display:flex;flex-direction:column;gap:4px; }
+.s-fixed-card.dark { background:#111;border-color:#111; }
+.s-fixed-label { font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#bbb; }
+.s-fixed-card.dark .s-fixed-label { color:rgba(255,255,255,0.4); }
+.s-fixed-num { font-size:36px;font-weight:700;color:#111;line-height:1; }
+.s-fixed-card.dark .s-fixed-num { color:#fff; }
+.s-fixed-sub { font-size:12px;color:#aaa;margin-top:2px; }
+.s-fixed-card.dark .s-fixed-sub { color:rgba(255,255,255,0.4); }
 .period-tabs { display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;align-items:center; }
 .s-tab-btn { padding:7px 18px;border-radius:20px;border:1px solid #ddd;background:#fff;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;color:#666;transition:all 0.15s; }
 .s-tab-btn:hover { border-color:#111;color:#111; }
@@ -336,6 +345,19 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 </div>
 
 <div class="stats-panel" id="stats-panel">
+  <!-- Contadores fijos: siempre visibles independiente del filtro -->
+  <div class="s-fixed-row" id="s-fixed-row">
+    <div class="s-fixed-card dark">
+      <div class="s-fixed-label" id="s-prev-month-label">Mes anterior</div>
+      <div class="s-fixed-num" id="s-prev-month-num">—</div>
+      <div class="s-fixed-sub" id="s-prev-month-sub">empanadas vendidas</div>
+    </div>
+    <div class="s-fixed-card">
+      <div class="s-fixed-label">🏆 Mejor día</div>
+      <div class="s-fixed-num" id="s-best-day-num">—</div>
+      <div class="s-fixed-sub" id="s-best-day-sub">empanadas</div>
+    </div>
+  </div>
   <div class="period-tabs">
     <button class="s-tab-btn active" onclick="sSetPeriod('today')">Hoy</button>
     <button class="s-tab-btn" onclick="sSetPeriod('yesterday')">Ayer</button>
@@ -779,7 +801,7 @@ window.switchTab=function(tab){
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
   document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock'}[tab];
-  if(tab==='stats')sLoadData();if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}
+  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}
 };
 
 // ── STATS ──
@@ -827,6 +849,44 @@ async function sLoadData(){
 }
 window.sSetPeriod=function(p){sP=p;document.querySelectorAll('.s-tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.s-tab-btn')[{today:0,yesterday:1,week:2,month:3,all:4}[p]]?.classList.add('active');sLoadData();};
 window.sApplyRange=function(){const f=document.getElementById('s-date-from').value,t=document.getElementById('s-date-to').value;if(!f||!t){alert('Seleccioná ambas fechas');return;}sP='custom';document.querySelectorAll('.s-tab-btn').forEach(b=>b.classList.remove('active'));window._sCR={from:new Date(f+'T00:00:00'),to:new Date(t+'T23:59:59'),label:'Rango: '+f+' → '+t};sLoadData();};
+
+// ── CONTADORES FIJOS: mes anterior + mejor día ──
+async function sLoadFixed(){
+  try{
+    const now=new Date();
+    // Mes anterior
+    const prevMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const prevMonthEnd=new Date(now.getFullYear(),now.getMonth(),0,23,59,59,999);
+    const prevMonthName=prevMonthStart.toLocaleString('it-IT',{month:'long',year:'numeric'});
+    const prevOs=await sFt(prevMonthStart,prevMonthEnd);
+    const prevTotal=cE(prevOs);
+    document.getElementById('s-prev-month-label').textContent=prevMonthName.charAt(0).toUpperCase()+prevMonthName.slice(1);
+    document.getElementById('s-prev-month-num').textContent=prevTotal;
+    document.getElementById('s-prev-month-sub').textContent=`empanadas · ${prevOs.length} pedidos`;
+
+    // Mejor día de todos los tiempos
+    const allOs=await sFt(new Date('2024-01-01'),dE(now));
+    const byDay={};
+    const days=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    allOs.forEach(o=>{
+      if(!o.timestamp)return;
+      const d=o.timestamp.toDate();
+      const dateStr=d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
+      const dayName=days[d.getDay()];
+      const key=dayName+' '+dateStr;
+      byDay[key]=(byDay[key]||0)+cE([o]);
+    });
+    const entries=Object.entries(byDay);
+    if(entries.length>0){
+      const best=entries.sort((a,b)=>b[1]-a[1])[0];
+      document.getElementById('s-best-day-num').textContent=best[1];
+      document.getElementById('s-best-day-sub').textContent='empanadas · '+best[0];
+    } else {
+      document.getElementById('s-best-day-num').textContent='—';
+      document.getElementById('s-best-day-sub').textContent='sin datos';
+    }
+  }catch(e){console.error('sLoadFixed error',e);}
+}
 const td=new Date().toISOString().split('T')[0];
 document.getElementById('s-date-from').value=td;document.getElementById('s-date-to').value=td;
 
