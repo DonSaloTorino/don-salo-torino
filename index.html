@@ -618,6 +618,17 @@ function updateFechaDisplay(dateStr, isToday) {
 initFecha();
 renderMenu();
 
+// ── Leggi parametri dall'URL (es. da Tiller) ──
+// URL: ?nome=JUAN+PEREZ&data=2026-06-02
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('nome')) {
+  document.getElementById('nombre-input').value = urlParams.get('nome');
+}
+if(urlParams.get('data')) {
+  document.getElementById('fecha-input').value = urlParams.get('data');
+  onFechaChange(); // aggiorna la visualizzazione della data
+}
+
 // ── DISPONIBILIDAD EN TIEMPO REAL ──
 // Lee Firebase config/disponibilidad y re-renderiza el menú cuando cambia
 onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
