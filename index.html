@@ -60,6 +60,17 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 .success-numero-hint { font-size: 14px; opacity: 0.55; margin-top: 10px; line-height: 1.5; }
 .date-section { padding: 12px 20px 14px; border-bottom: 1px solid #eee; background: #fafafa; }
 .date-section label { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
+
+/* ── Campos bloqueados (cliente viene de la web, ya pagó) ── */
+.nombre-input.locked { background: #f0f0f0; color: #888; cursor: not-allowed; border-color: #e5e5e5; }
+.date-display.locked { background: #f0f0f0; cursor: not-allowed; border-color: #e5e5e5; pointer-events: none; }
+.date-display.locked .date-text { color: #888; }
+.locked-badge { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; background: #e8e8e8; color: #999; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; }
+/* ── Sección hora retiro ── */
+.orario-section { padding: 12px 20px 14px; border-bottom: 1px solid #eee; background: #fafafa; }
+.orario-section label { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #888; display: block; margin-bottom: 6px; }
+.orario-display { display: flex; align-items: center; justify-content: space-between; border: 1px solid #e5e5e5; border-radius: 6px; padding: 11px 14px; background: #f0f0f0; }
+.orario-text { font-size: 18px; color: #888; font-family: 'DM Sans', sans-serif; }
 .date-display { display: flex; align-items: center; justify-content: space-between; border: 1px solid #ddd; border-radius: 6px; padding: 11px 14px; background: #fff; cursor: pointer; transition: border-color 0.2s; }
 .date-display:active { border-color: #111; }
 .date-text { font-size: 18px; color: #111; font-family: 'DM Sans', sans-serif; }
@@ -167,6 +178,15 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
       <span id="fecha-badge" class="date-today-badge">Oggi</span>
     </div>
     <input class="date-input-hidden" id="fecha-input" type="date" onchange="onFechaChange()"/>
+  </div>
+
+  <!-- Hora de retiro — solo visible si viene de la web con orario -->
+  <div class="orario-section" id="orario-section" style="display:none;">
+    <label>Orario del ritiro</label>
+    <div class="orario-display">
+      <span class="orario-text" id="orario-text">—</span>
+      <span class="locked-badge">🔒 Confermato</span>
+    </div>
   </div>
 
   <div id="empanada-list" class="empanada-list"></div>
@@ -499,6 +519,7 @@ window.confirmarPedido = async function() {
       total:      totalUnidades(),
       estado:     'nuevo',
       fecha:      document.getElementById('fecha-input').value,
+      orario:     urlParams.get('orario') || null,
       canale:     isWebOrder ? 'web' : 'locale',
       qtyPagata:  tieneControlQty ? qtyPagada : null,
       timestamp:  serverTimestamp()
@@ -594,6 +615,39 @@ initQtyBanner();
 // Pre-compila nome e data da URL
 if (urlParams.get('nome')) document.getElementById('nombre-input').value = urlParams.get('nome');
 if (urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); onFechaChange(); }
+
+// ── BLOQUEO DE CAMPOS cuando viene de la web (cliente ya pagó) ──
+// Se bloquea solo si viene con web=1 Y trae los datos del pago
+if (isWebOrder && (urlParams.get('nome') || urlParams.get('data'))) {
+  // Nombre: solo lectura
+  const nombreEl = document.getElementById('nombre-input');
+  if (nombreEl) {
+    nombreEl.readOnly = true;
+    nombreEl.classList.add('locked');
+    nombreEl.removeAttribute('placeholder');
+  }
+
+  // Fecha: bloqueada, no abre el calendario
+  const dateDisplay = document.querySelector('.date-display');
+  if (dateDisplay) {
+    dateDisplay.classList.add('locked');
+    dateDisplay.removeAttribute('onclick');
+  }
+  // Cambia el badge de fecha por candado
+  const fechaBadge = document.getElementById('fecha-badge');
+  if (fechaBadge) { fechaBadge.textContent = '🔒 Confermato'; fechaBadge.className = 'locked-badge'; }
+
+  // Hora: mostrar el orario que viene en la URL
+  const orario = urlParams.get('orario');
+  if (orario) {
+    const orarioSection = document.getElementById('orario-section');
+    const orarioText = document.getElementById('orario-text');
+    if (orarioSection && orarioText) {
+      orarioText.textContent = orario;
+      orarioSection.style.display = 'block';
+    }
+  }
+}
 
 // ── DISPONIBILIDAD EN TIEMPO REAL ──
 onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
