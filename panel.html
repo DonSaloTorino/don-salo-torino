@@ -28,7 +28,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .order-card { background:#fff;border-radius:12px;border:1px solid #e8e8e8;overflow:hidden;transition:box-shadow 0.2s;animation:slideIn 0.35s ease; }
 @keyframes slideIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .order-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
-.order-card.completado { opacity:0.45; }
+.order-card.completado .web-banner,
+.order-card.completado .web-ritiro,
+.order-card.completado .card-header,
+.order-card.completado .card-items { opacity:0.45; }
 .order-card.web-order { border:2px solid #e00; }
 .web-banner { background:#e00;color:#fff;padding:8px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px; }
 .web-banner-title { font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:6px; }
@@ -616,7 +619,13 @@ function renderOrders(){
 
     const cardClass = (o.estado==='completado'?'order-card completado':'order-card') + (isWeb ? ' web-order' : '');
 
-    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button><button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')">✕</button></div></div>`;
+    // Botón cancelar/eliminar: disponible SIEMPRE, incluso si está Completato.
+    // En completados se muestra con label "✕ Annulla" para que se vea claro.
+    const cancelBtn = (o.estado==='completado')
+      ? `<button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')" title="Annulla pedido completato">✕ Annulla</button>`
+      : `<button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')" title="Elimina pedido">✕</button>`;
+
+    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
   }).join('');
   const act=orders.filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
@@ -631,7 +640,39 @@ function updateStats(){
 }
 
 window.cambiarEstado=async(id,e)=>await updateDoc(doc(db,'pedidos',id),{estado:e});
-window.eliminarOrder=async id=>{if(confirm('¿Eliminar este pedido?'))await deleteDoc(doc(db,'pedidos',id));};
+
+// ── CANCELAR / ELIMINAR PEDIDO ──
+// Funciona en CUALQUIER estado, incluido "completado" (por ahora sin autorización).
+// Además devuelve las empanadas al stock: borra los registros de "venta"
+// que ese pedido generó (docId = orderId + '_' + sabor) y re-sincroniza la
+// disponibilidad que ve el menú del cliente.
+window.eliminarOrder=async function(id){
+  const o=orders.find(x=>x.id===id);
+  const esCompletado=o&&o.estado==='completado';
+  const msg=esCompletado
+    ? '⚠️ Este pedido está COMPLETATO.\n\n¿Cancelarlo igualmente? Se eliminará y las empanadas vuelven al stock.'
+    : '¿Cancelar / eliminar este pedido?';
+  if(!confirm(msg))return;
+  try{
+    // 1) Borrar el pedido primero (así la sincronización no lo vuelve a registrar como venta)
+    await deleteDoc(doc(db,'pedidos',id));
+    // 2) Borrar los registros de venta de stock asociados → devuelve empanadas al stock
+    if(o){
+      const empItems=(o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
+      await Promise.all(empItems.map(item=>{
+        const docId=id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+        return deleteDoc(doc(db,'stock',docId)).catch(()=>{});
+      }));
+    }
+    // 3) Re-sincronizar la disponibilidad con el menú del cliente
+    await syncDisponibilidadFromDB();
+    // 4) Si el panel de stock está abierto, refrescar tabla/gráfico
+    if(document.getElementById('stock-panel').style.display==='block'){
+      await stockLoadAll();
+    }
+  }catch(err){alert('Error al cancelar: '+err.message);}
+};
+
 window.printOrder=function(id){
   const o=orders.find(x=>x.id===id);if(!o)return;
   const w=window.open('','_blank','width=400,height=500'),n=new Date();
