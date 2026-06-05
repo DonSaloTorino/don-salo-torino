@@ -29,6 +29,12 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 @keyframes slideIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .order-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
 .order-card.completado { opacity:0.45; }
+.order-card.web-order { border:2px solid #e00; }
+.web-banner { background:#e00;color:#fff;padding:8px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.web-banner-title { font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:6px; }
+.web-banner-paid { font-size:10px;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;letter-spacing:1px; }
+.web-ritiro { background:#fff5f5;padding:8px 18px;border-bottom:1px solid #fdd;font-size:13px;color:#991b1b; }
+.web-ritiro strong { font-weight:700;color:#111; }
 .card-header { padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0; }
 .card-header-left .cliente { font-size:18px;font-weight:600; }
 .card-header-left .time { font-size:11px;color:#bbb;margin-top:2px;letter-spacing:0.5px; }
@@ -579,6 +585,7 @@ onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromD
 });
 
 function fFecha(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)} ${'gen,feb,mar,apr,mag,giu,lug,ago,set,ott,nov,dic'.split(',')[parseInt(m)-1]}`;}
+function fFechaFull(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)} ${'gennaio,febbraio,marzo,aprile,maggio,giugno,luglio,agosto,settembre,ottobre,novembre,dicembre'.split(',')[parseInt(m)-1]} ${y}`;}
 function fTime(ts){return ts?ts.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—';}
 function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',completado:'Completato'}[e]||e;}
 
@@ -593,7 +600,23 @@ function renderOrders(){
     const items=(o.items||[]).map(i=>`<div class="card-item"><span class="item-name">${i.nombre}${i.curcuma?'<span class="item-curcuma">✦ CURCUMA</span>':''}</span><span class="item-qty">${i.cantidad}</span></div>`).join('');
     const canEdit=o.estado==='nuevo'||o.estado==='en-preparacion';
     let btn='';if(o.estado==='nuevo')btn=`<button class="action-btn btn-preparar" onclick="cambiarEstado('${o.id}','en-preparacion')">En preparación</button>`;else if(o.estado==='en-preparacion')btn=`<button class="action-btn btn-completar" onclick="cambiarEstado('${o.id}','completado')">✓ Completado</button>`;
-    return`<div class="${o.estado==='completado'?'order-card completado':'order-card'}"><div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button><button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')">✕</button></div></div>`;
+
+    // ── PEDIDO WEB: cartel rojo grande + fecha/hora de retiro en negrita ──
+    const isWeb = o.canale === 'web';
+    let webBanner = '';
+    if (isWeb) {
+      const fechaTxt = o.fecha ? fFechaFull(o.fecha) : '';
+      const orarioTxt = o.orario ? o.orario : '';
+      let ritiroLine = '';
+      if (fechaTxt || orarioTxt) {
+        ritiroLine = `<div class="web-ritiro">📅 Ritiro: <strong>${fechaTxt}${orarioTxt ? ' alle ' + orarioTxt : ''}</strong></div>`;
+      }
+      webBanner = `<div class="web-banner"><span class="web-banner-title">🌐 ORDEN WEB</span>${o.qtyPagata ? '<span class="web-banner-paid">✓ PAGATO · '+o.qtyPagata+' emp.</span>' : ''}</div>${ritiroLine}`;
+    }
+
+    const cardClass = (o.estado==='completado'?'order-card completado':'order-card') + (isWeb ? ' web-order' : '');
+
+    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button><button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')">✕</button></div></div>`;
   }).join('');
   const act=orders.filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
@@ -979,7 +1002,7 @@ function hRender(list){
     const ts=o.timestamp?o.timestamp.toDate():null;
     const hora=ts?ts.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
     const ec=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
-    return`<tr><td style="white-space:nowrap;color:#888;">${hora}</td><td style="font-weight:600;">${o.cliente||'—'}</td><td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td><td style="font-weight:700;text-align:center;">${ec}</td><td>${o.manual?'<span class="hist-badge hist-manual">Manual</span>':'<span class="hist-badge hist-qr">QR</span>'}</td><td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td></tr>`;
+    return`<tr><td style="white-space:nowrap;color:#888;">${hora}</td><td style="font-weight:600;">${o.cliente||'—'}</td><td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td><td style="font-weight:700;text-align:center;">${ec}</td><td>${o.manual?'<span class="hist-badge hist-manual">Manual</span>':o.canale==='web'?'<span class="hist-badge hist-qr" style="background:#fee2e2;color:#991b1b;">🌐 Web</span>':'<span class="hist-badge hist-qr">QR</span>'}</td><td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td></tr>`;
   }).join('');
 }
 document.getElementById('hist-from').value=td;document.getElementById('hist-to').value=td;
