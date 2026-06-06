@@ -221,7 +221,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     </div>
     <div class="success-sub">Il tuo ordine è stato inviato.<br>Lo prepariamo subito per te!</div>
     <div class="success-items" id="suc-items"></div>
-    <button class="nuevo-btn" onclick="nuevoPedido()">+ Nuovo ordine</button>
+    <button class="nuevo-btn" id="nuevo-btn" onclick="nuevoPedido()">+ Nuovo ordine</button>
   </div>
 </div>
 
@@ -615,6 +615,13 @@ initQtyBanner();
 // Pre-compila nome e data da URL
 if (urlParams.get('nome')) document.getElementById('nombre-input').value = urlParams.get('nome');
 if (urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); onFechaChange(); }
+
+// ── Ocultar "+ Nuovo ordine" en pedidos web ──
+// El cliente ya pagó y eligió; ese botón es solo para el mostrador.
+if (isWebOrder) {
+  const nuevoBtn = document.getElementById('nuevo-btn');
+  if (nuevoBtn) nuevoBtn.style.display = 'none';
+}
 
 // ── BLOQUEO DE CAMPOS cuando viene de la web (cliente ya pagó) ──
 // Se bloquea solo si viene con web=1 Y trae los datos del pago
