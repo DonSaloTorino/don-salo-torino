@@ -222,6 +222,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     <div class="success-sub">Il tuo ordine è stato inviato.<br>Lo prepariamo subito per te!</div>
     <div class="success-items" id="suc-items"></div>
     <button class="nuevo-btn" id="nuevo-btn" onclick="nuevoPedido()">+ Nuovo ordine</button>
+    <button class="nuevo-btn" id="home-btn" style="display:none;" onclick="window.location.href='https://don-salo-tienda.vercel.app/'">🏠 Torna al sito</button>
   </div>
 </div>
 
@@ -621,6 +622,8 @@ if (urlParams.get('data')) { document.getElementById('fecha-input').value = urlP
 if (isWebOrder) {
   const nuevoBtn = document.getElementById('nuevo-btn');
   if (nuevoBtn) nuevoBtn.style.display = 'none';
+  const homeBtn = document.getElementById('home-btn');
+  if (homeBtn) homeBtn.style.display = 'block';
 }
 
 // ── BLOQUEO DE CAMPOS cuando viene de la web (cliente ya pagó) ──
