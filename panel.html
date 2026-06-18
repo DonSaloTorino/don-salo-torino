@@ -682,6 +682,7 @@ window.printOrder=function(id){
 
 // ── PEDIDO MANUAL ──
 const EMP=[
+  {id:15,nombre:'ENTRECOTE + CHIMICHURRI',curcuma:false,especial:true},
   {id:1, nombre:'CARNE',curcuma:false},
   {id:13,nombre:'MATAMBRE (SOTTOPANCIA)',curcuma:false},
   {id:7, nombre:'VACIO (BAVETTA)',curcuma:false},
@@ -776,7 +777,7 @@ function renderList() {
       const cardClass = agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card';
       const clickFn = agotado ? '' : `onclick="chgE(${e.id},1)"`;
       const stockLabel = stock !== null ? `<span class="modal-card-stock">${stock}</span>` : `<span></span>`;
-      const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : '';
+      const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : e.especial ? '<span style="font-size:9px;opacity:0.85;"> ⭐</span>' : '';
       return `<div class="${cardClass}" id="mcard-${e.id}" ${clickFn}>
         <button class="modal-card-minus" onclick="event.stopPropagation();chgE(${e.id},-1)">−</button>
         <div class="modal-card-name">${e.nombre}${badge}</div>
