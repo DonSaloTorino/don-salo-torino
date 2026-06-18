@@ -250,6 +250,7 @@ const qtyPagada   = qtyParam ? parseInt(qtyParam) : null;
 const tieneControlQty = isWebOrder && qtyPagada !== null && qtyPagada > 0;
 
 const EMPANADAS = [
+  { id:15, nombre:'ENTRECOTE + CHIMICHURRI', desc:'Entrecotte Black Angus 🇦🇷, Cipolla, Peperoni, Vino Bianco, Spezie, Sale, Pepe, Aglio, Prezzemolo', curcuma:false, especial:true, emoji:'🥩' },
   { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, emoji:'🥩' },
   { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false, emoji:'🥩' },
   { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false, emoji:'🥩' },
@@ -360,11 +361,17 @@ function updateQtyStatus(empTotal) {
 
 function renderMenu() {
   const list = document.getElementById('empanada-list');
-  const regular   = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio);
+  const edizioneSpec = EMPANADAS.filter(e => e.especial);
+  const regular   = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio && !e.especial);
   const especial  = EMPANADAS.filter(e => e.curcuma);
   const senzaLatt = EMPANADAS.filter(e => e.senzaLattosio);
 
-  let html = '<div class="section-title">Le Nostre Empanadas</div>';
+  let html = '';
+  if (edizioneSpec.length) {
+    html += '<div class="section-title">⭐ Edizione Speciale</div>';
+    edizioneSpec.forEach(e => { html += cardHTML(e); });
+  }
+  html += '<div class="section-title" style="margin-top:8px;">Le Nostre Empanadas</div>';
   regular.forEach(e  => { html += cardHTML(e); });
   html += '<div class="section-title" style="margin-top:8px;">Impasto Speciale</div>';
   especial.forEach(e => { html += cardHTML(e); });
@@ -397,7 +404,7 @@ function cardHTML(e) {
   if (e.nonDisponibile || sinStock) {
     return `<div class="empanada-card empanada-nodisponible" id="card-${e.id}">${icon}<div class="emp-info"><div class="emp-name-nodisponible">${e.nombre}</div><div class="emp-desc-nodisponible">${e.desc||''}</div></div><div class="nodisponibile-badge">Momentaneamente<br>non disponibile</div></div>`;
   }
-  return `<div class="empanada-card" id="card-${e.id}">${icon}<div class="emp-info">${e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}<div class="emp-name">${e.nombre}</div><div class="emp-desc">${e.desc}</div></div><div class="qty-control"><button class="qty-btn" data-id="${e.id}" data-action="minus">−</button><div class="qty-num" id="qty-${e.id}">0</div><button class="qty-btn" data-id="${e.id}" data-action="plus">+</button></div></div>`;
+  return `<div class="empanada-card" id="card-${e.id}">${icon}<div class="emp-info">${e.especial ? '<div class="emp-badge">⭐ Edizione Speciale</div>' : e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}<div class="emp-name">${e.nombre}</div><div class="emp-desc">${e.desc}</div></div><div class="qty-control"><button class="qty-btn" data-id="${e.id}" data-action="minus">−</button><div class="qty-num" id="qty-${e.id}">0</div><button class="qty-btn" data-id="${e.id}" data-action="plus">+</button></div></div>`;
 }
 
 function bebCardHTML(b) {
