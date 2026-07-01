@@ -320,6 +320,27 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .stock-empty{text-align:center;padding:40px;color:#bbb;font-size:14px;}
 .stock-modal-box{background:#fff;border-radius:14px;width:90%;max-width:420px;padding:28px;}
 .stock-modal-title{font-size:20px;font-weight:600;font-family:'Playfair Display',serif;margin-bottom:20px;}
+
+/* ── BEBIDAS ── */
+.beb-panel{display:none;padding:24px;max-width:900px;margin:0 auto;}
+.beb-section{background:#fff;border-radius:12px;border:1px solid #eee;padding:20px 24px;margin-bottom:20px;}
+.beb-section-title{font-size:16px;font-weight:600;font-family:'Playfair Display',serif;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.beb-cat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:16px 0 6px;}
+.beb-cat-label:first-of-type{margin-top:0;}
+.beb-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #f5f5f5;gap:12px;}
+.beb-row:last-child{border-bottom:none;}
+.beb-row-name{font-size:14px;color:#333;flex:1;}
+.beb-row-name.off{color:#ccc;text-decoration:line-through;}
+.beb-row-actions{display:flex;align-items:center;gap:10px;}
+.beb-switch{position:relative;width:42px;height:24px;border-radius:20px;background:#ddd;cursor:pointer;transition:background 0.2s;flex-shrink:0;}
+.beb-switch.on{background:#4ade80;}
+.beb-switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+.beb-switch.on::after{left:21px;}
+.beb-del{width:24px;height:24px;border-radius:50%;border:1px solid #eee;background:#fff;color:#bbb;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.beb-del:hover{background:#fee2e2;color:#991b1b;border-color:#fecaca;}
+.beb-add-btn{padding:12px 24px;background:#111;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:0.5px;margin-bottom:20px;}
+.beb-add-btn:hover{background:#333;}
+.beb-empty{text-align:center;padding:20px;color:#bbb;font-size:13px;}
 </style>
 </head>
 <body>
@@ -337,6 +358,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
       <button id="tab-hist" onclick="switchTab('hist')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 HISTORIAL</button>
       <button id="tab-stock" onclick="switchTab('stock')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📦 STOCK</button>
+      <button id="tab-bebidas" onclick="switchTab('bebidas')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🥤 BEBIDAS</button>
     </div>
     <div class="counter-badge" id="badge-count">0 pedidos</div>
   </div>
@@ -476,6 +498,42 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       </tr></thead>
       <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
     </table>
+  </div>
+</div>
+
+<!-- BEBIDAS PANEL -->
+<div class="beb-panel" id="beb-panel">
+  <button class="beb-add-btn" onclick="openBebModal()">+ Agregar bebida</button>
+
+  <div class="beb-section">
+    <div class="beb-section-title">🥤 Bebidas</div>
+    <div class="beb-cat-label">Acqua</div>
+    <div id="beb-list-acqua"></div>
+    <div class="beb-cat-label">Gassate</div>
+    <div id="beb-list-gassata"></div>
+  </div>
+
+  <div class="beb-section">
+    <div class="beb-section-title">🍺 Cervezas</div>
+    <div id="beb-list-birra"></div>
+  </div>
+</div>
+
+<!-- BEBIDA MODAL -->
+<div class="modal-overlay no-print" id="beb-modal-overlay">
+  <div class="stock-modal-box">
+    <div class="stock-modal-title">🥤 Nueva Bebida</div>
+    <input class="modal-input" id="beb-modal-nombre" type="text" placeholder="Ej: SPRITE" style="margin-bottom:12px;text-transform:uppercase;"/>
+    <select class="modal-input" id="beb-modal-cat" style="cursor:pointer;margin-bottom:12px;" onchange="bebModalCatChange()">
+      <option value="acqua">💧 Acqua</option>
+      <option value="gassata">🥤 Gassate</option>
+      <option value="birra">🍺 Birra</option>
+    </select>
+    <input class="modal-input" id="beb-modal-emoji" type="text" placeholder="💧" maxlength="4" style="margin-bottom:20px;"/>
+    <div style="display:flex;gap:10px;">
+      <button class="modal-cancel" style="flex:1;" onclick="closeBebModal()">Cancelar</button>
+      <button class="modal-confirm" style="flex:2;" id="beb-modal-save-btn" onclick="guardarBebida()">Guardar →</button>
+    </div>
   </div>
 </div>
 
@@ -873,16 +931,107 @@ window.confirmarManual=async function(){
 
 document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('modal-overlay'))closeModal();});
 
+// ── BEBIDAS ──
+const BEB_DEFAULT=[
+  {id:'b1', nombre:'ACQUA NATURALE',  cat:'acqua',   emoji:'💧', orden:0},
+  {id:'b2', nombre:'ACQUA FRIZZANTE', cat:'acqua',   emoji:'💧', orden:1},
+  {id:'b3', nombre:'COCA COLA',       cat:'gassata', emoji:'🥤', orden:2},
+  {id:'b4', nombre:'COCA COLA ZERO',  cat:'gassata', emoji:'🥤', orden:3},
+  {id:'b5', nombre:'7UP',             cat:'gassata', emoji:'🥤', orden:4},
+  {id:'b6', nombre:'FANTA',           cat:'gassata', emoji:'🥤', orden:5},
+  {id:'b7', nombre:'THÈ LIMONE',      cat:'gassata', emoji:'🍋', orden:6},
+  {id:'b8', nombre:'THÈ PESCA',       cat:'gassata', emoji:'🍑', orden:7},
+  {id:'b9', nombre:'QUILMES 🇦🇷',     cat:'birra',   emoji:'🍺', orden:8},
+  {id:'b10',nombre:'MORETTI',         cat:'birra',   emoji:'🍺', orden:9},
+  {id:'b15',nombre:'MORETTI LIMONE',  cat:'birra',   emoji:'🍺', orden:10},
+  {id:'b16',nombre:'MORETTI LA BIANCA',cat:'birra',  emoji:'🍺', orden:11},
+  {id:'b11',nombre:'PERONI',          cat:'birra',   emoji:'🍺', orden:12},
+  {id:'b12',nombre:'CORONA',          cat:'birra',   emoji:'🍺', orden:13},
+  {id:'b13',nombre:'HEINEKEN',        cat:'birra',   emoji:'🍺', orden:14},
+  {id:'b14',nombre:'ICHNUSA',         cat:'birra',   emoji:'🍺', orden:15},
+  {id:'b17',nombre:'STELLA ARTOIS',   cat:'birra',   emoji:'🍺', orden:16},
+];
+let bebUnsub=null;
+async function bebSeedIfEmpty(){
+  const snap=await getDocs(query(collection(db,'bebidas')));
+  if(snap.empty){
+    await Promise.all(BEB_DEFAULT.map(b=>setDoc(doc(db,'bebidas',b.id),{nombre:b.nombre,cat:b.cat,emoji:b.emoji,activo:true,orden:b.orden})));
+  }
+}
+function bebRenderList(items,contId){
+  const cont=document.getElementById(contId);
+  if(!items.length){cont.innerHTML='<div class="beb-empty">Sin bebidas en esta categoría todavía</div>';return;}
+  cont.innerHTML=items.map(b=>{
+    const activo=b.activo!==false;
+    const nombreEsc=b.nombre.replace(/'/g,"\\'");
+    return `<div class="beb-row">
+      <div class="beb-row-name${activo?'':' off'}">${b.emoji||''} ${b.nombre}</div>
+      <div class="beb-row-actions">
+        <div class="beb-switch${activo?' on':''}" onclick="toggleBebida('${b.id}',${activo})"></div>
+        <button class="beb-del" onclick="deleteBebida('${b.id}','${nombreEsc}')" title="Eliminar">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function bebInit(){
+  if(bebUnsub)return;
+  bebSeedIfEmpty().then(()=>{
+    bebUnsub=onSnapshot(query(collection(db,'bebidas'),orderBy('orden')),snap=>{
+      const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+      bebRenderList(all.filter(b=>b.cat==='acqua'),  'beb-list-acqua');
+      bebRenderList(all.filter(b=>b.cat==='gassata'),'beb-list-gassata');
+      bebRenderList(all.filter(b=>b.cat==='birra'),  'beb-list-birra');
+    });
+  });
+}
+window.toggleBebida=async function(id,estaActivo){
+  await updateDoc(doc(db,'bebidas',id),{activo:!estaActivo});
+};
+window.deleteBebida=async function(id,nombre){
+  if(!confirm('¿Eliminar "'+nombre+'" definitivamente? Esto no se puede deshacer.'))return;
+  await deleteDoc(doc(db,'bebidas',id));
+};
+window.openBebModal=function(){
+  document.getElementById('beb-modal-nombre').value='';
+  document.getElementById('beb-modal-cat').value='acqua';
+  document.getElementById('beb-modal-emoji').value='';
+  document.getElementById('beb-modal-emoji').placeholder='💧';
+  document.getElementById('beb-modal-overlay').classList.add('show');
+};
+window.closeBebModal=function(){
+  document.getElementById('beb-modal-overlay').classList.remove('show');
+};
+window.bebModalCatChange=function(){
+  const cat=document.getElementById('beb-modal-cat').value;
+  document.getElementById('beb-modal-emoji').placeholder={acqua:'💧',gassata:'🥤',birra:'🍺'}[cat];
+};
+window.guardarBebida=async function(){
+  const nombre=document.getElementById('beb-modal-nombre').value.trim().toUpperCase();
+  const cat=document.getElementById('beb-modal-cat').value;
+  let emoji=document.getElementById('beb-modal-emoji').value.trim();
+  if(!nombre){alert('Poné un nombre para la bebida.');return;}
+  if(!emoji)emoji={acqua:'💧',gassata:'🥤',birra:'🍺'}[cat];
+  const btn=document.getElementById('beb-modal-save-btn');
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    await addDoc(collection(db,'bebidas'),{nombre,cat,emoji,activo:true,orden:Date.now()});
+    closeBebModal();
+  }catch(err){alert('Error: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='Guardar →';}
+};
+document.getElementById('beb-modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('beb-modal-overlay'))closeBebModal();});
+
 // ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
-  ['pedidos','stats','hist','stock'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
+  ['pedidos','stats','hist','stock','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
   document.getElementById('main').style.display=tab==='pedidos'?'block':'none';
   document.getElementById('stats-panel').style.display=tab==='stats'?'block':'none';
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
   document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
-  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock'}[tab];
-  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}
+  document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
+  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',bebidas:'Gestión de bebidas'}[tab];
+  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}if(tab==='bebidas')bebInit();
 };
 
 // ── STATS ──
