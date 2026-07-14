@@ -801,7 +801,7 @@ const SABORES_DEFAULT=[
   {nombre:'HUMITA',curcuma:false,especial:false, orden:11},
   {nombre:'POLLO — CURCUMA',curcuma:true,especial:false, orden:12},
   {nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO',curcuma:false,especial:false, orden:13},
-  {nombre:'CHORIZO + BROCCOLI',curcuma:false,especial:false, orden:14},
+  {nombre:'CHORIZO + BROCCOLI',curcuma:false,especial:true, orden:14},
 ];
 async function saboresSeedIfEmpty(){
   const snap=await getDocs(query(collection(db,'sabores')));
@@ -814,12 +814,24 @@ async function saboresSeedIfEmpty(){
 }
 function initSabores(){
   saboresSeedIfEmpty().then(()=>{
+    patchChorizoBroccoliEspecial();
     onSnapshot(query(collection(db,'sabores'),orderBy('orden')),snap=>{
       EMP=snap.docs.map(d=>({id:d.id,...d.data()}));
       EMP.forEach(e=>{ if(!(e.id in eQ)) eQ[e.id]=0; });
       onSaboresUpdate();
     });
   });
+}
+// Parche puntual: CHORIZO + BROCCOLI se había guardado como "especial:false"
+// antes de confirmar que también es Edizione Speciale. Lo corrige una sola vez.
+async function patchChorizoBroccoliEspecial(){
+  try{
+    const ref=doc(db,'sabores','CHORIZO___BROCCOLI');
+    const snap=await getDoc(ref);
+    if(snap.exists() && snap.data().especial!==true){
+      await updateDoc(ref,{especial:true});
+    }
+  }catch(e){console.error('patchChorizoBroccoliEspecial error',e);}
 }
 function onSaboresUpdate(){
   // Si el modal de pedido está abierto en la pestaña Empanadas, refresca la grilla
@@ -888,7 +900,7 @@ function renderList() {
     }
     h += EMP.map(e => {
       const qty = eQ[e.id] || 0;
-      const stockCalc = stockAllData.length > 0 ? stockCalcBySabor() : null;
+      const stockCalc = stockAllData.length > 0 ? stockCalcBySabor(stockDataHastaHoy()) : null;
       const stock = stockCalc ? Math.max(0, stockCalc[e.nombre]?.stock || 0) : null;
       const agotado = stock !== null && stock === 0;
       const cardClass = agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card';
@@ -1285,9 +1297,10 @@ async function stockLoadAll(){
       if(a.fecha&&b.fecha)return b.fecha.localeCompare(a.fecha);
       return 0;
     });
-    stockRenderTotal();
-    stockRenderAlerts();
-    stockRenderChart();
+    const dataHoy=stockDataHastaHoy(stockAllData);
+    stockRenderTotal(dataHoy);
+    stockRenderAlerts(dataHoy);
+    stockRenderChart(dataHoy);
     stockRenderTable(stockAllData);
     await syncDisponibilidad(); // Sincroniza disponibilidad con menú cliente
   }catch(e){console.error('stock load error',e);}
@@ -1319,8 +1332,16 @@ function stockRenderTotal(sourceData){
   document.getElementById('stock-total-num').textContent=total;
 }
 
-function stockRenderAlerts(){
-  const bySabor=stockCalcBySabor();
+// Filtra los movimientos de stock a solo los que YA LLEGARON (fecha de hoy o anterior).
+// Una entrada cargada con fecha futura no debe contar como disponible hasta que esa fecha llegue —
+// ni para el panel (mostrador) ni para la disponibilidad que ve el cliente en el menú QR.
+function stockDataHastaHoy(sourceData){
+  const hoy=new Date().toISOString().split('T')[0];
+  return (sourceData||stockAllData).filter(e=>!e.fecha||e.fecha<=hoy);
+}
+
+function stockRenderAlerts(sourceData){
+  const bySabor=stockCalcBySabor(sourceData);
   const umbral=parseInt(document.getElementById('stock-umbral-input')?.value)||20;
   const alerts=Object.entries(bySabor).filter(([,v])=>v.stock>0&&v.stock<=umbral);
   const div=document.getElementById('stock-alerts');
@@ -1349,8 +1370,9 @@ window.stockApplyFilter=async function(){
   const from=document.getElementById('stock-filter-from').value;
   const to=document.getElementById('stock-filter-to').value;
   const tipo=document.getElementById('stock-filter-tipo').value;
-  // Gráfico y total: mostrar stock histórico hasta la fecha "to" si está definida
-  const chartData=to?stockAllData.filter(e=>e.fecha<=to):stockAllData;
+  // Gráfico y total: mostrar stock histórico hasta la fecha "to" si está definida,
+  // o hasta hoy por defecto (el stock futuro no cuenta como disponible todavía)
+  const chartData=to?stockAllData.filter(e=>e.fecha<=to):stockDataHastaHoy(stockAllData);
   stockRenderChart(chartData);
   stockRenderTotal(chartData);
   const title=document.getElementById('stock-chart-title');
@@ -1371,8 +1393,8 @@ window.stockResetFilter=function(){
   document.getElementById('stock-filter-tipo').value='';
   const title=document.getElementById('stock-chart-title');
   if(title)title.textContent='📊 Stock actual por sabor';
-  stockRenderChart();
-  stockRenderTotal();
+  stockRenderChart(stockDataHastaHoy(stockAllData));
+  stockRenderTotal(stockDataHastaHoy(stockAllData));
   stockRenderTable(stockAllData);
 };
 
@@ -1583,7 +1605,7 @@ document.getElementById('sabor-modal-overlay').addEventListener('click',e=>{if(e
 // El menú del cliente lee esto en tiempo real
 async function syncDisponibilidad(){
   try{
-    const bySabor=stockCalcBySabor();
+    const bySabor=stockCalcBySabor(stockDataHastaHoy());
     const data={};
     EMP.forEach(e=>{
       data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
@@ -1597,7 +1619,7 @@ async function syncDisponibilidadFromDB(){
   try{
     const snap=await getDocs(query(collection(db,'stock')));
     const tempData=snap.docs.map(d=>({id:d.id,...d.data()}));
-    const bySabor=stockCalcBySabor(tempData);
+    const bySabor=stockCalcBySabor(stockDataHastaHoy(tempData));
     const data={};
     EMP.forEach(e=>{
       data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
