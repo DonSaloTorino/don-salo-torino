@@ -464,6 +464,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <input type="number" id="stock-umbral-input" min="1" value="20" style="width:60px;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;text-align:center;"/>
       <button onclick="saveUmbral()" style="padding:6px 14px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Guardar</button>
     </div>
+    <button class="stock-add-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="openSaborModal()">+ Agregar Sabor</button>
     <button class="stock-add-btn" onclick="openStockModal()">+ Cargar Stock</button>
   </div>
   <!-- Alertas stock bajo -->
@@ -611,6 +612,25 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   </div>
 </div>
 
+<!-- SABOR MODAL -->
+<div class="modal-overlay no-print" id="sabor-modal-overlay">
+  <div class="stock-modal-box">
+    <div class="stock-modal-title">🫔 Nuevo Sabor</div>
+    <label class="modal-label">Nombre</label>
+    <input class="modal-input" id="sabor-modal-nombre" type="text" placeholder="Ej: CHORIZO + BROCCOLI" style="margin-bottom:16px;text-transform:uppercase;"/>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;margin-bottom:10px;cursor:pointer;">
+      <input type="checkbox" id="sabor-modal-curcuma" style="width:16px;height:16px;cursor:pointer;"/> Contiene cúrcuma (✦)
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;margin-bottom:20px;cursor:pointer;">
+      <input type="checkbox" id="sabor-modal-especial" style="width:16px;height:16px;cursor:pointer;"/> Marcar como especial (⭐)
+    </label>
+    <div style="display:flex;gap:10px;">
+      <button class="modal-cancel" style="flex:1;" onclick="closeSaborModal()">Cancelar</button>
+      <button class="modal-confirm" style="flex:2;" id="sabor-modal-save-btn" onclick="guardarSabor()">Guardar →</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -739,23 +759,9 @@ window.printOrder=function(id){
 };
 
 // ── PEDIDO MANUAL ──
-const EMP=[
-  {id:15,nombre:'ENTRECOTE + CHIMICHURRI',curcuma:false,especial:true},
-  {id:1, nombre:'CARNE',curcuma:false},
-  {id:13,nombre:'MATAMBRE (SOTTOPANCIA)',curcuma:false},
-  {id:7, nombre:'VACIO (BAVETTA)',curcuma:false},
-  {id:9, nombre:'CHESE BURGER',curcuma:false},
-  {id:6, nombre:'PROSCIUTTO E FORMAGGIO',curcuma:false},
-  {id:11,nombre:'FORMAGGIO E CIPOLLA',curcuma:false},
-  {id:8, nombre:'TONNO E CIPOLLA',curcuma:false},
-  {id:2, nombre:'VERDURA',curcuma:false},
-  {id:5, nombre:'PARMIGIANA',curcuma:false},
-  {id:4, nombre:'CAPRESE',curcuma:false},
-  {id:10,nombre:'HUMITA',curcuma:false},
-  {id:12,nombre:'POLLO — CURCUMA',curcuma:true},
-  {id:14,nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO',curcuma:false},
-  {id:16,nombre:'CHORIZO + BROCCOLI',curcuma:false},
-];
+// EMP ahora se sincroniza en tiempo real desde Firestore (colección "sabores")
+// así se puede agregar un gusto nuevo desde el botón "+ Agregar Sabor" en STOCK
+let EMP=[];
 const BEB=[
   {id:'b1', nombre:'💧 ACQUA NATURALE', cat:'acqua'},
   {id:'b2', nombre:'💧 ACQUA FRIZZANTE',cat:'acqua'},
@@ -777,8 +783,57 @@ const BEB=[
 ];
 
 let eQ={}, bQ={};
-EMP.forEach(e=>eQ[e.id]=0);
 BEB.forEach(b=>bQ[b.id]=0);
+
+// ── SABORES (EMPANADAS) — Firestore en tiempo real ──
+const SABORES_DEFAULT=[
+  {nombre:'ENTRECOTE + CHIMICHURRI',curcuma:false,especial:true, orden:0},
+  {nombre:'CARNE',curcuma:false,especial:false, orden:1},
+  {nombre:'MATAMBRE (SOTTOPANCIA)',curcuma:false,especial:false, orden:2},
+  {nombre:'VACIO (BAVETTA)',curcuma:false,especial:false, orden:3},
+  {nombre:'CHESE BURGER',curcuma:false,especial:false, orden:4},
+  {nombre:'PROSCIUTTO E FORMAGGIO',curcuma:false,especial:false, orden:5},
+  {nombre:'FORMAGGIO E CIPOLLA',curcuma:false,especial:false, orden:6},
+  {nombre:'TONNO E CIPOLLA',curcuma:false,especial:false, orden:7},
+  {nombre:'VERDURA',curcuma:false,especial:false, orden:8},
+  {nombre:'PARMIGIANA',curcuma:false,especial:false, orden:9},
+  {nombre:'CAPRESE',curcuma:false,especial:false, orden:10},
+  {nombre:'HUMITA',curcuma:false,especial:false, orden:11},
+  {nombre:'POLLO — CURCUMA',curcuma:true,especial:false, orden:12},
+  {nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO',curcuma:false,especial:false, orden:13},
+  {nombre:'CHORIZO + BROCCOLI',curcuma:false,especial:false, orden:14},
+];
+async function saboresSeedIfEmpty(){
+  const snap=await getDocs(query(collection(db,'sabores')));
+  if(snap.empty){
+    await Promise.all(SABORES_DEFAULT.map(s=>{
+      const slug=s.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+      return setDoc(doc(db,'sabores',slug),{nombre:s.nombre,curcuma:s.curcuma,especial:s.especial,orden:s.orden});
+    }));
+  }
+}
+function initSabores(){
+  saboresSeedIfEmpty().then(()=>{
+    onSnapshot(query(collection(db,'sabores'),orderBy('orden')),snap=>{
+      EMP=snap.docs.map(d=>({id:d.id,...d.data()}));
+      EMP.forEach(e=>{ if(!(e.id in eQ)) eQ[e.id]=0; });
+      onSaboresUpdate();
+    });
+  });
+}
+function onSaboresUpdate(){
+  // Si el modal de pedido está abierto en la pestaña Empanadas, refresca la grilla
+  if(document.getElementById('modal-overlay').classList.contains('show') && activeModalTab==='empanadas'){
+    renderList();
+  }
+  // Si la pestaña STOCK está visible, refresca selects y gráfico
+  if(document.getElementById('stock-panel').style.display==='block'){
+    stockInitFilters();
+    stockRenderChart();
+    stockRenderTotal();
+  }
+}
+initSabores();
 
 // Tab activa del modal
 let activeModalTab = 'empanadas';
@@ -828,17 +883,20 @@ function renderList() {
   let h = '';
   if (activeModalTab === 'empanadas') {
     h = `<div class="modal-section-label">Empanadas</div><div class="modal-grid">`;
+    if(EMP.length===0){
+      h += `<div style="grid-column:1/-1;text-align:center;color:#bbb;padding:20px;">Cargando sabores...</div>`;
+    }
     h += EMP.map(e => {
       const qty = eQ[e.id] || 0;
       const stockCalc = stockAllData.length > 0 ? stockCalcBySabor() : null;
       const stock = stockCalc ? Math.max(0, stockCalc[e.nombre]?.stock || 0) : null;
       const agotado = stock !== null && stock === 0;
       const cardClass = agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card';
-      const clickFn = agotado ? '' : `onclick="chgE(${e.id},1)"`;
+      const clickFn = agotado ? '' : `onclick="chgE('${e.id}',1)"`;
       const stockLabel = stock !== null ? `<span class="modal-card-stock">${stock}</span>` : `<span></span>`;
       const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : e.especial ? '<span style="font-size:9px;opacity:0.85;"> ⭐</span>' : '';
       return `<div class="${cardClass}" id="mcard-${e.id}" ${clickFn}>
-        <button class="modal-card-minus" onclick="event.stopPropagation();chgE(${e.id},-1)">−</button>
+        <button class="modal-card-minus" onclick="event.stopPropagation();chgE('${e.id}',-1)">−</button>
         <div class="modal-card-name">${e.nombre}${badge}</div>
         <div class="modal-card-footer">${stockLabel}<span class="modal-card-qty${qty>0?' has-qty':''}" id="eq${e.id}">${qty}</span></div>
       </div>`;
@@ -1492,6 +1550,32 @@ async function autoRegisterVentas(order){
 }
 
 document.getElementById('stock-modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('stock-modal-overlay'))closeStockModal();});
+
+// ── NUEVO SABOR (desde STOCK) ──
+window.openSaborModal=function(){
+  document.getElementById('sabor-modal-nombre').value='';
+  document.getElementById('sabor-modal-curcuma').checked=false;
+  document.getElementById('sabor-modal-especial').checked=false;
+  document.getElementById('sabor-modal-overlay').classList.add('show');
+};
+window.closeSaborModal=function(){
+  document.getElementById('sabor-modal-overlay').classList.remove('show');
+};
+window.guardarSabor=async function(){
+  const nombre=document.getElementById('sabor-modal-nombre').value.trim().toUpperCase();
+  if(!nombre){alert('Poné un nombre para el sabor.');return;}
+  if(EMP.some(e=>e.nombre===nombre)){alert('Ya existe un sabor con ese nombre.');return;}
+  const curcuma=document.getElementById('sabor-modal-curcuma').checked;
+  const especial=document.getElementById('sabor-modal-especial').checked;
+  const btn=document.getElementById('sabor-modal-save-btn');
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    await addDoc(collection(db,'sabores'),{nombre,curcuma,especial,orden:Date.now()});
+    closeSaborModal();
+  }catch(err){alert('Error: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='Guardar →';}
+};
+document.getElementById('sabor-modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('sabor-modal-overlay'))closeSaborModal();});
 
 // ── DISPONIBILIDAD AUTOMÁTICA ──
 
