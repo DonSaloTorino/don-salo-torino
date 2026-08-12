@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Don Salo — Control de Stock</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:#f5f5f3;color:#111;padding-bottom:60px;}
+.header{background:#111;color:#fff;padding:18px 28px;}
+.brand{font-family:'Playfair Display',serif;font-size:22px;letter-spacing:1px;}
+.sub{font-size:10px;letter-spacing:4px;opacity:0.4;text-transform:uppercase;margin-top:2px;}
+.readonly-tag{display:inline-block;margin-top:10px;background:rgba(255,255,255,0.12);color:#4ade80;font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:20px;}
+.wrap{max-width:1100px;margin:0 auto;padding:24px;}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:24px;background:#fff;border:1px solid #eee;border-radius:10px;padding:16px 20px;}
+.controls label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;}
+.d-input{border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+.btn{padding:9px 20px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;}
+.btn:hover{background:#333;}
+.sec-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#aaa;margin:28px 0 12px;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:8px;}
+.card{background:#fff;border-radius:10px;border:1px solid #eee;padding:18px 20px;}
+.card.dark{background:#111;border-color:#111;}
+.card.bad{background:#fee2e2;border-color:#fca5a5;}
+.card.good{background:#f0fdf4;border-color:#86efac;}
+.c-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#bbb;margin-bottom:6px;}
+.card.dark .c-label{color:rgba(255,255,255,0.4);}
+.card.bad .c-label{color:#991b1b;opacity:0.7;}
+.card.good .c-label{color:#065f46;opacity:0.7;}
+.c-num{font-size:34px;font-weight:700;line-height:1;}
+.card.dark .c-num{color:#fff;}
+.card.bad .c-num{color:#991b1b;}
+.card.good .c-num{color:#065f46;}
+.c-sub{font-size:11px;color:#aaa;margin-top:5px;}
+.card.dark .c-sub{color:rgba(255,255,255,0.4);}
+.card.bad .c-sub{color:#991b1b;opacity:0.75;}
+.card.good .c-sub{color:#065f46;opacity:0.75;}
+.box{background:#fff;border-radius:10px;border:1px solid #eee;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+th{background:#f5f5f3;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#aaa;padding:11px 14px;text-align:left;font-weight:500;}
+td{padding:10px 14px;border-top:0.5px solid #f0f0f0;font-size:13px;}
+tr:hover td{background:#fafafa;}
+.num{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;}
+.diff-bad{color:#dc2626;font-weight:700;}
+.diff-ok{color:#16a34a;}
+.diff-warn{color:#b45309;font-weight:700;}
+.row-bad td{background:#fff5f5;}
+.row-bad:hover td{background:#ffecec;}
+.tag{font-size:10px;padding:2px 9px;border-radius:20px;letter-spacing:1px;white-space:nowrap;}
+.tag-falta{background:#fee2e2;color:#991b1b;}
+.tag-parcial{background:#fef3c7;color:#92400e;}
+.tag-huerf{background:#e0e7ff;color:#3730a3;}
+.empty{text-align:center;padding:34px;color:#bbb;font-size:14px;}
+.loading{text-align:center;padding:60px;color:#bbb;}
+.spinner{width:30px;height:30px;border:2px solid #eee;border-top-color:#111;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:14px 18px;font-size:13px;line-height:1.65;margin-bottom:8px;}
+.note strong{display:block;margin-bottom:4px;}
+.verdict{border-radius:10px;padding:20px 24px;font-size:14px;line-height:1.7;margin-bottom:8px;}
+.verdict.bad{background:#fee2e2;border:1px solid #fca5a5;color:#7f1d1d;}
+.verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#065f46;}
+.verdict b{font-size:16px;}
+.mini{font-size:11px;color:#bbb;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">DON SALO — Control de Stock</div>
+  <div class="sub">Diagnóstico pedidos vs stock</div>
+  <div class="readonly-tag">🔒 Solo lectura — no modifica nada</div>
+</div>
+
+<div class="wrap">
+
+  <div class="controls">
+    <label>Desde</label>
+    <input type="date" class="d-input" id="f-desde"/>
+    <label>Hasta</label>
+    <input type="date" class="d-input" id="f-hasta"/>
+    <button class="btn" onclick="correr()">Analizar</button>
+    <span class="mini" id="estado"></span>
+  </div>
+
+  <div id="salida">
+    <div class="loading"><div class="spinner"></div>Cargando datos de Firebase...</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+// SOLO lectura: getDocs y collection. No se importa setDoc/addDoc/updateDoc/deleteDoc.
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
+  authDomain: "don-salo-torino.firebaseapp.com",
+  projectId: "don-salo-torino",
+  storageBucket: "don-salo-torino.firebasestorage.app",
+  messagingSenderId: "520992510695",
+  appId: "1:520992510695:web:c9c26dad5fa3f954384842"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let PEDIDOS = [], STOCK = [];
+
+// Fecha local YYYY-MM-DD (no UTC, para no correr un día)
+function fechaLocal(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+// Misma regla de slug que usa el panel para armar el docId de la venta
+function slug(nombre){ return String(nombre).replace(/[^a-zA-Z0-9]/g,'_'); }
+function esEmpanada(i){ return !i.tipo || i.tipo === 'empanada'; }
+function empEnPedido(o){ return (o.items||[]).filter(esEmpanada).reduce((a,i)=>a+(parseInt(i.cantidad)||0),0); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+document.getElementById('f-desde').value = '2026-07-15';
+document.getElementById('f-hasta').value = fechaLocal(new Date());
+
+async function cargar(){
+  const [ps, ss] = await Promise.all([
+    getDocs(collection(db,'pedidos')),
+    getDocs(collection(db,'stock'))
+  ]);
+  PEDIDOS = ps.docs.map(d=>({id:d.id, ...d.data()}));
+  STOCK   = ss.docs.map(d=>({id:d.id, ...d.data()}));
+}
+
+window.correr = function(){
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+  if(!desde || !hasta){ alert('Elegí ambas fechas.'); return; }
+  analizar(desde, hasta);
+};
+
+function analizar(desde, hasta){
+  const out = [];
+
+  // ── Índices de stock ──
+  const stockPorId = {};
+  STOCK.forEach(s => { stockPorId[s.id] = s; });
+  // ventas agrupadas por orderId (para detectar huérfanas y sumar por pedido)
+  const ventasPorOrder = {};
+  STOCK.filter(s=>s.tipo==='venta').forEach(s=>{
+    const oid = s.orderId || (s.id.includes('_') ? s.id.split('_')[0] : null);
+    if(!oid) return;
+    (ventasPorOrder[oid] = ventasPorOrder[oid] || []).push(s);
+  });
+  const idsPedidos = new Set(PEDIDOS.map(p=>p.id));
+
+  // ── Pedidos del rango (por fecha del timestamp = cuándo entró la orden) ──
+  const pedidosRango = PEDIDOS.filter(p=>{
+    if(!p.timestamp || !p.timestamp.toDate) return false;
+    const f = fechaLocal(p.timestamp.toDate());
+    return f >= desde && f <= hasta;
+  }).sort((a,b)=> a.timestamp.toDate() - b.timestamp.toDate());
+
+  // ── Cruce pedido por pedido, ítem por ítem ──
+  const porDia = {};      // fecha -> {pedidos, empPedidas, empRegistradas, faltantes}
+  const problemas = [];   // filas con desvío
+  let totalPedidas = 0, totalRegistradas = 0;
+
+  pedidosRango.forEach(p=>{
+    const f = fechaLocal(p.timestamp.toDate());
+    porDia[f] = porDia[f] || {pedidos:0, empPedidas:0, empRegistradas:0, faltantes:0};
+    porDia[f].pedidos++;
+
+    (p.items||[]).filter(esEmpanada).forEach(item=>{
+      const pedida = parseInt(item.cantidad)||0;
+      const docId = p.id + '_' + slug(item.nombre);
+      const reg = stockPorId[docId];
+      const registrada = (reg && reg.tipo==='venta') ? (parseInt(reg.cantidad)||0) : 0;
+
+      totalPedidas += pedida;
+      totalRegistradas += registrada;
+      porDia[f].empPedidas += pedida;
+      porDia[f].empRegistradas += registrada;
+
+      if(registrada !== pedida){
+        porDia[f].faltantes += (pedida - registrada);
+        problemas.push({
+          fecha: f,
+          hora: p.timestamp.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+          cliente: p.cliente || '—',
+          canal: p.canale==='web' ? 'Web' : (p.manual ? 'Mostrador' : 'QR'),
+          sabor: item.nombre,
+          pedida, registrada,
+          modificado: !!p.modificado,
+          tipo: registrada===0 ? 'falta' : 'parcial'
+        });
+      }
+    });
+  });
+
+  // ── Ventas huérfanas: registros de venta cuyo pedido ya no existe ──
+  const huerfanas = [];
+  Object.entries(ventasPorOrder).forEach(([oid, arr])=>{
+    if(idsPedidos.has(oid)) return;
+    arr.forEach(s=>{
+      if(s.fecha && (s.fecha < desde || s.fecha > hasta)) return;
+      huerfanas.push(s);
+    });
+  });
+  const totalHuerfanas = huerfanas.reduce((a,s)=>a+(parseInt(s.cantidad)||0),0);
+
+  // ── Movimientos de stock en el rango (entradas/ajustes/devoluciones) ──
+  const movs = STOCK.filter(s=> s.fecha && s.fecha>=desde && s.fecha<=hasta);
+  const sum = t => movs.filter(s=>s.tipo===t).reduce((a,s)=>a+(parseInt(s.cantidad)||0),0);
+  const totEntradas = sum('entrada'), totAjustes = sum('ajuste'), totDevol = sum('devolucion');
+  const cantAjustes = movs.filter(s=>s.tipo==='ajuste').length;
+
+  const desvio = totalPedidas - totalRegistradas;
+
+  // ═══ VEREDICTO ═══
+  out.push(`<div class="sec-title">Veredicto</div>`);
+  if(desvio > 0){
+    out.push(`<div class="verdict bad">
+      <b>Se confirma la fuga: hay ${desvio} empanadas vendidas que nunca se descontaron del stock.</b><br>
+      Entre el ${esc(desde)} y el ${esc(hasta)} se pidieron <b>${totalPedidas}</b> empanadas, pero en la colección
+      <code>stock</code> solo figuran <b>${totalRegistradas}</b> como venta.
+      Son ${problemas.length} líneas de pedido afectadas.
+      Por eso el sistema muestra MÁS stock del que hay en la heladera.
+    </div>`);
+  } else if(desvio < 0){
+    out.push(`<div class="verdict bad">
+      <b>Hay ${Math.abs(desvio)} empanadas descontadas de más.</b>
+      Se registraron más ventas en <code>stock</code> que las que figuran en los pedidos actuales.
+      Suele pasar cuando se editó un pedido bajándole la cantidad.
+    </div>`);
+  } else {
+    out.push(`<div class="verdict good">
+      <b>Pedidos y stock coinciden exactamente en este rango.</b>
+      Las ${totalPedidas} empanadas pedidas están todas registradas como venta.
+    </div>`);
+  }
+
+  // ═══ RESUMEN ═══
+  out.push(`<div class="sec-title">Resumen del período ${esc(desde)} → ${esc(hasta)}</div>`);
+  out.push(`<div class="cards">
+    <div class="card dark"><div class="c-label">Empanadas pedidas</div><div class="c-num">${totalPedidas}</div><div class="c-sub">${pedidosRango.length} pedidos</div></div>
+    <div class="card"><div class="c-label">Registradas como venta</div><div class="c-num">${totalRegistradas}</div><div class="c-sub">en colección stock</div></div>
+    <div class="card ${desvio!==0?'bad':'good'}"><div class="c-label">No descontadas</div><div class="c-num">${desvio}</div><div class="c-sub">${problemas.length} líneas con desvío</div></div>
+    <div class="card ${totalHuerfanas>0?'bad':''}"><div class="c-label">Ventas huérfanas</div><div class="c-num">${totalHuerfanas}</div><div class="c-sub">pedido borrado, venta quedó</div></div>
+  </div>`);
+
+  out.push(`<div class="cards" style="margin-top:14px;">
+    <div class="card"><div class="c-label">Entradas cargadas</div><div class="c-num">${totEntradas}</div><div class="c-sub">en el período</div></div>
+    <div class="card"><div class="c-label">Devoluciones / roturas</div><div class="c-num">${totDevol}</div><div class="c-sub">en el período</div></div>
+    <div class="card ${cantAjustes>0?'bad':''}"><div class="c-label">Ajustes</div><div class="c-num">${cantAjustes}</div><div class="c-sub">${cantAjustes>0?'⚠️ reinician el historial':'ninguno'}</div></div>
+  </div>`);
+
+  if(cantAjustes > 0){
+    out.push(`<div class="note" style="margin-top:14px;"><strong>⚠️ Hay ${cantAjustes} ajuste(s) en el período</strong>
+      Un ajuste PISA todo el historial anterior de ese sabor (pone entradas = ese número y ventas = 0).
+      Por eso cualquier cuenta de "stock inicial − ventas = stock final" se rompe en los sabores ajustados.
+      Es la explicación más probable de por qué tu comparación 2501 → 1393 no cerraba contra las 1187 del STATS.</div>`);
+  }
+
+  // ═══ DÍA POR DÍA ═══
+  out.push(`<div class="sec-title">Día por día — dónde se perdieron</div>`);
+  const dias = Object.keys(porDia).sort();
+  if(!dias.length){
+    out.push(`<div class="box"><div class="empty">No hay pedidos en este rango</div></div>`);
+  } else {
+    let filas = dias.map(f=>{
+      const d = porDia[f];
+      const dif = d.empPedidas - d.empRegistradas;
+      const cls = dif>0 ? 'row-bad' : '';
+      const difTxt = dif>0 ? `<span class="diff-bad">−${dif}</span>` : dif<0 ? `<span class="diff-warn">+${-dif}</span>` : `<span class="diff-ok">0</span>`;
+      return `<tr class="${cls}">
+        <td>${esc(f)}</td>
+        <td class="num">${d.pedidos}</td>
+        <td class="num">${d.empPedidas}</td>
+        <td class="num">${d.empRegistradas}</td>
+        <td class="num">${difTxt}</td>
+      </tr>`;
+    }).join('');
+    out.push(`<div class="box"><table>
+      <thead><tr><th>Fecha</th><th style="text-align:right;">Pedidos</th><th style="text-align:right;">Emp. pedidas</th><th style="text-align:right;">Emp. descontadas</th><th style="text-align:right;">Sin descontar</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`);
+  }
+
+  // ═══ DETALLE DE PROBLEMAS ═══
+  out.push(`<div class="sec-title">Detalle — líneas de pedido no descontadas (${problemas.length})</div>`);
+  if(!problemas.length){
+    out.push(`<div class="box"><div class="empty">✓ Ninguna — todo descontado correctamente</div></div>`);
+  } else {
+    const filas = problemas.map(p=>`<tr class="row-bad">
+      <td style="white-space:nowrap;">${esc(p.fecha)} <span class="mini">${esc(p.hora)}</span></td>
+      <td>${esc(p.cliente)}${p.modificado?' <span class="tag tag-parcial">MODIF.</span>':''}</td>
+      <td class="mini">${esc(p.canal)}</td>
+      <td>${esc(p.sabor)}</td>
+      <td class="num">${p.pedida}</td>
+      <td class="num">${p.registrada}</td>
+      <td><span class="tag ${p.tipo==='falta'?'tag-falta':'tag-parcial'}">${p.tipo==='falta'?'NO DESCONTADA':'CANTIDAD VIEJA'}</span></td>
+    </tr>`).join('');
+    out.push(`<div class="box"><table>
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Canal</th><th>Sabor</th><th style="text-align:right;">Pedidas</th><th style="text-align:right;">Descontadas</th><th>Problema</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`);
+  }
+
+  // ═══ HUÉRFANAS ═══
+  if(huerfanas.length){
+    out.push(`<div class="sec-title">Ventas huérfanas — el pedido se borró pero la venta quedó (${huerfanas.length})</div>`);
+    const filas = huerfanas.map(s=>`<tr class="row-bad">
+      <td>${esc(s.fecha||'—')}</td>
+      <td>${esc(s.sabor||'—')}</td>
+      <td class="num">${s.cantidad||0}</td>
+      <td><span class="tag tag-huerf">PEDIDO INEXISTENTE</span></td>
+    </tr>`).join('');
+    out.push(`<div class="box"><table>
+      <thead><tr><th>Fecha</th><th>Sabor</th><th style="text-align:right;">Cantidad</th><th>Estado</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`);
+  }
+
+  // ═══ POR SABOR ═══
+  out.push(`<div class="sec-title">Desvío por sabor — cuánto tiene de más el sistema</div>`);
+  const porSabor = {};
+  problemas.forEach(p=>{
+    porSabor[p.sabor] = porSabor[p.sabor] || {falta:0, lineas:0};
+    porSabor[p.sabor].falta += (p.pedida - p.registrada);
+    porSabor[p.sabor].lineas++;
+  });
+  huerfanas.forEach(s=>{
+    const n = s.sabor || '—';
+    porSabor[n] = porSabor[n] || {falta:0, lineas:0};
+    porSabor[n].falta -= (parseInt(s.cantidad)||0); // huérfana = descontó de más
+    porSabor[n].lineas++;
+  });
+  const saboresOrd = Object.entries(porSabor).sort((a,b)=>Math.abs(b[1].falta)-Math.abs(a[1].falta));
+  if(!saboresOrd.length){
+    out.push(`<div class="box"><div class="empty">✓ Sin desvíos por sabor</div></div>`);
+  } else {
+    const filas = saboresOrd.map(([sabor,v])=>`<tr>
+      <td>${esc(sabor)}</td>
+      <td class="num">${v.lineas}</td>
+      <td class="num ${v.falta>0?'diff-bad':v.falta<0?'diff-warn':'diff-ok'}">${v.falta>0?'+'+v.falta:v.falta}</td>
+    </tr>`).join('');
+    out.push(`<div class="box"><table>
+      <thead><tr><th>Sabor</th><th style="text-align:right;">Líneas</th><th style="text-align:right;">Sistema tiene de más</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`);
+    out.push(`<div class="note" style="margin-top:12px;"><strong>Cómo leer esta tabla</strong>
+      Un número en rojo (+) significa que el sistema muestra ESA cantidad de más que la realidad, porque esas ventas nunca se restaron.
+      Comparalo con tu columna DIFERENCIA del Excel: los sabores deberían coincidir bastante.</div>`);
+  }
+
+  document.getElementById('salida').innerHTML = out.join('');
+  document.getElementById('estado').textContent =
+    `${PEDIDOS.length} pedidos y ${STOCK.length} movimientos de stock leídos`;
+}
+
+// ── Arranque ──
+cargar().then(()=>{
+  correr();
+}).catch(err=>{
+  document.getElementById('salida').innerHTML =
+    `<div class="verdict bad"><b>Error al leer Firebase</b><br>${esc(err.message)}</div>`;
+  console.error(err);
+});
+</script>
+</body>
+</html>
