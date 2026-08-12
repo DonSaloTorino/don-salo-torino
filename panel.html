@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Don Salo — Panel Mostrador</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<!-- SheetJS: genera archivos .xlsx reales (no CSV) para los botones "Excel" de cada solapa -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min-height: 100vh; }
@@ -341,6 +343,20 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .beb-add-btn{padding:12px 24px;background:#111;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:0.5px;margin-bottom:20px;}
 .beb-add-btn:hover{background:#333;}
 .beb-empty{text-align:center;padding:20px;color:#bbb;font-size:13px;}
+
+/* ── BOTONES EXPORTAR A EXCEL ── */
+.xls-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px;background:#107c41;color:#fff;border:none;border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;
+  letter-spacing:0.3px;transition:background 0.15s;white-space:nowrap;
+}
+.xls-btn:hover{background:#0d6435;}
+.xls-btn:disabled{background:#bbb;cursor:not-allowed;}
+.xls-btn.small{padding:7px 13px;font-size:12px;}
+/* Barra de exportación en la solapa PEDIDOS */
+.export-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.export-hint{font-size:12px;color:#bbb;letter-spacing:0.3px;}
 </style>
 </head>
 <body>
@@ -379,6 +395,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="stat-label">Empanadas hoy</div><div class="stat-num" id="stat-total">0</div><div class="filter-hint">VER TODOS</div>
     </div>
   </div>
+  <div class="export-bar">
+    <button class="xls-btn" onclick="exportPedidos()">📊 Descargar Excel</button>
+    <span class="export-hint" id="export-hint-pedidos"></span>
+  </div>
   <div id="orders-container">
     <div class="empty-state" id="empty-state">
       <div class="empty-icon">🫔</div>
@@ -416,6 +436,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <button class="date-apply" onclick="sApplyRange()">Ver</button>
     </div>
   </div>
+  <div class="export-bar">
+    <button class="xls-btn" onclick="exportStats()">📊 Descargar Excel</button>
+    <span class="export-hint">Exporta el período que estás viendo</span>
+  </div>
   <div class="s-period-label" id="s-period-label"></div>
   <div class="s-loading" id="s-loading"><div class="s-spinner"></div>Cargando...</div>
   <div id="s-content" style="display:none;">
@@ -438,6 +462,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <input type="date" class="hist-date-input" id="hist-to"/>
     <button class="hist-btn" onclick="histLoad()">Buscar</button>
     <button class="hist-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="histReset()">Reset</button>
+    <button class="xls-btn" onclick="exportHistorial()">📊 Excel</button>
   </div>
   <div class="hist-total-row">
     <div class="s-section-title" style="margin:0;">Historial de pedidos</div>
@@ -487,6 +512,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </select>
     <button class="stock-btn" onclick="stockApplyFilter()">Ver</button>
     <button class="stock-btn stock-btn-sec" onclick="stockResetFilter()">Reset</button>
+    <button class="xls-btn small" onclick="exportStock()">📊 Excel</button>
   </div>
   <!-- Tabla movimientos -->
   <div class="stock-table-wrap">
@@ -673,6 +699,16 @@ function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',compl
 function renderOrders(){
   const grid=document.getElementById('orders-grid'),empty=document.getElementById('empty-state');
   const disp=activeFilter?orders.filter(o=>o.estado===activeFilter):orders;
+  // Aviso de qué se va a exportar (refleja el filtro activo)
+  const hint=document.getElementById('export-hint-pedidos');
+  if(hint){
+    const filtroTxt=activeFilter
+      ? {nuevo:'nuevos','en-preparacion':'en preparación',completado:'completados'}[activeFilter]
+      : null;
+    hint.textContent=filtroTxt
+      ? `${disp.length} pedidos (${filtroTxt}) — quitá el filtro para exportar todos`
+      : `${disp.length} pedidos de hoy`;
+  }
   if(!disp.length){empty.style.display='block';empty.querySelector('.empty-title').textContent=activeFilter?'No hay pedidos en este estado':'Esperando pedidos...';grid.innerHTML='';return;}
   empty.style.display='none';
   const today=new Date().toISOString().split('T')[0];
@@ -1105,8 +1141,325 @@ window.switchTab=function(tab){
   if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}if(tab==='bebidas')bebInit();
 };
 
+// ═══════════════════════════════════════════════════════
+//  EXPORTACIÓN A EXCEL (.xlsx)
+//  Cada solapa exporta EXACTAMENTE lo que se ve en pantalla,
+//  respetando los filtros activos en ese momento.
+// ═══════════════════════════════════════════════════════
+
+// Genera y descarga un .xlsx. hojas = [{nombre, filas:[[celda,...],...], anchos:[n,...]}]
+function descargarExcel(nombreArchivo, hojas){
+  if(typeof XLSX==='undefined'){
+    alert('La librería de Excel no cargó. Revisá la conexión a internet y recargá la página.');
+    return;
+  }
+  try{
+    const wb=XLSX.utils.book_new();
+    hojas.forEach(h=>{
+      if(!h || !h.filas || !h.filas.length) return;
+      const ws=XLSX.utils.aoa_to_sheet(h.filas);
+      // Ancho de columnas: usa el indicado o lo calcula según el contenido
+      if(h.anchos){
+        ws['!cols']=h.anchos.map(w=>({wch:w}));
+      }else{
+        const nCols=Math.max(...h.filas.map(f=>f.length));
+        const cols=[];
+        for(let c=0;c<nCols;c++){
+          let max=10;
+          h.filas.forEach(f=>{ const v=f[c]; if(v!=null){ const l=String(v).length; if(l>max)max=l; } });
+          cols.push({wch:Math.min(max+2,55)});
+        }
+        ws['!cols']=cols;
+      }
+      // El nombre de hoja en Excel no admite : \ / ? * [ ] ni más de 31 caracteres
+      const nombreHoja=String(h.nombre).replace(/[:\\\/\?\*\[\]]/g,'-').substring(0,31);
+      XLSX.utils.book_append_sheet(wb,ws,nombreHoja);
+    });
+    if(!wb.SheetNames.length){ alert('No hay datos para exportar.'); return; }
+    XLSX.writeFile(wb,nombreArchivo);
+  }catch(err){
+    alert('Error al generar el Excel: '+err.message);
+    console.error('descargarExcel error',err);
+  }
+}
+
+// Sello de fecha/hora para el nombre del archivo
+function selloArchivo(){
+  const n=new Date();
+  const p=x=>String(x).padStart(2,'0');
+  return `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}_${p(n.getHours())}${p(n.getMinutes())}`;
+}
+function fechaHoraLegible(){
+  return new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+// Etiqueta de canal de un pedido
+function canalPedido(o){ return o.canale==='web' ? 'Web' : (o.manual ? 'Mostrador' : 'QR'); }
+// Cuenta empanadas / bebidas de un pedido
+function contarEmp(o){ return (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0); }
+function contarBeb(o){ return (o.items||[]).reduce((a,i)=>i.tipo==='bebida'?a+(parseInt(i.cantidad)||0):a,0); }
+function itemsTexto(o){ return (o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(' · '); }
+
+// ── 1) PEDIDOS ──
+window.exportPedidos=function(){
+  const lista=activeFilter?orders.filter(o=>o.estado===activeFilter):orders;
+  if(!lista.length){ alert('No hay pedidos para exportar.'); return; }
+  const etiquetaFiltro=activeFilter
+    ? {nuevo:'Solo NUEVOS','en-preparacion':'Solo EN PREPARACIÓN',completado:'Solo COMPLETADOS'}[activeFilter]
+    : 'Todos los estados';
+
+  // Hoja 1: un renglón por pedido
+  const filas=[
+    ['DON SALO — PEDIDOS DEL DÍA'],
+    ['Generado', fechaHoraLegible()],
+    ['Filtro aplicado', etiquetaFiltro],
+    [],
+    ['Hora','Cliente','Estado','Canal','Empanadas','Bebidas','Total','Fecha retiro','Horario','Modificado','Pagado (web)','Detalle']
+  ];
+  let tEmp=0,tBeb=0;
+  lista.forEach(o=>{
+    const emp=contarEmp(o), beb=contarBeb(o);
+    tEmp+=emp; tBeb+=beb;
+    filas.push([
+      o.timestamp?o.timestamp.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
+      o.cliente||'Anonimo',
+      eLabel(o.estado),
+      canalPedido(o),
+      emp, beb, emp+beb,
+      o.fecha||'', o.orario||'',
+      o.modificado?'SÍ':'',
+      o.qtyPagata||'',
+      itemsTexto(o)
+    ]);
+  });
+  filas.push([]);
+  filas.push(['TOTALES','','','',tEmp,tBeb,tEmp+tBeb]);
+
+  // Hoja 2: un renglón por cada ítem (para sumar por sabor)
+  const detalle=[['Hora','Cliente','Estado','Canal','Producto','Tipo','Cantidad','Cúrcuma']];
+  lista.forEach(o=>{
+    (o.items||[]).forEach(i=>{
+      detalle.push([
+        o.timestamp?o.timestamp.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
+        o.cliente||'Anonimo',
+        eLabel(o.estado),
+        canalPedido(o),
+        i.nombre,
+        (!i.tipo||i.tipo==='empanada')?'Empanada':'Bebida',
+        parseInt(i.cantidad)||0,
+        i.curcuma?'SÍ':''
+      ]);
+    });
+  });
+
+  // Hoja 3: resumen por producto
+  const porProd={};
+  lista.forEach(o=>(o.items||[]).forEach(i=>{
+    const k=i.nombre;
+    if(!porProd[k])porProd[k]={tipo:(!i.tipo||i.tipo==='empanada')?'Empanada':'Bebida',cant:0};
+    porProd[k].cant+=parseInt(i.cantidad)||0;
+  }));
+  const resumen=[['Producto','Tipo','Cantidad total']];
+  Object.entries(porProd).sort((a,b)=>b[1].cant-a[1].cant)
+    .forEach(([n,v])=>resumen.push([n,v.tipo,v.cant]));
+
+  descargarExcel(`DonSalo_Pedidos_${selloArchivo()}.xlsx`,[
+    {nombre:'Pedidos',filas},
+    {nombre:'Detalle por item',filas:detalle},
+    {nombre:'Resumen por producto',filas:resumen}
+  ]);
+};
+
+// ── 2) STATS ──
+window.exportStats=function(){
+  if(!sExportData){ alert('Esperá a que termine de cargar el dashboard.'); return; }
+  const d=sExportData;
+
+  const resumen=[
+    ['DON SALO — DASHBOARD DE VENTAS'],
+    ['Generado', fechaHoraLegible()],
+    ['Período', d.label],
+    [],
+    ['CONTADORES','Empanadas','Pedidos'],
+    ['Hoy', d.hoy.emp, d.hoy.pedidos],
+    ['Esta semana', d.semana.emp, d.semana.pedidos],
+    ['Este mes', d.mes.emp, d.mes.pedidos],
+    ['Período seleccionado', d.empanadas, d.pedidos.length],
+    [],
+    ['Bebidas del período', d.bebidas],
+    []
+  ];
+  if(d.prevLabel!==null && d.prevEmp!==null){
+    resumen.push(['COMPARATIVA','Empanadas','Pedidos']);
+    resumen.push([d.label, d.empanadas, d.pedidos.length]);
+    resumen.push([d.prevLabel, d.prevEmp, d.prevPedidos]);
+    resumen.push(['Diferencia', d.empanadas-d.prevEmp, d.pedidos.length-d.prevPedidos]);
+  }
+
+  const ranking=[['#','Sabor','Cantidad']];
+  d.ranking.forEach(([n,c],i)=>ranking.push([i+1,n,c]));
+  ranking.push([]);
+  ranking.push(['','TOTAL EMPANADAS',d.rankTotal]);
+
+  const porDia=[['Día de la semana','Empanadas']];
+  d.porDiaSemana.forEach(([dia,cant])=>porDia.push([dia,cant]));
+
+  const semanal=[['Semana','Desde','Hasta','Empanadas','Pedidos']];
+  d.semanal.forEach(s=>semanal.push([`Sem. ${s.n}`,s.desde,s.hasta,s.total,s.pedidos]));
+
+  // Detalle completo de los pedidos del período
+  const det=[['Fecha','Hora','Cliente','Estado','Canal','Empanadas','Bebidas','Detalle']];
+  [...d.pedidos].sort((a,b)=>{
+    const ta=a.timestamp?a.timestamp.toDate():0, tb=b.timestamp?b.timestamp.toDate():0;
+    return ta-tb;
+  }).forEach(o=>{
+    const ts=o.timestamp?o.timestamp.toDate():null;
+    det.push([
+      ts?ts.toLocaleDateString('it-IT'):'—',
+      ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
+      o.cliente||'Anonimo', eLabel(o.estado), canalPedido(o),
+      contarEmp(o), contarBeb(o), itemsTexto(o)
+    ]);
+  });
+
+  descargarExcel(`DonSalo_Stats_${selloArchivo()}.xlsx`,[
+    {nombre:'Resumen',filas:resumen},
+    {nombre:'Ranking empanadas',filas:ranking},
+    {nombre:'Por dia de semana',filas:porDia},
+    {nombre:'Desglose semanal',filas:semanal.length>1?semanal:null},
+    {nombre:'Detalle pedidos',filas:det}
+  ].filter(h=>h.filas));
+};
+
+// ── 3) HISTORIAL ──
+window.exportHistorial=function(){
+  if(!hCurrentList.length){ alert('No hay resultados para exportar. Buscá un rango de fechas primero.'); return; }
+  const desde=document.getElementById('hist-from').value||'—';
+  const hasta=document.getElementById('hist-to').value||'—';
+  const busq=document.getElementById('hist-search').value.trim();
+
+  const filas=[
+    ['DON SALO — HISTORIAL DE PEDIDOS'],
+    ['Generado', fechaHoraLegible()],
+    ['Rango', `${desde} → ${hasta}`],
+    ['Búsqueda por cliente', busq||'(sin filtro)'],
+    ['Pedidos encontrados', hCurrentList.length],
+    [],
+    ['Fecha','Hora','Cliente','Empanadas','Bebidas','Tipo','Estado','Detalle']
+  ];
+  let tEmp=0,tBeb=0;
+  hCurrentList.forEach(o=>{
+    const ts=o.timestamp?o.timestamp.toDate():null;
+    const emp=contarEmp(o), beb=contarBeb(o);
+    tEmp+=emp; tBeb+=beb;
+    filas.push([
+      ts?ts.toLocaleDateString('it-IT'):'—',
+      ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
+      o.cliente||'—', emp, beb,
+      canalPedido(o), eLabel(o.estado), itemsTexto(o)
+    ]);
+  });
+  filas.push([]);
+  filas.push(['TOTALES','','',tEmp,tBeb]);
+
+  // Detalle por ítem
+  const det=[['Fecha','Hora','Cliente','Producto','Tipo','Cantidad']];
+  hCurrentList.forEach(o=>{
+    const ts=o.timestamp?o.timestamp.toDate():null;
+    (o.items||[]).forEach(i=>det.push([
+      ts?ts.toLocaleDateString('it-IT'):'—',
+      ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
+      o.cliente||'—', i.nombre,
+      (!i.tipo||i.tipo==='empanada')?'Empanada':'Bebida',
+      parseInt(i.cantidad)||0
+    ]));
+  });
+
+  descargarExcel(`DonSalo_Historial_${selloArchivo()}.xlsx`,[
+    {nombre:'Historial',filas},
+    {nombre:'Detalle por item',filas:det}
+  ]);
+};
+
+// ── 4) STOCK ──
+window.exportStock=function(){
+  if(!stockAllData.length){ alert('Abrí la solapa STOCK para que carguen los datos.'); return; }
+  const fSabor=document.getElementById('stock-filter-sabor').value;
+  const fDesde=document.getElementById('stock-filter-from').value;
+  const fHasta=document.getElementById('stock-filter-to').value;
+  const fTipo=document.getElementById('stock-filter-tipo').value;
+  const tituloGrafico=document.getElementById('stock-chart-title')?.textContent||'Stock actual por sabor';
+  const umbral=parseInt(document.getElementById('stock-umbral-input')?.value)||20;
+
+  // Hoja 1: stock por sabor (lo mismo que muestra el gráfico)
+  const porSabor=[
+    ['DON SALO — CONTROL DE STOCK'],
+    ['Generado', fechaHoraLegible()],
+    [tituloGrafico.replace(/^[^\w]*\s*/,'')],
+    ['Alerta mínima configurada', umbral],
+    [],
+    ['Sabor','Entradas','Salidas (ventas+devol.)','Stock','Estado']
+  ];
+  let totalStock=0;
+  stockChartEntries.forEach(([sabor,v])=>{
+    const s=v.stock||0;
+    totalStock+=Math.max(0,s);
+    const estado = s<0 ? '⚠️ NEGATIVO' : s===0 ? 'AGOTADO' : s<=umbral ? 'BAJO' : 'OK';
+    porSabor.push([sabor, v.entrada||0, v.venta||0, s, estado]);
+  });
+  porSabor.push([]);
+  porSabor.push(['TOTAL EN STOCK','','',totalStock]);
+
+  // Hoja 2: movimientos agrupados (igual que la tabla en pantalla)
+  const movs=[
+    ['Filtros aplicados'],
+    ['Sabor', fSabor||'Todos'],
+    ['Desde', fDesde||'—'],
+    ['Hasta', fHasta||'—'],
+    ['Tipo', fTipo||'Entradas + Ventas'],
+    [],
+    ['Fecha','Sabor','Cantidad','Tipo']
+  ];
+  const grupos={};
+  (stockCurrentTableData||[]).forEach(e=>{
+    const k=(e.fecha||'—')+'|'+(e.sabor||'—')+'|'+(e.tipo||'—');
+    if(!grupos[k])grupos[k]={fecha:e.fecha||'—',sabor:e.sabor||'—',tipo:e.tipo||'—',cantidad:0};
+    grupos[k].cantidad+=parseInt(e.cantidad)||0;
+  });
+  const etiqTipo={entrada:'ENTRADA',venta:'VENTA',ajuste:'AJUSTE',devolucion:'DEVOLUCIÓN'};
+  const filasGrupo=Object.values(grupos).sort((a,b)=>
+    a.fecha===b.fecha ? String(a.sabor).localeCompare(String(b.sabor)) : String(b.fecha).localeCompare(String(a.fecha))
+  );
+  filasGrupo.forEach(g=>movs.push([g.fecha,g.sabor,g.cantidad,etiqTipo[g.tipo]||g.tipo]));
+
+  // Hoja 3: cierre por fecha (ventas totales de cada día)
+  const ventasPorFecha={};
+  filasGrupo.filter(g=>g.tipo==='venta').forEach(g=>{
+    ventasPorFecha[g.fecha]=(ventasPorFecha[g.fecha]||0)+g.cantidad;
+  });
+  const cierre=[['Fecha','Empanadas vendidas']];
+  Object.keys(ventasPorFecha).sort((a,b)=>b.localeCompare(a))
+    .forEach(f=>cierre.push([f,ventasPorFecha[f]]));
+
+  // Hoja 4: movimientos sin agrupar (todo el detalle crudo)
+  const crudo=[['Fecha','Sabor','Cantidad','Tipo','ID pedido','ID registro']];
+  [...(stockCurrentTableData||[])]
+    .sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')))
+    .forEach(e=>crudo.push([
+      e.fecha||'—', e.sabor||'—', parseInt(e.cantidad)||0,
+      etiqTipo[e.tipo]||e.tipo||'—', e.orderId||'', e.id||''
+    ]));
+
+  descargarExcel(`DonSalo_Stock_${selloArchivo()}.xlsx`,[
+    {nombre:'Stock por sabor',filas:porSabor},
+    {nombre:'Movimientos',filas:movs},
+    {nombre:'Cierre por fecha',filas:cierre.length>1?cierre:null},
+    {nombre:'Detalle crudo',filas:crudo}
+  ].filter(h=>h.filas));
+};
+
 // ── STATS ──
 let sP='today';
+let sExportData=null;
 const dS=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
 const dE=d=>{const x=new Date(d);x.setHours(23,59,59,999);return x;};
 const sFmt=d=>d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
@@ -1137,7 +1490,9 @@ async function sLoadData(){
   const[tO,wO,mO]=await Promise.all([sP==='today'?os:sFt(sRng('today').from,sRng('today').to),sP==='week'?os:sFt(sRng('week').from,sRng('week').to),sP==='month'?os:sFt(sRng('month').from,sRng('month').to)]);
   document.getElementById('s-counters').innerHTML=`<div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${os.length} pedidos</div></div>`;
   const pR=sPrv(sP);
+  let prevEmpExport=null, prevPedidosExport=null;
   if(pR){const pO=await sFt(pR.from,pR.to),pE=cE(pO),mx1=Math.max(emp,pE)||1,mx2=Math.max(os.length,pO.length)||1;
+    prevEmpExport=pE; prevPedidosExport=pO.length;
     document.getElementById('s-compare').innerHTML=`<div class="s-compare-card"><div class="s-compare-title">🫔 Empanadas</div><div class="s-bar-label"><span>${r.label.split('—')[0].trim()}</span><span>${emp}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-a" style="width:${Math.round(emp/mx1*100)}%"></div></div><div class="s-bar-label"><span>${pR.label}</span><span>${pE}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-b" style="width:${Math.round(pE/mx1*100)}%"></div></div><div class="s-result ${emp>pE?'s-up':emp<pE?'s-down':'s-eq'}">${emp>pE?'▲ +'+(emp-pE)+' más':emp<pE?'▼ '+(pE-emp)+' menos':'= Sin cambios'}</div></div><div class="s-compare-card"><div class="s-compare-title">📦 Pedidos</div><div class="s-bar-label"><span>${r.label.split('—')[0].trim()}</span><span>${os.length}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-a" style="width:${Math.round(os.length/mx2*100)}%"></div></div><div class="s-bar-label"><span>${pR.label}</span><span>${pO.length}</span></div><div class="s-bar-track"><div class="s-bar-fill bar-b" style="width:${Math.round(pO.length/mx2*100)}%"></div></div><div class="s-result ${os.length>pO.length?'s-up':os.length<pO.length?'s-down':'s-eq'}">${os.length>pO.length?'▲ +'+(os.length-pO.length)+' más pedidos':os.length<pO.length?'▼ '+(pO.length-os.length)+' menos pedidos':'= Igual cantidad'}</div></div>`;
   }else{document.getElementById('s-compare').innerHTML='<div style="color:#aaa;font-size:13px;padding:12px;">No hay período anterior para comparar.</div>';}
   // ── RANKING con total al final ──
@@ -1203,6 +1558,23 @@ async function sLoadData(){
   os.forEach(o=>{if(o.timestamp){const d=o.timestamp.toDate().getDay();dc[d]+=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);}});
   const mxd=Math.max(...dc,1);
   document.getElementById('s-chart-bars').innerHTML=days.map((day,i)=>`<div class="s-bar-col"><div class="s-bar-val">${dc[i]||''}</div><div class="s-bar-rect ${dc[i]===0?'empty':''}" style="height:${Math.round(dc[i]/mxd*100)}px"></div><div class="s-bar-day">${day}</div></div>`).join('');
+
+  // Guardar todo lo calculado para poder exportarlo a Excel igual que en pantalla
+  sExportData={
+    label:r.label, from:r.from, to:r.to,
+    pedidos:os, empanadas:emp, bebidas:beb,
+    hoy:{emp:cE(tO),pedidos:tO.length},
+    semana:{emp:cE(wO),pedidos:wO.length},
+    mes:{emp:cE(mO),pedidos:mO.length},
+    ranking:rk, rankTotal:rankTotal,
+    porDiaSemana:days.map((d,i)=>[d,dc[i]]),
+    semanal:weeks.map(([key,v],i)=>{
+      const monD=new Date(key);const sunD=new Date(monD);sunD.setDate(monD.getDate()+6);
+      return {n:i+1,desde:key,hasta:sunD.toISOString().split('T')[0],total:v.total,pedidos:v.orders};
+    }),
+    prevLabel:pR?pR.label:null, prevEmp:prevEmpExport, prevPedidos:prevPedidosExport
+  };
+
   document.getElementById('s-loading').style.display='none';document.getElementById('s-content').style.display='block';
 }
 window.sSetPeriod=function(p){sP=p;document.querySelectorAll('.s-tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.s-tab-btn')[{today:0,yesterday:1,week:2,month:3,all:4}[p]]?.classList.add('active');sLoadData();};
@@ -1257,7 +1629,9 @@ window.histLoad=async function(){
 };
 window.histFilter=function(){const q=document.getElementById('hist-search').value.toLowerCase().trim();hRender(q?hAll.filter(o=>(o.cliente||'').toLowerCase().includes(q)):hAll);};
 window.histReset=function(){document.getElementById('hist-search').value='';document.getElementById('hist-from').value='';document.getElementById('hist-to').value='';hAll=[];hRender([]);};
+let hCurrentList=[];
 function hRender(list){
+  hCurrentList=list||[];
   document.getElementById('hist-count').textContent=list.length+' pedidos';
   if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="6" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
   document.getElementById('hist-tbody').innerHTML=list.map(o=>{
@@ -1348,10 +1722,12 @@ function stockRenderAlerts(sourceData){
   div.innerHTML=alerts.map(([sabor,v])=>`<div class="stock-alert">⚠️ <strong>${sabor}</strong>: solo ${v.stock} unidades</div>`).join('');
 }
 
+let stockChartEntries=[];
 function stockRenderChart(sourceData){
   const bySabor=stockCalcBySabor(sourceData);
   const chartDiv=document.getElementById('stock-chart');
   const entries=EMP.map(e=>[e.nombre, bySabor[e.nombre]||{stock:0}]);
+  stockChartEntries=entries; // guardado para exportar a Excel lo mismo que se ve
   const max=Math.max(...entries.map(([,v])=>Math.max(0,v.stock)),1);
   chartDiv.innerHTML=entries.map(([sabor,v])=>{
     const s=Math.max(0,v.stock);
