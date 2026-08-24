@@ -394,6 +394,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .m-ganancia{color:#065f46;font-weight:700;}
 .hist-totales td{background:#111;color:#fff;font-weight:700;border-top:2px solid #111;font-size:14px;}
 .hist-totales td.money{color:#fff;}
+/* Subtotal de cada día (solo cuando el rango abarca varios días) */
+.hist-subtotal td{background:#eeeeec;color:#333;font-weight:600;border-top:1px solid #d8d8d4;font-size:13px;}
+.hist-subtotal td.money{color:#333;}
+.hist-subtotal td:first-child{letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#666;}
 .promo-tag{font-size:9px;background:#fffbeb;color:#92400e;padding:1px 6px;border-radius:10px;letter-spacing:1px;margin-left:4px;}
 </style>
 </head>
@@ -1833,15 +1837,44 @@ function hRender(list){
   hCurrentList=list||[];
   document.getElementById('hist-count').textContent=list.length+' pedidos';
   if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="9" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
-  let tEmp=0,tCosto=0,tVenta=0;
-  const filas=list.map(o=>{
+
+  // Día de un pedido (para agrupar). Los pedidos vienen ordenados por fecha desc,
+  // así que los de un mismo día quedan contiguos.
+  const diaDe=o=>{const ts=o.timestamp?o.timestamp.toDate():null;return ts?ts.toLocaleDateString('it-IT'):'—';};
+  // El subtotal por día solo tiene sentido si el rango abarca más de un día
+  const variosDias=new Set(list.map(diaDe)).size>1;
+
+  let tEmp=0,tCosto=0,tVenta=0;                       // acumuladores del total general
+  let dEmp=0,dCosto=0,dVenta=0,dPed=0,diaActual=null; // acumuladores del día en curso
+
+  const filaSubtotal=dia=>`<tr class="hist-subtotal">
+      <td colspan="4">Total ${dia} · ${dPed} ${dPed===1?'pedido':'pedidos'}</td>
+      <td style="text-align:center;">${dEmp}</td>
+      <td class="money">${eur(dCosto)}</td>
+      <td class="money">${eur(dVenta)}</td>
+      <td class="money">${eur(dVenta-dCosto)}</td>
+      <td></td>
+    </tr>`;
+
+  let html='';
+  list.forEach(o=>{
+    const dia=diaDe(o);
+    // Cambió el día → cierro el anterior con su subtotal y reinicio contadores
+    if(variosDias && diaActual!==null && dia!==diaActual){
+      html+=filaSubtotal(diaActual);
+      dEmp=0;dCosto=0;dVenta=0;dPed=0;
+    }
+    diaActual=dia;
+
     const ts=o.timestamp?o.timestamp.toDate():null;
     const hora=ts?ts.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
     const ec=empDePedido(o);
     const ck=canalKey(o);
     const costo=costoPedido(o), venta=ventaPedido(o), gan=venta-costo;
     tEmp+=ec; tCosto+=costo; tVenta+=venta;
-    return`<tr>
+    dEmp+=ec; dCosto+=costo; dVenta+=venta; dPed++;
+
+    html+=`<tr>
       <td style="white-space:nowrap;color:#888;">${hora}</td>
       <td style="font-weight:600;">${o.cliente||'—'}${o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':''}</td>
       <td><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span></td>
@@ -1852,17 +1885,20 @@ function hRender(list){
       <td class="money m-ganancia">${eur(gan)}</td>
       <td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td>
     </tr>`;
-  }).join('');
+  });
+  // Cierro el último día
+  if(variosDias && diaActual!==null) html+=filaSubtotal(diaActual);
+
   const tGan=tVenta-tCosto;
-  const totales=`<tr class="hist-totales">
-    <td colspan="4">TOTALES · ${list.length} pedidos</td>
+  html+=`<tr class="hist-totales">
+    <td colspan="4">TOTAL GENERAL · ${list.length} pedidos</td>
     <td style="text-align:center;">${tEmp}</td>
     <td class="money">${eur(tCosto)}</td>
     <td class="money">${eur(tVenta)}</td>
     <td class="money">${eur(tGan)}</td>
     <td></td>
   </tr>`;
-  document.getElementById('hist-tbody').innerHTML=filas+totales;
+  document.getElementById('hist-tbody').innerHTML=html;
 }
 document.getElementById('hist-from').value=td;document.getElementById('hist-to').value=td;
 
