@@ -357,6 +357,44 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 /* Barra de exportación en la solapa PEDIDOS */
 .export-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
 .export-hint{font-size:12px;color:#bbb;letter-spacing:0.3px;}
+
+/* ── CANAL DE VENTA (origen del pedido) ── */
+.modal-canal-row{display:flex;flex-direction:column;margin-bottom:12px;}
+.canal-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.canal-btn{
+  padding:8px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;
+  color:#888;letter-spacing:0.3px;transition:all 0.15s;
+}
+.canal-btn:hover{border-color:#111;color:#111;}
+.canal-btn.active{background:#111;color:#fff;border-color:#111;}
+.canal-btn.glovo.active{background:#f2b100;border-color:#f2b100;color:#111;}
+.canal-btn.justeat.active{background:#ff8000;border-color:#ff8000;color:#fff;}
+.canal-btn.deliveroo.active{background:#00ccbc;border-color:#00ccbc;color:#063;}
+/* Promo Pranzo */
+.modal-promo-row{margin-bottom:12px;}
+.promo-check{
+  display:inline-flex;align-items:center;gap:8px;background:#fffbeb;
+  border:1px solid #fde68a;border-radius:8px;padding:8px 14px;cursor:pointer;
+  font-size:13px;color:#92400e;font-weight:500;user-select:none;
+}
+.promo-check input{width:16px;height:16px;cursor:pointer;}
+/* Badge de canal en las tarjetas de pedido */
+.canal-badge{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px;font-weight:700;margin-left:6px;white-space:nowrap;}
+.cb-mostrador{background:#f3f4f6;color:#374151;}
+.cb-glovo{background:#fff8e1;color:#8a6d00;}
+.cb-justeat{background:#fff1e6;color:#b34700;}
+.cb-deliveroo{background:#e0faf8;color:#00706a;}
+.cb-qr{background:#f0fdf4;color:#065f46;}
+.cb-web{background:#fee2e2;color:#991b1b;}
+/* Columnas de dinero en HISTORIAL */
+.money{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.m-costo{color:#991b1b;}
+.m-venta{color:#111;font-weight:600;}
+.m-ganancia{color:#065f46;font-weight:700;}
+.hist-totales td{background:#111;color:#fff;font-weight:700;border-top:2px solid #111;font-size:14px;}
+.hist-totales td.money{color:#fff;}
+.promo-tag{font-size:9px;background:#fffbeb;color:#92400e;padding:1px 6px;border-radius:10px;letter-spacing:1px;margin-left:4px;}
 </style>
 </head>
 <body>
@@ -470,7 +508,17 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   </div>
   <div class="hist-table-wrap">
     <table class="hist-table">
-      <thead><tr><th>Hora</th><th>Cliente</th><th>Items</th><th>Emp.</th><th>Tipo</th><th>Estado</th></tr></thead>
+      <thead><tr>
+        <th>Fecha / Hora</th>
+        <th>Cliente / N° pedido</th>
+        <th>Canal</th>
+        <th>Items</th>
+        <th style="text-align:center;">Emp.</th>
+        <th style="text-align:right;">Costo</th>
+        <th style="text-align:right;">Venta</th>
+        <th style="text-align:right;">Ganancia</th>
+        <th style="text-align:center;">Estado</th>
+      </tr></thead>
       <tbody id="hist-tbody"></tbody>
     </table>
   </div>
@@ -591,13 +639,32 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar →</button>
       </div>
 
-      <!-- Fila 2: nombre cliente -->
-      <div class="modal-nombre-row">
-        <label class="modal-label">Nombre del cliente</label>
-        <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco..." autocomplete="off"/>
+      <!-- Fila 2: origen de la venta -->
+      <div class="modal-canal-row">
+        <label class="modal-label">Origen de la venta</label>
+        <div class="canal-btns">
+          <button class="canal-btn mostrador active" id="canal-mostrador" onclick="setCanal('mostrador')">🏪 Mostrador</button>
+          <button class="canal-btn glovo" id="canal-glovo" onclick="setCanal('glovo')">Glovo</button>
+          <button class="canal-btn justeat" id="canal-justeat" onclick="setCanal('justeat')">Just Eat</button>
+          <button class="canal-btn deliveroo" id="canal-deliveroo" onclick="setCanal('deliveroo')">Deliveroo</button>
+        </div>
       </div>
 
-      <!-- Fila 3: tabs categoría -->
+      <!-- Fila 3: nombre cliente / número de pedido (cambia según el canal) -->
+      <div class="modal-nombre-row">
+        <label class="modal-label" id="modal-nombre-label">Nombre del cliente</label>
+        <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco... (podés dejar vacío)" autocomplete="off"/>
+      </div>
+
+      <!-- Fila 4: Promo Pranzo — solo visible en Mostrador -->
+      <div class="modal-promo-row" id="modal-promo-row">
+        <label class="promo-check">
+          <input type="checkbox" id="modal-promo-pranzo"/>
+          <span>🍽️ Promo Pranzo — 3 × 9,99</span>
+        </label>
+      </div>
+
+      <!-- Fila 5: tabs categoría -->
       <div class="modal-tabs">
         <button class="modal-tab-btn active" id="mtab-empanadas" onclick="setModalTab('empanadas')">🫔 Empanadas</button>
         <button class="modal-tab-btn" id="mtab-acqua" onclick="setModalTab('acqua')">💧 Acqua</button>
@@ -696,6 +763,74 @@ function fFechaFull(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseIn
 function fTime(ts){return ts?ts.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—';}
 function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',completado:'Completato'}[e]||e;}
 
+// ═══════════════════════════════════════════════════════
+//  CANALES DE VENTA, COSTOS Y PRECIOS
+// ═══════════════════════════════════════════════════════
+const COSTO_EMPANADA   = 2.20;   // costo por empanada, IVA incluido
+const PRECIO_DELIVERY  = 4.50;   // precio fijo por empanada en Glovo / Just Eat / Deliveroo
+const PRECIO_UNIT      = 3.80;   // mostrador: empanada suelta
+const PROMO_PRANZO     = 9.99;   // mostrador: promo pranzo, 3 empanadas
+const PACK_6           = 21.90;
+const PACK_9           = 32.50;
+const PACK_12          = 42.99;
+const PRECIO_MAS_DE_12 = PACK_12 / 12;  // 3,5825 por unidad cuando pasa de 12
+
+const CANALES = {
+  mostrador:{label:'Mostrador', corto:'Mostrador', delivery:false},
+  glovo:    {label:'Glovo',     corto:'Glovo',     delivery:true},
+  justeat:  {label:'Just Eat',  corto:'Just Eat',  delivery:true},
+  deliveroo:{label:'Deliveroo', corto:'Deliveroo', delivery:true},
+  qr:       {label:'QR',        corto:'QR',        delivery:false},
+  web:      {label:'Web',       corto:'Web',       delivery:false}
+};
+
+// Determina el canal de un pedido.
+// Los pedidos viejos (sin canalVenta) se clasifican por los campos que ya existían:
+// canale='web' → Web · manual=true → Mostrador · el resto → QR.
+// QR y Web se cobran con la escalera de Mostrador.
+function canalKey(o){
+  if(o && o.canalVenta && CANALES[o.canalVenta]) return o.canalVenta;
+  if(o && o.canale==='web') return 'web';
+  if(o && o.manual) return 'mostrador';
+  return 'qr';
+}
+function canalLabel(o){ return CANALES[canalKey(o)].label; }
+
+// Precio de mostrador: se toma el pack más grande que entre y el resto suelto a 3,80.
+// Ej: 7 = 21,90 (pack 6) + 3,80 = 25,70
+// Más de 12 unidades se cobran todas a 42,99/12 = 3,5825 c/u.
+function precioMostrador(qty, promo){
+  if(!qty || qty<=0) return 0;
+  let resto=qty, total=0;
+  if(promo && resto>=3){ total+=PROMO_PRANZO; resto-=3; }
+  if(resto>12) return total + resto*PRECIO_MAS_DE_12;
+  if(resto>=12){ total+=PACK_12; resto-=12; }
+  if(resto>=9){  total+=PACK_9;  resto-=9;  }
+  if(resto>=6){  total+=PACK_6;  resto-=6;  }
+  return total + resto*PRECIO_UNIT;
+}
+
+// Cantidad de empanadas de un pedido (las bebidas no entran en costo ni en venta)
+function empDePedido(o){
+  return (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
+}
+function costoPedido(o){ return empDePedido(o)*COSTO_EMPANADA; }
+function ventaPedido(o){
+  const emp=empDePedido(o);
+  if(emp===0) return 0;
+  const k=canalKey(o);
+  if(CANALES[k].delivery) return emp*PRECIO_DELIVERY;
+  return precioMostrador(emp, o.promoPranzo===true);
+}
+function gananciaPedido(o){ return ventaPedido(o)-costoPedido(o); }
+
+// Formato de euros en estilo italiano: € 25,70
+function eur(n){
+  return '€ '+(Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+// Redondeo a 2 decimales para exportar a Excel como número real
+function r2(n){ return Math.round((Number(n)||0)*100)/100; }
+
 function renderOrders(){
   const grid=document.getElementById('orders-grid'),empty=document.getElementById('empty-state');
   const disp=activeFilter?orders.filter(o=>o.estado===activeFilter):orders;
@@ -739,7 +874,12 @@ function renderOrders(){
       ? `<button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')" title="Annulla pedido completato">✕ Annulla</button>`
       : `<button class="action-btn btn-eliminar" onclick="eliminarOrder('${o.id}')" title="Elimina pedido">✕</button>`;
 
-    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
+    // Badge con el origen de la venta (Mostrador / Glovo / Just Eat / Deliveroo / QR / Web)
+    const ck=canalKey(o);
+    const canalBadge=`<span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>`
+      + (o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':'');
+
+    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
   }).join('');
   const act=orders.filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
@@ -899,6 +1039,25 @@ window.setModalTab = function(tab) {
   if (scroll) scroll.scrollTop = 0;
 };
 
+// ── CANAL DE VENTA EN EL MODAL ──
+// Mostrador → el campo pide NOMBRE y aparece la Promo Pranzo.
+// Glovo / Just Eat / Deliveroo → el campo pide NÚMERO DE PEDIDO y se oculta la promo.
+let canalActivo='mostrador';
+window.setCanal=function(c){
+  if(!CANALES[c]) return;
+  canalActivo=c;
+  ['mostrador','glovo','justeat','deliveroo'].forEach(k=>{
+    const b=document.getElementById('canal-'+k);
+    if(b) b.className='canal-btn '+k+(k===c?' active':'');
+  });
+  const esMostrador = (c==='mostrador');
+  document.getElementById('modal-nombre-label').textContent = esMostrador ? 'Nombre del cliente' : 'Número de pedido';
+  const inp=document.getElementById('modal-nombre');
+  inp.placeholder = esMostrador ? 'Ej: Marco... (podés dejar vacío)' : 'Ej: 4821';
+  document.getElementById('modal-promo-row').style.display = esMostrador ? 'block' : 'none';
+  if(!esMostrador) document.getElementById('modal-promo-pranzo').checked=false;
+};
+
 window.openModal = function() {
   editId=null;
   EMP.forEach(e=>eQ[e.id]=0);
@@ -907,6 +1066,8 @@ window.openModal = function() {
   document.getElementById('modal-title').textContent='🫔 Pedido Manual';
   document.getElementById('modal-confirm-btn').textContent='Confirmar →';
   document.getElementById('modal-emp-counter').textContent='0';
+  document.getElementById('modal-promo-pranzo').checked=false;
+  setCanal('mostrador');
   activeModalTab = 'empanadas';
   ['empanadas','acqua','gassate','birra'].forEach(t => {
     const btn = document.getElementById('mtab-' + t);
@@ -1002,6 +1163,11 @@ window.editOrder=function(id){
   document.getElementById('modal-nombre').value=o.cliente||'';
   document.getElementById('modal-title').textContent='✏️ Modificar Pedido';
   document.getElementById('modal-confirm-btn').textContent='Guardar →';
+  // Restaurar el canal de venta y la promo del pedido original
+  const ckEdit=canalKey(o);
+  document.getElementById('modal-promo-pranzo').checked = (o.promoPranzo===true);
+  setCanal(CANALES[ckEdit].delivery ? ckEdit : 'mostrador');
+  document.getElementById('modal-promo-pranzo').checked = (o.promoPranzo===true);
   // Actualizar contador con valores cargados
   document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);
   // Reset tab a Empanadas al editar
@@ -1016,8 +1182,14 @@ window.editOrder=function(id){
 
 window.confirmarManual=async function(){
   let nombre=document.getElementById('modal-nombre').value.trim();
+  const esDelivery=CANALES[canalActivo].delivery;
+  const promo=document.getElementById('modal-promo-pranzo').checked && !esDelivery;
   if(!nombre){
-    // Auto-número: contar pedidos manuales de hoy y asignar "Mostrador N"
+    if(esDelivery){
+      alert('Poné el número de pedido de '+CANALES[canalActivo].label+'.');
+      return;
+    }
+    // Mostrador sin nombre: auto-número "Mostrador N"
     const sodM=new Date();sodM.setHours(0,0,0,0);
     const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
     nombre='Mostrador '+(snapM.size+1);
@@ -1029,8 +1201,8 @@ window.confirmarManual=async function(){
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
   const btn=document.getElementById('modal-confirm-btn');btn.disabled=true;btn.textContent='...';
   try{
-    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true});
-    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,timestamp:serverTimestamp()});
+    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true,canalVenta:canalActivo,promoPranzo:promo});
+    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promoPranzo:promo,timestamp:serverTimestamp()});
     closeModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;editId=null;btn.textContent='Confirmar →';document.getElementById('modal-title').textContent='🫔 Pedido Manual';}
@@ -1192,8 +1364,8 @@ function selloArchivo(){
 function fechaHoraLegible(){
   return new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
-// Etiqueta de canal de un pedido
-function canalPedido(o){ return o.canale==='web' ? 'Web' : (o.manual ? 'Mostrador' : 'QR'); }
+// Etiqueta de canal de un pedido (Mostrador / Glovo / Just Eat / Deliveroo / QR / Web)
+function canalPedido(o){ return canalLabel(o); }
 // Cuenta empanadas / bebidas de un pedido
 function contarEmp(o){ return (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0); }
 function contarBeb(o){ return (o.items||[]).reduce((a,i)=>i.tipo==='bebida'?a+(parseInt(i.cantidad)||0):a,0); }
@@ -1343,23 +1515,49 @@ window.exportHistorial=function(){
     ['Rango', `${desde} → ${hasta}`],
     ['Búsqueda por cliente', busq||'(sin filtro)'],
     ['Pedidos encontrados', hCurrentList.length],
+    ['Costo por empanada', COSTO_EMPANADA],
     [],
-    ['Fecha','Hora','Cliente','Empanadas','Bebidas','Tipo','Estado','Detalle']
+    ['Fecha','Hora','Cliente / N° pedido','Canal','Empanadas','Bebidas','Costo','Venta','Ganancia','Promo 3','Estado','Detalle']
   ];
-  let tEmp=0,tBeb=0;
+  let tEmp=0,tBeb=0,tCosto=0,tVenta=0;
   hCurrentList.forEach(o=>{
     const ts=o.timestamp?o.timestamp.toDate():null;
     const emp=contarEmp(o), beb=contarBeb(o);
-    tEmp+=emp; tBeb+=beb;
+    const costo=costoPedido(o), venta=ventaPedido(o);
+    tEmp+=emp; tBeb+=beb; tCosto+=costo; tVenta+=venta;
     filas.push([
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
-      o.cliente||'—', emp, beb,
-      canalPedido(o), eLabel(o.estado), itemsTexto(o)
+      o.cliente||'—',
+      canalLabel(o), emp, beb,
+      r2(costo), r2(venta), r2(venta-costo),
+      o.promoPranzo?'SÍ':'',
+      eLabel(o.estado), itemsTexto(o)
     ]);
   });
   filas.push([]);
-  filas.push(['TOTALES','','',tEmp,tBeb]);
+  filas.push(['TOTALES','','','',tEmp,tBeb,r2(tCosto),r2(tVenta),r2(tVenta-tCosto)]);
+
+  // Resumen por canal
+  const porCanal={};
+  hCurrentList.forEach(o=>{
+    const k=canalKey(o);
+    if(!porCanal[k])porCanal[k]={pedidos:0,emp:0,costo:0,venta:0};
+    porCanal[k].pedidos++;
+    porCanal[k].emp+=contarEmp(o);
+    porCanal[k].costo+=costoPedido(o);
+    porCanal[k].venta+=ventaPedido(o);
+  });
+  const resumenCanal=[['Canal','Pedidos','Empanadas','Costo','Venta','Ganancia','Ganancia por empanada']];
+  Object.entries(porCanal).sort((a,b)=>b[1].venta-a[1].venta).forEach(([k,v])=>{
+    resumenCanal.push([
+      CANALES[k].label, v.pedidos, v.emp,
+      r2(v.costo), r2(v.venta), r2(v.venta-v.costo),
+      v.emp?r2((v.venta-v.costo)/v.emp):0
+    ]);
+  });
+  resumenCanal.push([]);
+  resumenCanal.push(['TOTAL', hCurrentList.length, tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto), tEmp?r2((tVenta-tCosto)/tEmp):0]);
 
   // Detalle por ítem
   const det=[['Fecha','Hora','Cliente','Producto','Tipo','Cantidad']];
@@ -1376,6 +1574,7 @@ window.exportHistorial=function(){
 
   descargarExcel(`DonSalo_Historial_${selloArchivo()}.xlsx`,[
     {nombre:'Historial',filas},
+    {nombre:'Resumen por canal',filas:resumenCanal},
     {nombre:'Detalle por item',filas:det}
   ]);
 };
@@ -1633,13 +1832,37 @@ let hCurrentList=[];
 function hRender(list){
   hCurrentList=list||[];
   document.getElementById('hist-count').textContent=list.length+' pedidos';
-  if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="6" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
-  document.getElementById('hist-tbody').innerHTML=list.map(o=>{
+  if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="9" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
+  let tEmp=0,tCosto=0,tVenta=0;
+  const filas=list.map(o=>{
     const ts=o.timestamp?o.timestamp.toDate():null;
     const hora=ts?ts.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
-    const ec=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
-    return`<tr><td style="white-space:nowrap;color:#888;">${hora}</td><td style="font-weight:600;">${o.cliente||'—'}</td><td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td><td style="font-weight:700;text-align:center;">${ec}</td><td>${o.manual?'<span class="hist-badge hist-manual">Manual</span>':o.canale==='web'?'<span class="hist-badge hist-qr" style="background:#fee2e2;color:#991b1b;">🌐 Web</span>':'<span class="hist-badge hist-qr">QR</span>'}</td><td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td></tr>`;
+    const ec=empDePedido(o);
+    const ck=canalKey(o);
+    const costo=costoPedido(o), venta=ventaPedido(o), gan=venta-costo;
+    tEmp+=ec; tCosto+=costo; tVenta+=venta;
+    return`<tr>
+      <td style="white-space:nowrap;color:#888;">${hora}</td>
+      <td style="font-weight:600;">${o.cliente||'—'}${o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':''}</td>
+      <td><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span></td>
+      <td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td>
+      <td style="font-weight:700;text-align:center;">${ec}</td>
+      <td class="money m-costo">${eur(costo)}</td>
+      <td class="money m-venta">${eur(venta)}</td>
+      <td class="money m-ganancia">${eur(gan)}</td>
+      <td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td>
+    </tr>`;
   }).join('');
+  const tGan=tVenta-tCosto;
+  const totales=`<tr class="hist-totales">
+    <td colspan="4">TOTALES · ${list.length} pedidos</td>
+    <td style="text-align:center;">${tEmp}</td>
+    <td class="money">${eur(tCosto)}</td>
+    <td class="money">${eur(tVenta)}</td>
+    <td class="money">${eur(tGan)}</td>
+    <td></td>
+  </tr>`;
+  document.getElementById('hist-tbody').innerHTML=filas+totales;
 }
 document.getElementById('hist-from').value=td;document.getElementById('hist-to').value=td;
 
