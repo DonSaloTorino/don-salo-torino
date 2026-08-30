@@ -399,6 +399,30 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .hist-subtotal td.money{color:#333;}
 .hist-subtotal td:first-child{letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#666;}
 .promo-tag{font-size:9px;background:#fffbeb;color:#92400e;padding:1px 6px;border-radius:10px;letter-spacing:1px;margin-left:4px;}
+
+/* ── CLASSICHE vs SPECIALI ── */
+/* Las tarjetas del modal se tiñen según el tipo, para distinguirlas de un vistazo */
+.modal-card.t-classica{background:#2563eb;}
+.modal-card.t-classica.selected{background:#1d4ed8;}
+.modal-card.t-speciale{background:#b91c1c;}
+.modal-card.t-speciale.selected{background:#991b1b;}
+.modal-card.agotado.t-classica,
+.modal-card.agotado.t-speciale{background:#e5e7eb;}
+.modal-section-label.sec-classica{color:#2563eb;}
+.modal-section-label.sec-speciale{color:#b91c1c;}
+/* Desglose classiche/speciali bajo el contador del modal */
+.modal-counter-det{font-size:9px;opacity:0.55;letter-spacing:1px;margin-top:1px;min-height:11px;}
+/* Botones Mangia qui / Takeaway */
+.consumo-btn{
+  padding:8px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;
+  color:#888;letter-spacing:0.3px;transition:all 0.15s;
+}
+.consumo-btn:hover{border-color:#111;color:#111;}
+.consumo-btn.local.active{background:#111;color:#fff;border-color:#111;}
+.consumo-btn.take.active{background:#ea580c;color:#fff;border-color:#ea580c;}
+.canal-badge.cb-takeaway{background:#ffedd5;color:#9a3412;}
+.mini-tipos{display:block;font-size:9px;color:#aaa;font-weight:500;letter-spacing:0.5px;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -638,6 +662,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         <div class="modal-counter-box">
           <div class="modal-counter-label">Empanadas</div>
           <div class="modal-counter-num" id="modal-emp-counter">0</div>
+          <div class="modal-counter-det" id="modal-emp-detalle"></div>
         </div>
         <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
         <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar →</button>
@@ -654,21 +679,30 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         </div>
       </div>
 
+      <!-- Fila 3: dónde consume — solo Mostrador -->
+      <div class="modal-canal-row" id="modal-consumo-row">
+        <label class="modal-label">¿Dónde consume?</label>
+        <div class="canal-btns">
+          <button class="consumo-btn local active" id="consumo-mostrador" onclick="setConsumo('mostrador')">🍽️ Mangia qui</button>
+          <button class="consumo-btn take" id="consumo-takeaway" onclick="setConsumo('takeaway')">🥡 Takeaway</button>
+        </div>
+      </div>
+
       <!-- Fila 3: nombre cliente / número de pedido (cambia según el canal) -->
       <div class="modal-nombre-row">
         <label class="modal-label" id="modal-nombre-label">Nombre del cliente</label>
         <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco... (podés dejar vacío)" autocomplete="off"/>
       </div>
 
-      <!-- Fila 4: Promo Pranzo — solo visible en Mostrador -->
+      <!-- Fila 5: Promo Pranzo — solo visible en Mostrador -->
       <div class="modal-promo-row" id="modal-promo-row">
         <label class="promo-check">
           <input type="checkbox" id="modal-promo-pranzo"/>
-          <span>🍽️ Promo Pranzo — 3 × 9,99</span>
+          <span>🍽️ Promo Pranzo — 3 empanadas 10,50</span>
         </label>
       </div>
 
-      <!-- Fila 5: tabs categoría -->
+      <!-- Fila 6: tabs categoría -->
       <div class="modal-tabs">
         <button class="modal-tab-btn active" id="mtab-empanadas" onclick="setModalTab('empanadas')">🫔 Empanadas</button>
         <button class="modal-tab-btn" id="mtab-acqua" onclick="setModalTab('acqua')">💧 Acqua</button>
@@ -715,11 +749,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <div class="stock-modal-title">🫔 Nuevo Sabor</div>
     <label class="modal-label">Nombre</label>
     <input class="modal-input" id="sabor-modal-nombre" type="text" placeholder="Ej: CHORIZO + BROCCOLI" style="margin-bottom:16px;text-transform:uppercase;"/>
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;margin-bottom:10px;cursor:pointer;">
-      <input type="checkbox" id="sabor-modal-curcuma" style="width:16px;height:16px;cursor:pointer;"/> Contiene cúrcuma (✦)
-    </label>
+    <label class="modal-label">Tipo (define el precio de venta)</label>
+    <select class="modal-input" id="sabor-modal-tipo" style="cursor:pointer;margin-bottom:16px;">
+      <option value="classica">🔵 Classica — 3,80 / 3,75 / 3,70 / 3,65</option>
+      <option value="speciale">🔴 Speciale — 4,00 / 3,95 / 3,90 / 3,85</option>
+    </select>
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;margin-bottom:20px;cursor:pointer;">
-      <input type="checkbox" id="sabor-modal-especial" style="width:16px;height:16px;cursor:pointer;"/> Marcar como especial (⭐)
+      <input type="checkbox" id="sabor-modal-curcuma" style="width:16px;height:16px;cursor:pointer;"/> Impasto alla curcuma (✦)
     </label>
     <div style="display:flex;gap:10px;">
       <button class="modal-cancel" style="flex:1;" onclick="closeSaborModal()">Cancelar</button>
@@ -768,16 +804,56 @@ function fTime(ts){return ts?ts.toDate().toLocaleTimeString('it-IT',{hour:'2-dig
 function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',completado:'Completato'}[e]||e;}
 
 // ═══════════════════════════════════════════════════════
-//  CANALES DE VENTA, COSTOS Y PRECIOS
+//  CANALES, TIPOS DE EMPANADA, COSTOS Y PRECIOS
 // ═══════════════════════════════════════════════════════
-const COSTO_EMPANADA   = 2.20;   // costo por empanada, IVA incluido
-const PRECIO_DELIVERY  = 4.50;   // precio fijo por empanada en Glovo / Just Eat / Deliveroo
-const PRECIO_UNIT      = 3.80;   // mostrador: empanada suelta
-const PROMO_PRANZO     = 9.99;   // mostrador: promo pranzo, 3 empanadas
-const PACK_6           = 21.90;
-const PACK_9           = 32.50;
-const PACK_12          = 42.99;
-const PRECIO_MAS_DE_12 = PACK_12 / 12;  // 3,5825 por unidad cuando pasa de 12
+const COSTO_EMPANADA = 2.20;   // costo por empanada, IVA incluido (igual para classiche y speciali)
+
+// Precio por unidad según la CANTIDAD TOTAL de empanadas del pedido.
+// Se suma todo para saber en qué tramo cae, y después cada empanada
+// se cobra al precio de SU tipo dentro de ese tramo.
+const TRAMOS = [
+  {min:1,  max:5,        classica:3.80, speciale:4.00, label:'1–5'},
+  {min:6,  max:8,        classica:3.75, speciale:3.95, label:'6–8'},
+  {min:9,  max:11,       classica:3.70, speciale:3.90, label:'9–11'},
+  {min:12, max:Infinity, classica:3.65, speciale:3.85, label:'12+'}
+];
+const PROMO_PRANZO = 10.50;  // 3 empanadas de cualquier tipo · UNA sola por pedido
+const PROMO_CANT   = 3;
+// Delivery: precio fijo por empanada, según tipo
+const PRECIO_DELIVERY = { classica:4.75, speciale:4.85 };
+
+// Tramo que corresponde a una cantidad
+function tramoPara(qty){
+  return TRAMOS.find(t=>qty>=t.min && qty<=t.max) || TRAMOS[TRAMOS.length-1];
+}
+
+// Clasificación de respaldo: se usa para pedidos viejos y para cuando
+// la lista de sabores todavía no cargó desde Firestore.
+const TIPO_FALLBACK = {
+  'CAPRESE':'classica',
+  'CARNE':'classica',
+  'FORMAGGIO E CIPOLLA':'classica',
+  'HUMITA':'classica',
+  'PROSCIUTTO E FORMAGGIO':'classica',
+  'TONNO E CIPOLLA':'classica',
+  'VERDURA':'classica',
+  'CHESE BURGER':'speciale',
+  'CHORIZO + BROCCOLI':'speciale',
+  'ENTRECOTE + CHIMICHURRI':'speciale',
+  'MATAMBRE (SOTTOPANCIA)':'speciale',
+  'PARMIGIANA':'speciale',
+  'POLLO — CURCUMA':'speciale',
+  'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO':'speciale',
+  'VACIO (BAVETTA)':'speciale'
+};
+// Tipo de un sabor por nombre: primero la lista viva de Firestore, después el respaldo
+function tipoDeSabor(nombre){
+  const e = EMP.find(x=>x.nombre===nombre);
+  if(e && e.tipoEmp) return e.tipoEmp;
+  return TIPO_FALLBACK[nombre] || 'classica';
+}
+// Tipo de un objeto sabor ya cargado
+function tipoDe(e){ return e.tipoEmp || TIPO_FALLBACK[e.nombre] || 'classica'; }
 
 const CANALES = {
   mostrador:{label:'Mostrador', corto:'Mostrador', delivery:false},
@@ -791,7 +867,7 @@ const CANALES = {
 // Determina el canal de un pedido.
 // Los pedidos viejos (sin canalVenta) se clasifican por los campos que ya existían:
 // canale='web' → Web · manual=true → Mostrador · el resto → QR.
-// QR y Web se cobran con la escalera de Mostrador.
+// QR y Web se cobran con los mismos tramos que Mostrador.
 function canalKey(o){
   if(o && o.canalVenta && CANALES[o.canalVenta]) return o.canalVenta;
   if(o && o.canale==='web') return 'web';
@@ -800,33 +876,60 @@ function canalKey(o){
 }
 function canalLabel(o){ return CANALES[canalKey(o)].label; }
 
-// Precio de mostrador: se toma el pack más grande que entre y el resto suelto a 3,80.
-// Ej: 7 = 21,90 (pack 6) + 3,80 = 25,70
-// Más de 12 unidades se cobran todas a 42,99/12 = 3,5825 c/u.
-function precioMostrador(qty, promo){
-  if(!qty || qty<=0) return 0;
-  let resto=qty, total=0;
-  if(promo && resto>=3){ total+=PROMO_PRANZO; resto-=3; }
-  if(resto>12) return total + resto*PRECIO_MAS_DE_12;
-  if(resto>=12){ total+=PACK_12; resto-=12; }
-  if(resto>=9){  total+=PACK_9;  resto-=9;  }
-  if(resto>=6){  total+=PACK_6;  resto-=6;  }
-  return total + resto*PRECIO_UNIT;
+// Cuenta las empanadas del pedido separadas por tipo.
+// Cada ítem guarda su tipoEmp al momento de la venta; si es un pedido viejo
+// que no lo tiene, se resuelve por nombre.
+function contarPorTipo(o){
+  let c=0, s=0;
+  (o.items||[]).forEach(i=>{
+    if(i.tipo && i.tipo!=='empanada') return;   // las bebidas no cuentan
+    const q = parseInt(i.cantidad)||0;
+    const t = i.tipoEmp || tipoDeSabor(i.nombre);
+    if(t==='speciale') s+=q; else c+=q;
+  });
+  return {classicas:c, especiales:s, total:c+s};
+}
+
+// Precio de mostrador / QR / web.
+// La Promo Pranzo se aplica UNA sola vez: cubre 3 empanadas de cualquier tipo por 10,50.
+// La promo se llena primero con las classiche, así la que sobra conserva su precio
+// (3 classiche + 1 speciale = 10,50 + 4,00). El resto se cobra según el tramo de ESE resto.
+function precioSinPromo(c, s){
+  const resto = c+s;
+  if(resto<=0) return 0;
+  const t = tramoPara(resto);
+  return c*t.classica + s*t.speciale;
+}
+function precioMostrador(nClass, nSpec, promo){
+  const c0=nClass||0, s0=nSpec||0;
+  const base = precioSinPromo(c0, s0);
+  if(!promo || (c0+s0)<PROMO_CANT) return base;
+  // Con promo: 10,50 por 3 empanadas + el resto según su propio tramo
+  let c=c0, s=s0, quedan=PROMO_CANT;
+  const usaC = Math.min(c, quedan); c -= usaC; quedan -= usaC;
+  const usaS = Math.min(s, quedan); s -= usaS; quedan -= usaS;
+  const conPromo = PROMO_PRANZO + precioSinPromo(c, s);
+  // Salvaguarda: en pedidos grandes, sacar 3 del conteo puede empujar al resto
+  // a un tramo más caro. La promo nunca puede terminar costando más que sin ella.
+  return Math.min(conPromo, base);
 }
 
 // Cantidad de empanadas de un pedido (las bebidas no entran en costo ni en venta)
-function empDePedido(o){
-  return (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
-}
+function empDePedido(o){ return contarPorTipo(o).total; }
 function costoPedido(o){ return empDePedido(o)*COSTO_EMPANADA; }
 function ventaPedido(o){
-  const emp=empDePedido(o);
-  if(emp===0) return 0;
-  const k=canalKey(o);
-  if(CANALES[k].delivery) return emp*PRECIO_DELIVERY;
-  return precioMostrador(emp, o.promoPranzo===true);
+  const n = contarPorTipo(o);
+  if(n.total===0) return 0;
+  const k = canalKey(o);
+  if(CANALES[k].delivery){
+    return n.classicas*PRECIO_DELIVERY.classica + n.especiales*PRECIO_DELIVERY.speciale;
+  }
+  return precioMostrador(n.classicas, n.especiales, o.promoPranzo===true);
 }
 function gananciaPedido(o){ return ventaPedido(o)-costoPedido(o); }
+
+// Consumo: solo aplica a Mostrador (takeaway = va en caja)
+function esTakeaway(o){ return o && o.consumo==='takeaway'; }
 
 // Formato de euros en estilo italiano: € 25,70
 function eur(n){
@@ -880,7 +983,9 @@ function renderOrders(){
 
     // Badge con el origen de la venta (Mostrador / Glovo / Just Eat / Deliveroo / QR / Web)
     const ck=canalKey(o);
+    const takeBadge = esTakeaway(o) ? '<span class="canal-badge cb-takeaway">🥡 Takeaway</span>' : '';
     const canalBadge=`<span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>`
+      + takeBadge
       + (o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':'');
 
     return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
@@ -933,8 +1038,49 @@ window.eliminarOrder=async function(id){
 
 window.printOrder=function(id){
   const o=orders.find(x=>x.id===id);if(!o)return;
-  const w=window.open('','_blank','width=400,height=500'),n=new Date();
-  w.document.write(`<html><head><title>Comanda</title><style>body{font-family:monospace;padding:20px;font-size:14px;}h2{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px;font-size:18px;}.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #ccc;}.total{font-size:16px;font-weight:bold;margin-top:12px;}.meta{font-size:12px;color:#888;margin-bottom:12px;}</style></head><body><h2>EMPANADAS DON SALO</h2><div class="meta">Cliente: <strong>${o.cliente}</strong><br>Ora: ${n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}<br>Data: ${n.toLocaleDateString('it-IT')}</div>${(o.items||[]).map(i=>`<div class="row"><span>${i.nombre}${i.curcuma?' ✦':''}</span><span>× ${i.cantidad}</span></div>`).join('')}<div class="total">TOTALE: ${o.total} empanada${o.total!==1?'s':''}</div></body></html>`);
+  const n=new Date();
+  const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  // Separar los ítems en Classiche / Speciali / Bebidas
+  const emps=(o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
+  const bebs=(o.items||[]).filter(i=>i.tipo==='bebida');
+  const clas=emps.filter(i=>(i.tipoEmp||tipoDeSabor(i.nombre))!=='speciale');
+  const spec=emps.filter(i=>(i.tipoEmp||tipoDeSabor(i.nombre))==='speciale');
+  const suma=arr=>arr.reduce((a,i)=>a+(parseInt(i.cantidad)||0),0);
+  const fila=i=>`<div class="row"><span>${esc(i.nombre)}${i.curcuma?' ✦':''}</span><span>× ${i.cantidad}</span></div>`;
+  const bloque=(titulo,arr)=>arr.length
+    ? `<div class="sec">${titulo} (${suma(arr)})</div>${arr.map(fila).join('')}`
+    : '';
+
+  const ck=canalKey(o);
+  const esMostrador=!CANALES[ck].delivery;
+  const consumoTxt = CANALES[ck].delivery
+    ? CANALES[ck].label.toUpperCase()
+    : (esTakeaway(o) ? '🥡 TAKEAWAY — DA ASPORTO' : '🍽️ MANGIA QUI');
+
+  const w=window.open('','_blank','width=400,height=600');
+  w.document.write(`<html><head><title>Comanda</title><style>
+    body{font-family:monospace;padding:20px;font-size:14px;}
+    h2{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:10px;font-size:18px;}
+    .consumo{border:2px solid #000;text-align:center;font-weight:bold;font-size:16px;padding:8px;margin-bottom:12px;letter-spacing:1px;}
+    .sec{margin-top:12px;margin-bottom:4px;font-weight:bold;font-size:15px;border-bottom:1px solid #000;padding-bottom:3px;letter-spacing:1px;}
+    .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc;}
+    .total{font-size:16px;font-weight:bold;margin-top:14px;border-top:2px solid #000;padding-top:8px;}
+    .meta{font-size:12px;color:#555;margin-bottom:12px;}
+    .promo{font-size:12px;font-weight:bold;margin-top:6px;}
+  </style></head><body>
+    <h2>EMPANADAS DON SALO</h2>
+    <div class="consumo">${consumoTxt}</div>
+    <div class="meta">${esMostrador?'Cliente':'N° pedido'}: <strong>${esc(o.cliente)}</strong><br>
+      Canale: ${esc(CANALES[ck].label)}<br>
+      Ora: ${n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}<br>
+      Data: ${n.toLocaleDateString('it-IT')}</div>
+    ${bloque('EMPANADAS CLASSICHE',clas)}
+    ${bloque('EMPANADAS SPECIALI',spec)}
+    ${bloque('BEVANDE',bebs)}
+    <div class="total">TOTALE: ${suma(emps)} empanada${suma(emps)!==1?'s':''}</div>
+    ${o.promoPranzo?'<div class="promo">✔ PROMO PRANZO applicata</div>':''}
+  </body></html>`);
   w.document.close();w.print();
 };
 
@@ -966,35 +1112,36 @@ let eQ={}, bQ={};
 BEB.forEach(b=>bQ[b.id]=0);
 
 // ── SABORES (EMPANADAS) — Firestore en tiempo real ──
+// tipoEmp: 'classica' | 'speciale' → define el precio de venta
 const SABORES_DEFAULT=[
-  {nombre:'ENTRECOTE + CHIMICHURRI',curcuma:false,especial:true, orden:0},
-  {nombre:'CARNE',curcuma:false,especial:false, orden:1},
-  {nombre:'MATAMBRE (SOTTOPANCIA)',curcuma:false,especial:false, orden:2},
-  {nombre:'VACIO (BAVETTA)',curcuma:false,especial:false, orden:3},
-  {nombre:'CHESE BURGER',curcuma:false,especial:false, orden:4},
-  {nombre:'PROSCIUTTO E FORMAGGIO',curcuma:false,especial:false, orden:5},
-  {nombre:'FORMAGGIO E CIPOLLA',curcuma:false,especial:false, orden:6},
-  {nombre:'TONNO E CIPOLLA',curcuma:false,especial:false, orden:7},
-  {nombre:'VERDURA',curcuma:false,especial:false, orden:8},
-  {nombre:'PARMIGIANA',curcuma:false,especial:false, orden:9},
-  {nombre:'CAPRESE',curcuma:false,especial:false, orden:10},
-  {nombre:'HUMITA',curcuma:false,especial:false, orden:11},
-  {nombre:'POLLO — CURCUMA',curcuma:true,especial:false, orden:12},
-  {nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO',curcuma:false,especial:false, orden:13},
-  {nombre:'CHORIZO + BROCCOLI',curcuma:false,especial:true, orden:14},
+  {nombre:'ENTRECOTE + CHIMICHURRI',curcuma:false,tipoEmp:'speciale', orden:0},
+  {nombre:'CARNE',curcuma:false,tipoEmp:'classica', orden:1},
+  {nombre:'MATAMBRE (SOTTOPANCIA)',curcuma:false,tipoEmp:'speciale', orden:2},
+  {nombre:'VACIO (BAVETTA)',curcuma:false,tipoEmp:'speciale', orden:3},
+  {nombre:'CHESE BURGER',curcuma:false,tipoEmp:'speciale', orden:4},
+  {nombre:'PROSCIUTTO E FORMAGGIO',curcuma:false,tipoEmp:'classica', orden:5},
+  {nombre:'FORMAGGIO E CIPOLLA',curcuma:false,tipoEmp:'classica', orden:6},
+  {nombre:'TONNO E CIPOLLA',curcuma:false,tipoEmp:'classica', orden:7},
+  {nombre:'VERDURA',curcuma:false,tipoEmp:'classica', orden:8},
+  {nombre:'PARMIGIANA',curcuma:false,tipoEmp:'speciale', orden:9},
+  {nombre:'CAPRESE',curcuma:false,tipoEmp:'classica', orden:10},
+  {nombre:'HUMITA',curcuma:false,tipoEmp:'classica', orden:11},
+  {nombre:'POLLO — CURCUMA',curcuma:true,tipoEmp:'speciale', orden:12},
+  {nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO',curcuma:false,tipoEmp:'speciale', orden:13},
+  {nombre:'CHORIZO + BROCCOLI',curcuma:false,tipoEmp:'speciale', orden:14},
 ];
 async function saboresSeedIfEmpty(){
   const snap=await getDocs(query(collection(db,'sabores')));
   if(snap.empty){
     await Promise.all(SABORES_DEFAULT.map(s=>{
       const slug=s.nombre.replace(/[^a-zA-Z0-9]/g,'_');
-      return setDoc(doc(db,'sabores',slug),{nombre:s.nombre,curcuma:s.curcuma,especial:s.especial,orden:s.orden});
+      return setDoc(doc(db,'sabores',slug),{nombre:s.nombre,curcuma:s.curcuma,tipoEmp:s.tipoEmp,orden:s.orden});
     }));
   }
 }
 function initSabores(){
   saboresSeedIfEmpty().then(()=>{
-    patchChorizoBroccoliEspecial();
+    patchTiposSabores();
     onSnapshot(query(collection(db,'sabores'),orderBy('orden')),snap=>{
       EMP=snap.docs.map(d=>({id:d.id,...d.data()}));
       EMP.forEach(e=>{ if(!(e.id in eQ)) eQ[e.id]=0; });
@@ -1002,16 +1149,21 @@ function initSabores(){
     });
   });
 }
-// Parche puntual: CHORIZO + BROCCOLI se había guardado como "especial:false"
-// antes de confirmar que también es Edizione Speciale. Lo corrige una sola vez.
-async function patchChorizoBroccoliEspecial(){
+// Migración: los sabores cargados antes de la separación Classiche/Speciali
+// no tienen tipoEmp. Se lo asigna una sola vez según la lista oficial.
+async function patchTiposSabores(){
   try{
-    const ref=doc(db,'sabores','CHORIZO___BROCCOLI');
-    const snap=await getDoc(ref);
-    if(snap.exists() && snap.data().especial!==true){
-      await updateDoc(ref,{especial:true});
-    }
-  }catch(e){console.error('patchChorizoBroccoliEspecial error',e);}
+    const snap=await getDocs(query(collection(db,'sabores')));
+    const pendientes=[];
+    snap.forEach(d=>{
+      const data=d.data();
+      if(!data.tipoEmp){
+        const t=TIPO_FALLBACK[data.nombre]||'classica';
+        pendientes.push(updateDoc(doc(db,'sabores',d.id),{tipoEmp:t}));
+      }
+    });
+    if(pendientes.length) await Promise.all(pendientes);
+  }catch(e){console.error('patchTiposSabores error',e);}
 }
 function onSaboresUpdate(){
   // Si el modal de pedido está abierto en la pestaña Empanadas, refresca la grilla
@@ -1047,6 +1199,16 @@ window.setModalTab = function(tab) {
 // Mostrador → el campo pide NOMBRE y aparece la Promo Pranzo.
 // Glovo / Just Eat / Deliveroo → el campo pide NÚMERO DE PEDIDO y se oculta la promo.
 let canalActivo='mostrador';
+let consumoActivo='mostrador';   // 'mostrador' (come en el local) | 'takeaway' (va en caja)
+
+window.setConsumo=function(c){
+  consumoActivo = (c==='takeaway') ? 'takeaway' : 'mostrador';
+  const bLocal=document.getElementById('consumo-mostrador');
+  const bTake =document.getElementById('consumo-takeaway');
+  if(bLocal) bLocal.className='consumo-btn local'+(consumoActivo==='mostrador'?' active':'');
+  if(bTake)  bTake.className ='consumo-btn take' +(consumoActivo==='takeaway' ?' active':'');
+};
+
 window.setCanal=function(c){
   if(!CANALES[c]) return;
   canalActivo=c;
@@ -1059,7 +1221,12 @@ window.setCanal=function(c){
   const inp=document.getElementById('modal-nombre');
   inp.placeholder = esMostrador ? 'Ej: Marco... (podés dejar vacío)' : 'Ej: 4821';
   document.getElementById('modal-promo-row').style.display = esMostrador ? 'block' : 'none';
-  if(!esMostrador) document.getElementById('modal-promo-pranzo').checked=false;
+  // Takeaway / Mangia qui: solo tiene sentido en Mostrador
+  document.getElementById('modal-consumo-row').style.display = esMostrador ? 'flex' : 'none';
+  if(!esMostrador){
+    document.getElementById('modal-promo-pranzo').checked=false;
+    setConsumo('mostrador');
+  }
 };
 
 window.openModal = function() {
@@ -1070,7 +1237,9 @@ window.openModal = function() {
   document.getElementById('modal-title').textContent='🫔 Pedido Manual';
   document.getElementById('modal-confirm-btn').textContent='Confirmar →';
   document.getElementById('modal-emp-counter').textContent='0';
+  const detIni=document.getElementById('modal-emp-detalle'); if(detIni) detIni.textContent='';
   document.getElementById('modal-promo-pranzo').checked=false;
+  setConsumo('mostrador');
   setCanal('mostrador');
   activeModalTab = 'empanadas';
   ['empanadas','acqua','gassate','birra'].forEach(t => {
@@ -1095,26 +1264,37 @@ window.closeModal = () => document.getElementById('modal-overlay').classList.rem
 function renderList() {
   let h = '';
   if (activeModalTab === 'empanadas') {
-    h = `<div class="modal-section-label">Empanadas</div><div class="modal-grid">`;
     if(EMP.length===0){
-      h += `<div style="grid-column:1/-1;text-align:center;color:#bbb;padding:20px;">Cargando sabores...</div>`;
-    }
-    h += EMP.map(e => {
-      const qty = eQ[e.id] || 0;
+      h = `<div class="modal-section-label">Empanadas</div><div style="text-align:center;color:#bbb;padding:20px;">Cargando sabores...</div>`;
+    } else {
       const stockCalc = stockAllData.length > 0 ? stockCalcBySabor(stockDataHastaHoy()) : null;
-      const stock = stockCalc ? Math.max(0, stockCalc[e.nombre]?.stock || 0) : null;
-      const agotado = stock !== null && stock === 0;
-      const cardClass = agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card';
-      const clickFn = agotado ? '' : `onclick="chgE('${e.id}',1)"`;
-      const stockLabel = stock !== null ? `<span class="modal-card-stock">${stock}</span>` : `<span></span>`;
-      const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : e.especial ? '<span style="font-size:9px;opacity:0.85;"> ⭐</span>' : '';
-      return `<div class="${cardClass}" id="mcard-${e.id}" ${clickFn}>
-        <button class="modal-card-minus" onclick="event.stopPropagation();chgE('${e.id}',-1)">−</button>
-        <div class="modal-card-name">${e.nombre}${badge}</div>
-        <div class="modal-card-footer">${stockLabel}<span class="modal-card-qty${qty>0?' has-qty':''}" id="eq${e.id}">${qty}</span></div>
-      </div>`;
-    }).join('');
-    h += `</div>`;
+      const cardEmp = e => {
+        const qty = eQ[e.id] || 0;
+        const stock = stockCalc ? Math.max(0, stockCalc[e.nombre]?.stock || 0) : null;
+        const agotado = stock !== null && stock === 0;
+        const tipo = tipoDe(e);
+        const cardClass = (agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card')
+                        + ' t-' + tipo;
+        const clickFn = agotado ? '' : `onclick="chgE('${e.id}',1)"`;
+        const stockLabel = stock !== null ? `<span class="modal-card-stock">${stock}</span>` : `<span></span>`;
+        const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : '';
+        return `<div class="${cardClass}" id="mcard-${e.id}" ${clickFn}>
+          <button class="modal-card-minus" onclick="event.stopPropagation();chgE('${e.id}',-1)">−</button>
+          <div class="modal-card-name">${e.nombre}${badge}</div>
+          <div class="modal-card-footer">${stockLabel}<span class="modal-card-qty${qty>0?' has-qty':''}" id="eq${e.id}">${qty}</span></div>
+        </div>`;
+      };
+      const clas = EMP.filter(e=>tipoDe(e)==='classica');
+      const spec = EMP.filter(e=>tipoDe(e)==='speciale');
+      if(clas.length){
+        h += `<div class="modal-section-label sec-classica">Le Classiche</div>`;
+        h += `<div class="modal-grid">${clas.map(cardEmp).join('')}</div>`;
+      }
+      if(spec.length){
+        h += `<div class="modal-section-label sec-speciale">Le Speciali</div>`;
+        h += `<div class="modal-grid">${spec.map(cardEmp).join('')}</div>`;
+      }
+    }
   } else {
     const filtered = BEB.filter(b => b.cat === activeModalTab);
     const label = activeModalTab==='acqua'?'Acqua':activeModalTab==='gassate'?'Gassate':'Birra';
@@ -1135,17 +1315,29 @@ function renderList() {
 
 window.chgE=function(id,d){
   eQ[id]=Math.max(0,eQ[id]+d);
-  // Actualizar número en tarjeta
   const el=document.getElementById('eq'+id);
   if(el){el.textContent=eQ[id];el.className='modal-card-qty'+(eQ[id]>0?' has-qty':'');}
-  // Actualizar estilo de tarjeta
+  // Conserva la clase de tipo (t-classica / t-speciale) al cambiar el estado
   const card=document.getElementById('mcard-'+id);
   if(card&&!card.classList.contains('agotado')){
-    card.className=eQ[id]>0?'modal-card selected':'modal-card';
+    const tipoCls = card.classList.contains('t-speciale') ? ' t-speciale' : ' t-classica';
+    card.className=(eQ[id]>0?'modal-card selected':'modal-card')+tipoCls;
   }
-  // Actualizar contador empanadas
-  document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);
+  actualizarContadorModal();
 };
+// Contador del modal: total + desglose classiche / speciali
+function actualizarContadorModal(){
+  let c=0,s=0;
+  EMP.forEach(e=>{
+    const q=eQ[e.id]||0;
+    if(!q) return;
+    if(tipoDe(e)==='speciale') s+=q; else c+=q;
+  });
+  const box=document.getElementById('modal-emp-counter');
+  if(box) box.textContent=c+s;
+  const det=document.getElementById('modal-emp-detalle');
+  if(det) det.textContent = (c+s)>0 ? `${c} cl · ${s} sp` : '';
+}
 window.chgB=function(id,d){
   bQ[id]=Math.max(0,(bQ[id]||0)+d);
   const el=document.getElementById('bq'+id);
@@ -1167,13 +1359,13 @@ window.editOrder=function(id){
   document.getElementById('modal-nombre').value=o.cliente||'';
   document.getElementById('modal-title').textContent='✏️ Modificar Pedido';
   document.getElementById('modal-confirm-btn').textContent='Guardar →';
-  // Restaurar el canal de venta y la promo del pedido original
+  // Restaurar el canal de venta, el consumo y la promo del pedido original
   const ckEdit=canalKey(o);
-  document.getElementById('modal-promo-pranzo').checked = (o.promoPranzo===true);
   setCanal(CANALES[ckEdit].delivery ? ckEdit : 'mostrador');
+  setConsumo(o.consumo==='takeaway' ? 'takeaway' : 'mostrador');
   document.getElementById('modal-promo-pranzo').checked = (o.promoPranzo===true);
   // Actualizar contador con valores cargados
-  document.getElementById('modal-emp-counter').textContent=Object.values(eQ).reduce((a,b)=>a+b,0);
+  actualizarContadorModal();
   // Reset tab a Empanadas al editar
   activeModalTab='empanadas';
   ['empanadas','acqua','gassate','birra'].forEach(t=>{
@@ -1199,14 +1391,16 @@ window.confirmarManual=async function(){
     nombre='Mostrador '+(snapM.size+1);
   }
   // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible)
-  const ei=EMP.filter(e=>eQ[e.id]>0).map(e=>({nombre:e.nombre,cantidad:eQ[e.id],curcuma:e.curcuma,tipo:'empanada'}));
+  // Cada empanada guarda su tipoEmp para congelar el precio del momento de la venta
+  const ei=EMP.filter(e=>eQ[e.id]>0).map(e=>({nombre:e.nombre,cantidad:eQ[e.id],curcuma:e.curcuma===true,tipo:'empanada',tipoEmp:tipoDe(e)}));
   const bi=BEB.filter(b=>bQ[b.id]>0).map(b=>({nombre:b.nombre,cantidad:bQ[b.id],curcuma:false,tipo:'bebida'}));
   const items=[...ei,...bi];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
+  const consumo = esDelivery ? 'delivery' : consumoActivo;
   const btn=document.getElementById('modal-confirm-btn');btn.disabled=true;btn.textContent='...';
   try{
-    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true,canalVenta:canalActivo,promoPranzo:promo});
-    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promoPranzo:promo,timestamp:serverTimestamp()});
+    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true,canalVenta:canalActivo,promoPranzo:promo,consumo});
+    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promoPranzo:promo,consumo,timestamp:serverTimestamp()});
     closeModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;editId=null;btn.textContent='Confirmar →';document.getElementById('modal-title').textContent='🫔 Pedido Manual';}
@@ -1371,9 +1565,21 @@ function fechaHoraLegible(){
 // Etiqueta de canal de un pedido (Mostrador / Glovo / Just Eat / Deliveroo / QR / Web)
 function canalPedido(o){ return canalLabel(o); }
 // Cuenta empanadas / bebidas de un pedido
-function contarEmp(o){ return (o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0); }
+function contarEmp(o){ return contarPorTipo(o).total; }
 function contarBeb(o){ return (o.items||[]).reduce((a,i)=>i.tipo==='bebida'?a+(parseInt(i.cantidad)||0):a,0); }
 function itemsTexto(o){ return (o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(' · '); }
+// Etiqueta de consumo para los reportes
+function consumoLabel(o){
+  const k=canalKey(o);
+  if(CANALES[k].delivery) return 'Delivery';
+  return esTakeaway(o) ? 'Takeaway' : 'Mangia qui';
+}
+// Tipo de un ítem (para las hojas de detalle)
+function tipoItemLabel(i){
+  if(i.tipo==='bebida') return 'Bebida';
+  const t=i.tipoEmp||tipoDeSabor(i.nombre);
+  return t==='speciale' ? 'Speciale' : 'Classica';
+}
 
 // ── 1) PEDIDOS ──
 window.exportPedidos=function(){
@@ -1389,18 +1595,19 @@ window.exportPedidos=function(){
     ['Generado', fechaHoraLegible()],
     ['Filtro aplicado', etiquetaFiltro],
     [],
-    ['Hora','Cliente','Estado','Canal','Empanadas','Bebidas','Total','Fecha retiro','Horario','Modificado','Pagado (web)','Detalle']
+    ['Hora','Cliente','Estado','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Fecha retiro','Horario','Modificado','Pagado (web)','Detalle']
   ];
-  let tEmp=0,tBeb=0;
+  let tEmp=0,tBeb=0,tCla=0,tSpe=0;
   lista.forEach(o=>{
-    const emp=contarEmp(o), beb=contarBeb(o);
-    tEmp+=emp; tBeb+=beb;
+    const n=contarPorTipo(o), beb=contarBeb(o);
+    tEmp+=n.total; tBeb+=beb; tCla+=n.classicas; tSpe+=n.especiales;
     filas.push([
       o.timestamp?o.timestamp.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
       o.cliente||'Anonimo',
       eLabel(o.estado),
       canalPedido(o),
-      emp, beb, emp+beb,
+      consumoLabel(o),
+      n.classicas, n.especiales, n.total, beb,
       o.fecha||'', o.orario||'',
       o.modificado?'SÍ':'',
       o.qtyPagata||'',
@@ -1408,10 +1615,10 @@ window.exportPedidos=function(){
     ]);
   });
   filas.push([]);
-  filas.push(['TOTALES','','','',tEmp,tBeb,tEmp+tBeb]);
+  filas.push(['TOTALES','','','','',tCla,tSpe,tEmp,tBeb]);
 
   // Hoja 2: un renglón por cada ítem (para sumar por sabor)
-  const detalle=[['Hora','Cliente','Estado','Canal','Producto','Tipo','Cantidad','Cúrcuma']];
+  const detalle=[['Hora','Cliente','Estado','Canal','Consumo','Producto','Tipo','Cantidad','Cúrcuma']];
   lista.forEach(o=>{
     (o.items||[]).forEach(i=>{
       detalle.push([
@@ -1419,8 +1626,9 @@ window.exportPedidos=function(){
         o.cliente||'Anonimo',
         eLabel(o.estado),
         canalPedido(o),
+        consumoLabel(o),
         i.nombre,
-        (!i.tipo||i.tipo==='empanada')?'Empanada':'Bebida',
+        tipoItemLabel(i),
         parseInt(i.cantidad)||0,
         i.curcuma?'SÍ':''
       ]);
@@ -1431,7 +1639,7 @@ window.exportPedidos=function(){
   const porProd={};
   lista.forEach(o=>(o.items||[]).forEach(i=>{
     const k=i.nombre;
-    if(!porProd[k])porProd[k]={tipo:(!i.tipo||i.tipo==='empanada')?'Empanada':'Bebida',cant:0};
+    if(!porProd[k])porProd[k]={tipo:tipoItemLabel(i),cant:0};
     porProd[k].cant+=parseInt(i.cantidad)||0;
   }));
   const resumen=[['Producto','Tipo','Cantidad total']];
@@ -1521,47 +1729,57 @@ window.exportHistorial=function(){
     ['Pedidos encontrados', hCurrentList.length],
     ['Costo por empanada', COSTO_EMPANADA],
     [],
-    ['Fecha','Hora','Cliente / N° pedido','Canal','Empanadas','Bebidas','Costo','Venta','Ganancia','Promo 3','Estado','Detalle']
+    ['Fecha','Hora','Cliente / N° pedido','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Costo','Venta','Ganancia','Promo 3','Estado','Detalle']
   ];
-  let tEmp=0,tBeb=0,tCosto=0,tVenta=0;
+  let tEmp=0,tBeb=0,tCosto=0,tVenta=0,tCla=0,tSpe=0;
   hCurrentList.forEach(o=>{
     const ts=o.timestamp?o.timestamp.toDate():null;
-    const emp=contarEmp(o), beb=contarBeb(o);
+    const n=contarPorTipo(o), beb=contarBeb(o);
     const costo=costoPedido(o), venta=ventaPedido(o);
-    tEmp+=emp; tBeb+=beb; tCosto+=costo; tVenta+=venta;
+    tEmp+=n.total; tBeb+=beb; tCosto+=costo; tVenta+=venta; tCla+=n.classicas; tSpe+=n.especiales;
     filas.push([
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
       o.cliente||'—',
-      canalLabel(o), emp, beb,
+      canalLabel(o), consumoLabel(o),
+      n.classicas, n.especiales, n.total, beb,
       r2(costo), r2(venta), r2(venta-costo),
       o.promoPranzo?'SÍ':'',
       eLabel(o.estado), itemsTexto(o)
     ]);
   });
   filas.push([]);
-  filas.push(['TOTALES','','','',tEmp,tBeb,r2(tCosto),r2(tVenta),r2(tVenta-tCosto)]);
+  filas.push(['TOTALES','','','','',tCla,tSpe,tEmp,tBeb,r2(tCosto),r2(tVenta),r2(tVenta-tCosto)]);
 
   // Resumen por canal
   const porCanal={};
   hCurrentList.forEach(o=>{
     const k=canalKey(o);
-    if(!porCanal[k])porCanal[k]={pedidos:0,emp:0,costo:0,venta:0};
+    const n=contarPorTipo(o);
+    if(!porCanal[k])porCanal[k]={pedidos:0,emp:0,cla:0,spe:0,costo:0,venta:0};
     porCanal[k].pedidos++;
-    porCanal[k].emp+=contarEmp(o);
+    porCanal[k].emp+=n.total;
+    porCanal[k].cla+=n.classicas;
+    porCanal[k].spe+=n.especiales;
     porCanal[k].costo+=costoPedido(o);
     porCanal[k].venta+=ventaPedido(o);
   });
-  const resumenCanal=[['Canal','Pedidos','Empanadas','Costo','Venta','Ganancia','Ganancia por empanada']];
+  const resumenCanal=[['Canal','Pedidos','Classiche','Speciali','Empanadas','Costo','Venta','Ganancia','Ganancia por empanada']];
   Object.entries(porCanal).sort((a,b)=>b[1].venta-a[1].venta).forEach(([k,v])=>{
     resumenCanal.push([
-      CANALES[k].label, v.pedidos, v.emp,
+      CANALES[k].label, v.pedidos, v.cla, v.spe, v.emp,
       r2(v.costo), r2(v.venta), r2(v.venta-v.costo),
       v.emp?r2((v.venta-v.costo)/v.emp):0
     ]);
   });
   resumenCanal.push([]);
-  resumenCanal.push(['TOTAL', hCurrentList.length, tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto), tEmp?r2((tVenta-tCosto)/tEmp):0]);
+  resumenCanal.push(['TOTAL', hCurrentList.length, tCla, tSpe, tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto), tEmp?r2((tVenta-tCosto)/tEmp):0]);
+
+  // Resumen por tipo de empanada
+  const resumenTipo=[['Tipo','Empanadas','Costo','Venta total','Ganancia total']];
+  resumenTipo.push(['Classiche', tCla, r2(tCla*COSTO_EMPANADA), '', '']);
+  resumenTipo.push(['Speciali',  tSpe, r2(tSpe*COSTO_EMPANADA), '', '']);
+  resumenTipo.push(['TOTAL',     tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto)]);
 
   // Detalle por ítem
   const det=[['Fecha','Hora','Cliente','Producto','Tipo','Cantidad']];
@@ -1571,7 +1789,7 @@ window.exportHistorial=function(){
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
       o.cliente||'—', i.nombre,
-      (!i.tipo||i.tipo==='empanada')?'Empanada':'Bebida',
+      tipoItemLabel(i),
       parseInt(i.cantidad)||0
     ]));
   });
@@ -1579,6 +1797,7 @@ window.exportHistorial=function(){
   descargarExcel(`DonSalo_Historial_${selloArchivo()}.xlsx`,[
     {nombre:'Historial',filas},
     {nombre:'Resumen por canal',filas:resumenCanal},
+    {nombre:'Resumen por tipo',filas:resumenTipo},
     {nombre:'Detalle por item',filas:det}
   ]);
 };
@@ -1868,18 +2087,23 @@ function hRender(list){
 
     const ts=o.timestamp?o.timestamp.toDate():null;
     const hora=ts?ts.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
-    const ec=empDePedido(o);
+    const n=contarPorTipo(o);
+    const ec=n.total;
     const ck=canalKey(o);
     const costo=costoPedido(o), venta=ventaPedido(o), gan=venta-costo;
     tEmp+=ec; tCosto+=costo; tVenta+=venta;
     dEmp+=ec; dCosto+=costo; dVenta+=venta; dPed++;
+    const takeTag = esTakeaway(o) ? '<span class="canal-badge cb-takeaway">🥡</span>' : '';
+    const desglose = (n.classicas&&n.especiales)
+      ? `<span class="mini-tipos">${n.classicas} cl · ${n.especiales} sp</span>`
+      : (n.especiales ? '<span class="mini-tipos">todas sp</span>' : '');
 
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;">${hora}</td>
       <td style="font-weight:600;">${o.cliente||'—'}${o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':''}</td>
-      <td><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span></td>
+      <td style="white-space:nowrap;"><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>${takeTag}</td>
       <td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td>
-      <td style="font-weight:700;text-align:center;">${ec}</td>
+      <td style="font-weight:700;text-align:center;">${ec}${desglose}</td>
       <td class="money m-costo">${eur(costo)}</td>
       <td class="money m-venta">${eur(venta)}</td>
       <td class="money m-ganancia">${eur(gan)}</td>
@@ -2212,7 +2436,7 @@ document.getElementById('stock-modal-overlay').addEventListener('click',e=>{if(e
 window.openSaborModal=function(){
   document.getElementById('sabor-modal-nombre').value='';
   document.getElementById('sabor-modal-curcuma').checked=false;
-  document.getElementById('sabor-modal-especial').checked=false;
+  document.getElementById('sabor-modal-tipo').value='classica';
   document.getElementById('sabor-modal-overlay').classList.add('show');
 };
 window.closeSaborModal=function(){
@@ -2223,11 +2447,11 @@ window.guardarSabor=async function(){
   if(!nombre){alert('Poné un nombre para el sabor.');return;}
   if(EMP.some(e=>e.nombre===nombre)){alert('Ya existe un sabor con ese nombre.');return;}
   const curcuma=document.getElementById('sabor-modal-curcuma').checked;
-  const especial=document.getElementById('sabor-modal-especial').checked;
+  const tipoEmp=document.getElementById('sabor-modal-tipo').value;
   const btn=document.getElementById('sabor-modal-save-btn');
   btn.disabled=true;btn.textContent='Guardando...';
   try{
-    await addDoc(collection(db,'sabores'),{nombre,curcuma,especial,orden:Date.now()});
+    await addDoc(collection(db,'sabores'),{nombre,curcuma,tipoEmp,orden:Date.now()});
     closeSaborModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;btn.textContent='Guardar →';}
