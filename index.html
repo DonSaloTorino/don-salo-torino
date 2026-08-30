@@ -19,6 +19,10 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 .nombre-input { width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 19px; color: #111; background: #fff; outline: none; transition: border-color 0.2s; }
 .nombre-input:focus { border-color: #111; }
 .section-title { padding: 20px 20px 8px; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #bbb; font-weight: 500; }
+/* Las dos secciones del menú, con los colores del cartel de promociones */
+.section-title.sec-classiche { color: #1e3a5f; font-size: 16px; letter-spacing: 3px; font-weight: 700; border-bottom: 2px solid #1e3a5f; margin: 0 20px; padding: 22px 0 8px; }
+.section-title.sec-speciali  { color: #9b1c1c; font-size: 16px; letter-spacing: 3px; font-weight: 700; border-bottom: 2px solid #9b1c1c; margin: 0 20px; padding: 26px 0 8px; }
+.emp-badge.badge-lattosio { background: #e8f0f8; color: #2c5d8a; }
 .empanada-list { padding: 0 20px 0; }
 .empanada-card { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 0.5px solid #eee; gap: 12px; }
 .emp-emoji { font-size: 32px; flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
@@ -249,22 +253,25 @@ const qtyParam    = urlParams.get('qty');
 const qtyPagada   = qtyParam ? parseInt(qtyParam) : null;
 const tieneControlQty = isWebOrder && qtyPagada !== null && qtyPagada > 0;
 
+// Cada empanada lleva su tipoEmp: 'classica' o 'speciale'.
+// Tiene que coincidir EXACTAMENTE con lo que está cargado en el panel (colección "sabores"),
+// porque el nombre es lo que enlaza el menú con el stock y con el cálculo de precios.
 const EMPANADAS = [
-  { id:15, nombre:'ENTRECOTE + CHIMICHURRI', desc:'Entrecotte Black Angus 🇦🇷, Cipolla, Peperoni, Vino Bianco, Spezie, Sale, Pepe, Aglio, Prezzemolo', curcuma:false, especial:true, emoji:'🥩' },
-  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, emoji:'🥩' },
-  { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false, emoji:'🥩' },
-  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false, emoji:'🥩' },
-  { id:9,  nombre:'CHESE BURGER',           desc:'Burger 100% ANGUS 🇦🇷🇺🇾, Formaggio Cheddar, Bacon, Sale, Pepe, Spezie',                      curcuma:false, emoji:'🍔' },
-  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false, emoji:'🥓' },
-  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false, emoji:'🧀' },
-  { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false, emoji:'🐟' },
-  { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false, emoji:'🥬' },
-  { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false, emoji:'🍆' },
-  { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false, emoji:'🍅' },
-  { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false, emoji:'🌽' },
-  { id:12, nombre:'POLLO — CURCUMA',        desc:'Pollo, Cipolla, Peperoni, Vino Bianco, Sale, Pepe · Impasto Speciale Alla Curcuma',   curcuma:true,  emoji:'🍗' },
-  { id:14, nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO', desc:'Prosciutto E Mozzarella Senza Lattosio',                              curcuma:false, senzaLattosio:true, emoji:'🥛' },
-  { id:16, nombre:'CHORIZO + BROCCOLI',     desc:'Carne Suina, Sale, Pepe, Spezie Argentine, Broccoli, Formaggio Stagionato',          curcuma:false, especial:true, emoji:'🥦' },
+  { id:15, nombre:'ENTRECOTE + CHIMICHURRI', desc:'Entrecotte Black Angus 🇦🇷, Cipolla, Peperoni, Vino Bianco, Spezie, Sale, Pepe, Aglio, Prezzemolo', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
+  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, tipoEmp:'classica', emoji:'🥩' },
+  { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
+  { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
+  { id:9,  nombre:'CHESE BURGER',           desc:'Burger 100% ANGUS 🇦🇷🇺🇾, Formaggio Cheddar, Bacon, Sale, Pepe, Spezie',                      curcuma:false, tipoEmp:'speciale', emoji:'🍔' },
+  { id:6,  nombre:'PROSCIUTTO E FORMAGGIO', desc:'Prosciutto E Formaggio Asiago',                                                       curcuma:false, tipoEmp:'classica', emoji:'🥓' },
+  { id:11, nombre:'FORMAGGIO E CIPOLLA',    desc:'Formaggio Asiago E Cipolla',                                                          curcuma:false, tipoEmp:'classica', emoji:'🧀' },
+  { id:8,  nombre:'TONNO E CIPOLLA',        desc:'Tonno, Cipolla, Peperoni, Sale, Pepe',                                                curcuma:false, tipoEmp:'classica', emoji:'🐟' },
+  { id:2,  nombre:'VERDURA',                desc:'Spinaci, Soffritto, Grana, Burro, Ricotta, Besciamella, Sale, Pepe',                  curcuma:false, tipoEmp:'classica', emoji:'🥬' },
+  { id:5,  nombre:'PARMIGIANA',             desc:'Melanzane, Pomodori, Asiago Stagionato, Sale, Pepe',                                  curcuma:false, tipoEmp:'speciale', emoji:'🍆' },
+  { id:4,  nombre:'CAPRESE',                desc:'Pomodoro, Formaggio, Basilico, Spezie, Origano, Sale, Pepe',                          curcuma:false, tipoEmp:'classica', emoji:'🍅' },
+  { id:10, nombre:'HUMITA',                 desc:'Mais, Besciamella, Amido Di Mais, Sale, Pepe',                                        curcuma:false, tipoEmp:'classica', emoji:'🌽' },
+  { id:12, nombre:'POLLO — CURCUMA',        desc:'Pollo, Cipolla, Peperoni, Vino Bianco, Sale, Pepe · Impasto Speciale Alla Curcuma',   curcuma:true,  tipoEmp:'speciale', emoji:'🍗' },
+  { id:14, nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO', desc:'Prosciutto E Mozzarella Senza Lattosio',                              curcuma:false, tipoEmp:'speciale', senzaLattosio:true, emoji:'🥛' },
+  { id:16, nombre:'CHORIZO + BROCCOLI',     desc:'Carne Suina, Sale, Pepe, Spezie Argentine, Broccoli, Formaggio Stagionato',          curcuma:false, tipoEmp:'speciale', emoji:'🥦' },
 ];
 
 const BEBIDAS_DEFAULT = [
@@ -365,22 +372,19 @@ function updateQtyStatus(empTotal) {
 
 function renderMenu() {
   const list = document.getElementById('empanada-list');
-  const edizioneSpec = EMPANADAS.filter(e => e.especial);
-  const regular   = EMPANADAS.filter(e => !e.curcuma && !e.senzaLattosio && !e.especial);
-  const especial  = EMPANADAS.filter(e => e.curcuma);
-  const senzaLatt = EMPANADAS.filter(e => e.senzaLattosio);
+  // Dos únicas secciones, como en el cartel de promociones
+  const classiche = EMPANADAS.filter(e => e.tipoEmp !== 'speciale');
+  const speciali  = EMPANADAS.filter(e => e.tipoEmp === 'speciale');
 
   let html = '';
-  if (edizioneSpec.length) {
-    html += '<div class="section-title">⭐ Edizione Speciale</div>';
-    edizioneSpec.forEach(e => { html += cardHTML(e); });
+  if (classiche.length) {
+    html += '<div class="section-title sec-classiche">Le Classiche</div>';
+    classiche.forEach(e => { html += cardHTML(e); });
   }
-  html += '<div class="section-title" style="margin-top:8px;">Le Nostre Empanadas</div>';
-  regular.forEach(e  => { html += cardHTML(e); });
-  html += '<div class="section-title" style="margin-top:8px;">Impasto Speciale</div>';
-  especial.forEach(e => { html += cardHTML(e); });
-  html += '<div class="section-title" style="margin-top:8px;">Senza Lattosio</div>';
-  senzaLatt.forEach(e => { html += cardHTML(e); });
+  if (speciali.length) {
+    html += '<div class="section-title sec-speciali" style="margin-top:8px;">Le Speciali</div>';
+    speciali.forEach(e => { html += cardHTML(e); });
+  }
 
   if (!isWebOrder && BEBIDAS.length) {
     html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
@@ -410,7 +414,12 @@ function cardHTML(e) {
   if (e.nonDisponibile || sinStock) {
     return `<div class="empanada-card empanada-nodisponible" id="card-${e.id}">${icon}<div class="emp-info"><div class="emp-name-nodisponible">${e.nombre}</div><div class="emp-desc-nodisponible">${e.desc||''}</div></div><div class="nodisponibile-badge">Momentaneamente<br>non disponibile</div></div>`;
   }
-  return `<div class="empanada-card" id="card-${e.id}">${icon}<div class="emp-info">${e.especial ? '<div class="emp-badge">⭐ Edizione Speciale</div>' : e.curcuma ? '<div class="emp-badge">✦ Curcuma</div>' : ''}<div class="emp-name">${e.nombre}</div><div class="emp-desc">${e.desc}</div></div><div class="qty-control"><button class="qty-btn" data-id="${e.id}" data-action="minus">−</button><div class="qty-num" id="qty-${e.id}">0</div><button class="qty-btn" data-id="${e.id}" data-action="plus">+</button></div></div>`;
+  // Las secciones ya dicen si es Classica o Speciale.
+  // Acá solo se marca lo que el cliente necesita saber del producto en sí.
+  let badges = '';
+  if (e.curcuma)       badges += '<div class="emp-badge">✦ Impasto alla Curcuma</div>';
+  if (e.senzaLattosio) badges += '<div class="emp-badge badge-lattosio">🥛 Senza Lattosio</div>';
+  return `<div class="empanada-card" id="card-${e.id}">${icon}<div class="emp-info">${badges}<div class="emp-name">${e.nombre}</div><div class="emp-desc">${e.desc}</div></div><div class="qty-control"><button class="qty-btn" data-id="${e.id}" data-action="minus">−</button><div class="qty-num" id="qty-${e.id}">0</div><button class="qty-btn" data-id="${e.id}" data-action="plus">+</button></div></div>`;
 }
 
 function bebCardHTML(b) {
