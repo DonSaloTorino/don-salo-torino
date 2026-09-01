@@ -855,6 +855,16 @@ function tipoDeSabor(nombre){
 // Tipo de un objeto sabor ya cargado
 function tipoDe(e){ return e.tipoEmp || TIPO_FALLBACK[e.nombre] || 'classica'; }
 
+// ── PREFIJO (C) / (S) EN EL NOMBRE DEL ÍTEM ──
+// El ticket de la Munbyn lo imprime la app, que lee el campo "nombre" de cada ítem.
+// Como no podemos tocar la app, el prefijo se guarda DENTRO del nombre del pedido.
+// OJO: la colección "sabores" y los registros de "stock" siguen usando el nombre limpio,
+// así que todo lo que cruce con stock o con el menú QR debe pasar por nombreLimpio().
+const PREFIJO_TIPO = { classica:'(C) ', speciale:'(S) ' };
+function nombreConPrefijo(nombre, tipo){ return (PREFIJO_TIPO[tipo]||'') + nombre; }
+// Quita el prefijo. Los pedidos viejos no lo tienen y se devuelven tal cual.
+function nombreLimpio(n){ return String(n==null?'':n).replace(/^\(\s*[CS]\s*\)\s*/i,''); }
+
 const CANALES = {
   mostrador:{label:'Mostrador', corto:'Mostrador', delivery:false},
   glovo:    {label:'Glovo',     corto:'Glovo',     delivery:true},
@@ -884,7 +894,7 @@ function contarPorTipo(o){
   (o.items||[]).forEach(i=>{
     if(i.tipo && i.tipo!=='empanada') return;   // las bebidas no cuentan
     const q = parseInt(i.cantidad)||0;
-    const t = i.tipoEmp || tipoDeSabor(i.nombre);
+    const t = i.tipoEmp || tipoDeSabor(nombreLimpio(i.nombre));
     if(t==='speciale') s+=q; else c+=q;
   });
   return {classicas:c, especiales:s, total:c+s};
@@ -1023,7 +1033,8 @@ window.eliminarOrder=async function(id){
     if(o){
       const empItems=(o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
       await Promise.all(empItems.map(item=>{
-        const docId=id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+        // El docId del stock se arma con el nombre limpio, sin el prefijo (C)/(S)
+        const docId=id+'_'+nombreLimpio(item.nombre).replace(/[^a-zA-Z0-9]/g,'_');
         return deleteDoc(doc(db,'stock',docId)).catch(()=>{});
       }));
     }
@@ -1044,8 +1055,8 @@ window.printOrder=function(id){
   // Separar los ítems en Classiche / Speciali / Bebidas
   const emps=(o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
   const bebs=(o.items||[]).filter(i=>i.tipo==='bebida');
-  const clas=emps.filter(i=>(i.tipoEmp||tipoDeSabor(i.nombre))!=='speciale');
-  const spec=emps.filter(i=>(i.tipoEmp||tipoDeSabor(i.nombre))==='speciale');
+  const clas=emps.filter(i=>(i.tipoEmp||tipoDeSabor(nombreLimpio(i.nombre)))!=='speciale');
+  const spec=emps.filter(i=>(i.tipoEmp||tipoDeSabor(nombreLimpio(i.nombre)))==='speciale');
   const suma=arr=>arr.reduce((a,i)=>a+(parseInt(i.cantidad)||0),0);
   const fila=i=>`<div class="row"><span>${esc(i.nombre)}${i.curcuma?' ✦':''}</span><span>× ${i.cantidad}</span></div>`;
   const bloque=(titulo,arr)=>arr.length
@@ -1353,7 +1364,12 @@ window.editOrder=function(id){
   EMP.forEach(e=>eQ[e.id]=0);
   BEB.forEach(b=>bQ[b.id]=0);
   (o.items||[]).forEach(item=>{
-    if(!item.tipo||item.tipo==='empanada'){const e=EMP.find(x=>x.nombre===item.nombre);if(e)eQ[e.id]=item.cantidad||0;}
+    if(!item.tipo||item.tipo==='empanada'){
+      // El nombre guardado trae el prefijo (C)/(S): hay que limpiarlo para encontrar el sabor
+      const limpio=nombreLimpio(item.nombre);
+      const e=EMP.find(x=>x.nombre===limpio);
+      if(e)eQ[e.id]=item.cantidad||0;
+    }
     else{const b=BEB.find(x=>x.nombre===item.nombre)||BEB.find(x=>item.nombre.includes(x.nombre.replace(/^[^\s]+ /,'')));if(b)bQ[b.id]=item.cantidad||0;}
   });
   document.getElementById('modal-nombre').value=o.cliente||'';
@@ -1390,9 +1406,18 @@ window.confirmarManual=async function(){
     const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
     nombre='Mostrador '+(snapM.size+1);
   }
-  // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible)
-  // Cada empanada guarda su tipoEmp para congelar el precio del momento de la venta
-  const ei=EMP.filter(e=>eQ[e.id]>0).map(e=>({nombre:e.nombre,cantidad:eQ[e.id],curcuma:e.curcuma===true,tipo:'empanada',tipoEmp:tipoDe(e)}));
+  // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible).
+  // Las empanadas van ORDENADAS: primero las classiche, después las speciali,
+  // y cada nombre lleva el prefijo (C) / (S) para que salga impreso en la comanda.
+  const empSel = EMP.filter(e=>eQ[e.id]>0);
+  const empOrdenadas = [
+    ...empSel.filter(e=>tipoDe(e)==='classica'),
+    ...empSel.filter(e=>tipoDe(e)==='speciale')
+  ];
+  const ei=empOrdenadas.map(e=>{
+    const t=tipoDe(e);
+    return {nombre:nombreConPrefijo(e.nombre,t),cantidad:eQ[e.id],curcuma:e.curcuma===true,tipo:'empanada',tipoEmp:t};
+  });
   const bi=BEB.filter(b=>bQ[b.id]>0).map(b=>({nombre:b.nombre,cantidad:bQ[b.id],curcuma:false,tipo:'bebida'}));
   const items=[...ei,...bi];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
@@ -1577,7 +1602,7 @@ function consumoLabel(o){
 // Tipo de un ítem (para las hojas de detalle)
 function tipoItemLabel(i){
   if(i.tipo==='bebida') return 'Bebida';
-  const t=i.tipoEmp||tipoDeSabor(i.nombre);
+  const t=i.tipoEmp||tipoDeSabor(nombreLimpio(i.nombre));
   return t==='speciale' ? 'Speciale' : 'Classica';
 }
 
@@ -1635,10 +1660,11 @@ window.exportPedidos=function(){
     });
   });
 
-  // Hoja 3: resumen por producto
+  // Hoja 3: resumen por producto (agrupa por nombre limpio, sin el prefijo (C)/(S),
+  // para que los pedidos viejos y los nuevos caigan en la misma fila)
   const porProd={};
   lista.forEach(o=>(o.items||[]).forEach(i=>{
-    const k=i.nombre;
+    const k=(i.tipo==='bebida')?i.nombre:nombreLimpio(i.nombre);
     if(!porProd[k])porProd[k]={tipo:tipoItemLabel(i),cant:0};
     porProd[k].cant+=parseInt(i.cantidad)||0;
   }));
@@ -1902,7 +1928,7 @@ function sPrv(p){const n=new Date();
 async function sFt(f,t){const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f)),where('timestamp','<=',Timestamp.fromDate(t)),orderBy('timestamp','desc')));return s.docs.map(d=>({id:d.id,...d.data()}));}
 const cE=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));return t;};
 const cB=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(i.tipo==='bebida')t+=i.cantidad||0;}));return t;};
-const cR=os=>{const m={};os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')m[i.nombre]=(m[i.nombre]||0)+(i.cantidad||0);}));return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
+const cR=os=>{const m={};os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada'){const n=nombreLimpio(i.nombre);m[n]=(m[n]||0)+(i.cantidad||0);}}));return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
 
 async function sLoadData(){
   document.getElementById('s-loading').style.display='block';document.getElementById('s-content').style.display='none';
@@ -2391,14 +2417,16 @@ async function stockSyncToday(){
       const order={id:d.id,...d.data()};
       const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
       empItems.forEach(item=>{
-        const docId=order.id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+        // El stock se guarda SIEMPRE con el nombre limpio, sin el prefijo (C)/(S)
+        const sabor=nombreLimpio(item.nombre);
+        const docId=order.id+'_'+sabor.replace(/[^a-zA-Z0-9]/g,'_');
         const ref=doc(db,'stock',docId);
         // Primero verifica si ya existe — si existe, NO sobreescribe (preserva timestamp original)
         promises.push(
           getDoc(ref).then(existing=>{
             if(!existing.exists()){
               return setDoc(ref,{
-                fecha:hoy,sabor:item.nombre,cantidad:item.cantidad,
+                fecha:hoy,sabor,cantidad:item.cantidad,
                 tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
               });
             }
@@ -2413,10 +2441,12 @@ async function autoRegisterVentas(order){
   const fecha=new Date().toISOString().split('T')[0];
   const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
   for(const item of empItems){
-    const docId=order.id+'_'+item.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+    // El stock se guarda SIEMPRE con el nombre limpio, sin el prefijo (C)/(S)
+    const sabor=nombreLimpio(item.nombre);
+    const docId=order.id+'_'+sabor.replace(/[^a-zA-Z0-9]/g,'_');
     try{
       await setDoc(doc(db,'stock',docId),{
-        fecha,sabor:item.nombre,cantidad:item.cantidad,
+        fecha,sabor,cantidad:item.cantidad,
         tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
       },{merge:false});
     }catch(e){console.error('autoRegisterVentas error',e);}
