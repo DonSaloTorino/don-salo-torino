@@ -423,6 +423,62 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .consumo-btn.take.active{background:#ea580c;color:#fff;border-color:#ea580c;}
 .canal-badge.cb-takeaway{background:#ffedd5;color:#9a3412;}
 .mini-tipos{display:block;font-size:9px;color:#aaa;font-weight:500;letter-spacing:0.5px;margin-top:2px;}
+
+/* ══════════════════════════════════════
+   COCCIÓN — control de días desde cocinado
+   ══════════════════════════════════════ */
+.coc-panel{display:none;padding:24px;max-width:1200px;margin:0 auto;}
+.coc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.coc-total-box{background:#111;color:#fff;border-radius:12px;padding:16px 28px;}
+.coc-total-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;opacity:0.5;margin-bottom:4px;}
+.coc-total-num{font-size:52px;font-weight:700;line-height:1;}
+.coc-total-sub{font-size:11px;opacity:0.45;margin-top:4px;}
+.coc-add-btn{padding:12px 24px;background:#ea580c;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:0.5px;}
+.coc-add-btn:hover{background:#c2410c;}
+/* Alertas de vencidas */
+.coc-alerts{margin-bottom:18px;}
+.coc-alert{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:12px 18px;border-radius:10px;font-size:14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.coc-alert strong{font-weight:700;}
+.coc-alert-warn{background:#fffbeb;border-color:#fde68a;color:#92400e;}
+.coc-tirar-btn{padding:7px 16px;background:#991b1b;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.coc-tirar-btn:hover{background:#7f1d1d;}
+/* Tarjetas por sabor */
+.coc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-bottom:24px;}
+.coc-card{background:#fff;border-radius:10px;border:1px solid #eee;padding:16px 18px;}
+.coc-card.vencida{border-color:#fca5a5;background:#fff7f7;}
+.coc-card.ultimo{border-color:#fde68a;background:#fffdf5;}
+.coc-card.cero{opacity:0.5;}
+.coc-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.coc-card-name{font-size:13px;font-weight:600;color:#111;line-height:1.3;}
+.coc-card-num{font-size:30px;font-weight:700;line-height:1;color:#111;}
+.coc-card-num.cero{color:#ccc;}
+.coc-lote{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:4px 0;border-top:0.5px solid #f0f0f0;}
+.coc-lote-edad{color:#888;}
+.coc-lote-cant{font-weight:700;color:#111;}
+.coc-edad-badge{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px;font-weight:700;}
+.ce-0{background:#f0fdf4;color:#065f46;}
+.ce-1{background:#f3f4f6;color:#374151;}
+.ce-2{background:#fef3c7;color:#92400e;}
+.ce-x{background:#fee2e2;color:#991b1b;}
+/* Tabla historial de cocciones */
+.coc-table-wrap{background:#fff;border-radius:10px;border:1px solid #eee;overflow:hidden;}
+.coc-table{width:100%;border-collapse:collapse;}
+.coc-table th{background:#f5f5f3;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;padding:12px 16px;text-align:left;font-weight:500;}
+.coc-table td{padding:11px 16px;border-top:0.5px solid #f0f0f0;font-size:13px;vertical-align:middle;}
+.coc-table tr:hover td{background:#fafafa;}
+.coc-empty{text-align:center;padding:36px;color:#bbb;font-size:14px;}
+.coc-nota{font-size:12px;color:#bbb;margin-top:10px;line-height:1.6;}
+/* Modal de cocción */
+.coc-modal-card{
+  background:#2563eb;color:#fff;border-radius:8px;padding:10px 8px 8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;min-height:76px;position:relative;
+  transition:transform 0.1s,background 0.1s;-webkit-tap-highlight-color:transparent;user-select:none;
+}
+.coc-modal-card.t-speciale{background:#b91c1c;}
+.coc-modal-card:active{transform:scale(0.95);}
+.coc-modal-card.selected{background:#1d4ed8;}
+.coc-modal-card.t-speciale.selected{background:#991b1b;}
+.coc-modal-card .modal-card-stock{font-size:10px;opacity:0.8;}
 </style>
 </head>
 <body>
@@ -440,6 +496,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
       <button id="tab-hist" onclick="switchTab('hist')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 HISTORIAL</button>
       <button id="tab-stock" onclick="switchTab('stock')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📦 STOCK</button>
+      <button id="tab-coccion" onclick="switchTab('coccion')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🍳 COCCIÓN</button>
       <button id="tab-bebidas" onclick="switchTab('bebidas')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🥤 BEBIDAS</button>
     </div>
     <div class="counter-badge" id="badge-count">0 pedidos</div>
@@ -601,6 +658,72 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       </tr></thead>
       <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
     </table>
+  </div>
+</div>
+
+<!-- COCCIÓN PANEL -->
+<div class="coc-panel" id="coc-panel">
+  <div class="coc-top">
+    <div class="coc-total-box">
+      <div class="coc-total-label">Empanadas cocinadas disponibles</div>
+      <div class="coc-total-num" id="coc-total-num">—</div>
+      <div class="coc-total-sub" id="coc-total-sub"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 20px;flex-wrap:wrap;">
+      <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">⏱️ Días máximos</span>
+      <input type="number" id="coc-limite-input" min="1" max="10" value="2" style="width:56px;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;text-align:center;"/>
+      <button onclick="cocGuardarLimite()" style="padding:6px 14px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Guardar</button>
+    </div>
+    <button class="xls-btn" onclick="exportCoccion()">📊 Excel</button>
+    <button class="coc-add-btn" onclick="openCocModal()">🍳 Registrar cocción</button>
+  </div>
+
+  <!-- Alertas: vencidas y último día -->
+  <div id="coc-alerts"></div>
+
+  <!-- Tarjetas por sabor -->
+  <div class="s-section-title">🍳 Cocinadas disponibles por sabor</div>
+  <div class="coc-grid" id="coc-grid"></div>
+
+  <!-- Historial de cocciones -->
+  <div class="s-section-title">📋 Cocciones registradas</div>
+  <div class="coc-table-wrap">
+    <table class="coc-table">
+      <thead><tr>
+        <th>Fecha</th><th>Sabor</th>
+        <th style="text-align:center;">Cantidad</th>
+        <th style="text-align:center;">Días</th>
+        <th>Tipo</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="coc-tbody"><tr><td colspan="6" class="coc-empty">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="coc-nota" id="coc-nota"></div>
+</div>
+
+<!-- COCCIÓN MODAL -->
+<div class="modal-overlay no-print" id="coc-modal-overlay">
+  <div class="modal">
+    <div class="modal-top">
+      <div class="modal-top-row">
+        <div class="modal-title">🍳 Registrar cocción</div>
+        <div class="modal-counter-box">
+          <div class="modal-counter-label">A cocinar</div>
+          <div class="modal-counter-num" id="coc-modal-counter">0</div>
+          <div class="modal-counter-det" id="coc-modal-detalle"></div>
+        </div>
+        <button class="modal-cancel" onclick="closeCocModal()">Cancelar</button>
+        <button class="modal-confirm" id="coc-modal-save-btn" onclick="guardarCoccion()">Registrar e imprimir →</button>
+      </div>
+      <div class="modal-nombre-row">
+        <label class="modal-label">Fecha de cocción</label>
+        <input class="modal-input" id="coc-modal-fecha" type="date"/>
+      </div>
+      <div class="modal-label" style="margin:0;">El número chico en cada tarjeta es lo que ya tenés cocinado</div>
+    </div>
+    <div class="modal-scroll">
+      <div id="coc-modal-list"></div>
+    </div>
   </div>
 </div>
 
@@ -794,7 +917,12 @@ function playAlert(){try{const c=new(window.AudioContext||window.webkitAudioCont
 const sod=new Date();sod.setHours(0,0,0,0);
 onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sod)),orderBy('timestamp','desc')),snap=>{
   const no=[],ni=new Set();
-  snap.forEach(d=>{const o={id:d.id,...d.data()};no.push(o);ni.add(d.id);if(!isFirstLoad&&!knownIds.has(d.id)&&o.estado==='nuevo'){playAlert();autoRegisterVentas(o);}});
+  snap.forEach(d=>{
+    const o={id:d.id,...d.data()};
+    if(esDocCoccion(o)) return;   // los tickets de cocina no son pedidos
+    no.push(o);ni.add(d.id);
+    if(!isFirstLoad&&!knownIds.has(d.id)&&o.estado==='nuevo'){playAlert();autoRegisterVentas(o);}
+  });
   orders=no;knownIds=ni;isFirstLoad=false;renderOrders();updateStats();
 });
 
@@ -802,6 +930,15 @@ function fFecha(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)
 function fFechaFull(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)} ${'gennaio,febbraio,marzo,aprile,maggio,giugno,luglio,agosto,settembre,ottobre,novembre,dicembre'.split(',')[parseInt(m)-1]} ${y}`;}
 function fTime(ts){return ts?ts.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—';}
 function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',completado:'Completato'}[e]||e;}
+
+// ── DOCUMENTOS DE COCCIÓN DENTRO DE "pedidos" ──
+// Para que la comanda de cocina salga por la Munbyn hay que meter un documento
+// en "pedidos", porque es lo único que la app imprime sola.
+// Ese documento NO es una venta: lleva tipoDoc:'coccion' y se descarta en TODOS
+// los lugares que leen ventas (pantalla, stats, historial, stock y cocción).
+function esDocCoccion(o){ return !!(o && o.tipoDoc==='coccion'); }
+// Filtra una lista de pedidos dejando solo las ventas reales
+function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o)); }
 
 // ═══════════════════════════════════════════════════════
 //  CANALES, TIPOS DE EMPANADA, COSTOS Y PRECIOS
@@ -1404,7 +1541,8 @@ window.confirmarManual=async function(){
     // Mostrador sin nombre: auto-número "Mostrador N"
     const sodM=new Date();sodM.setHours(0,0,0,0);
     const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
-    nombre='Mostrador '+(snapM.size+1);
+    const ventasHoy=snapM.docs.filter(d=>!esDocCoccion(d.data())).length;
+    nombre='Mostrador '+(ventasHoy+1);
   }
   // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible).
   // Las empanadas van ORDENADAS: primero las classiche, después las speciali,
@@ -1526,14 +1664,15 @@ document.getElementById('beb-modal-overlay').addEventListener('click',e=>{if(e.t
 // ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
-  ['pedidos','stats','hist','stock','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
+  ['pedidos','stats','hist','stock','coccion','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
   document.getElementById('main').style.display=tab==='pedidos'?'block':'none';
   document.getElementById('stats-panel').style.display=tab==='stats'?'block':'none';
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
   document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
+  document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
-  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',bebidas:'Gestión de bebidas'}[tab];
-  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}if(tab==='bebidas')bebInit();
+  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas'}[tab];
+  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -1925,7 +2064,7 @@ function sPrv(p){const n=new Date();
   if(p==='month'){const f=new Date(n.getFullYear(),n.getMonth()-1,1),l=new Date(n.getFullYear(),n.getMonth(),0);return{from:f,to:dE(l),label:'Mes anterior'};}
   return null;
 }
-async function sFt(f,t){const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f)),where('timestamp','<=',Timestamp.fromDate(t)),orderBy('timestamp','desc')));return s.docs.map(d=>({id:d.id,...d.data()}));}
+async function sFt(f,t){const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f)),where('timestamp','<=',Timestamp.fromDate(t)),orderBy('timestamp','desc')));return soloVentas(s.docs.map(d=>({id:d.id,...d.data()})));}
 const cE=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));return t;};
 const cB=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(i.tipo==='bebida')t+=i.cantidad||0;}));return t;};
 const cR=os=>{const m={};os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada'){const n=nombreLimpio(i.nombre);m[n]=(m[n]||0)+(i.cantidad||0);}}));return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
@@ -2073,7 +2212,7 @@ let hAll=[];
 window.histLoad=async function(){
   const f=document.getElementById('hist-from').value,t=document.getElementById('hist-to').value;
   const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f?new Date(f+'T00:00:00'):new Date('2024-01-01'))),where('timestamp','<=',Timestamp.fromDate(t?new Date(t+'T23:59:59'):new Date())),orderBy('timestamp','desc')));
-  hAll=s.docs.map(d=>({id:d.id,...d.data()}));hRender(hAll);
+  hAll=soloVentas(s.docs.map(d=>({id:d.id,...d.data()})));hRender(hAll);
 };
 window.histFilter=function(){const q=document.getElementById('hist-search').value.toLowerCase().trim();hRender(q?hAll.filter(o=>(o.cliente||'').toLowerCase().includes(q)):hAll);};
 window.histReset=function(){document.getElementById('hist-search').value='';document.getElementById('hist-from').value='';document.getElementById('hist-to').value='';hAll=[];hRender([]);};
@@ -2415,6 +2554,7 @@ async function stockSyncToday(){
     const promises=[];
     snap.forEach(d=>{
       const order={id:d.id,...d.data()};
+      if(esDocCoccion(order)) return;   // un ticket de cocina no descuenta stock
       const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
       empItems.forEach(item=>{
         // El stock se guarda SIEMPRE con el nombre limpio, sin el prefijo (C)/(S)
@@ -2438,6 +2578,7 @@ async function stockSyncToday(){
   }catch(e){console.error('stockSyncToday error',e);}
 }
 async function autoRegisterVentas(order){
+  if(esDocCoccion(order)) return;   // protección: un ticket de cocina no es una venta
   const fecha=new Date().toISOString().split('T')[0];
   const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
   for(const item of empItems){
@@ -2457,6 +2598,10 @@ async function autoRegisterVentas(order){
   } else {
     // Aunque el panel esté cerrado, sincroniza disponibilidad con el menú del cliente
     await syncDisponibilidadFromDB();
+  }
+  // Si el panel de COCCIÓN está abierto, recalcular lo que queda cocinado
+  if(document.getElementById('coc-panel').style.display==='block'){
+    await cocLoadAll();
   }
 }
 
@@ -2488,8 +2633,490 @@ window.guardarSabor=async function(){
 };
 document.getElementById('sabor-modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('sabor-modal-overlay'))closeSaborModal();});
 
-// ── DISPONIBILIDAD AUTOMÁTICA ──
+// ═══════════════════════════════════════════════════════
+//  COCCIÓN — control de días desde que se cocinó
+//
+//  Cómo funciona:
+//  · La colección "cocciones" guarda SOLO las tandas cocinadas (+) y los descartes (−).
+//  · Lo vendido NO se guarda acá: se lee de "pedidos" y se calcula al vuelo.
+//    Así no hay registros que sincronizar ni que se pierdan.
+//  · El consumo es FIFO: cada venta descuenta de la tanda MÁS VIEJA primero,
+//    que es lo único que hace que el conteo de días tenga sentido.
+//  · Esto NO toca la colección "stock": el stock sigue siendo todo lo no vendido
+//    (congeladas + cocinadas). Cocinar no mueve stock, solo cambia de estado.
+// ═══════════════════════════════════════════════════════
+let cocDataAll=[];        // documentos de la colección "cocciones"
+let cocVentasPorDia={};   // {sabor: {fecha: cantidad}} calculado desde "pedidos"
+let cocCalculado={};      // resultado del FIFO
+let cocLimiteDias=2;      // días máximos permitidos desde la cocción
+const COC_VENTANA_DIAS=30;// cuántos días hacia atrás se leen
 
+// Fecha local YYYY-MM-DD (no UTC, para no correr un día)
+function cocFechaStr(d){
+  const p=x=>String(x).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function cocHoy(){ return cocFechaStr(new Date()); }
+// Días de diferencia entre dos fechas YYYY-MM-DD
+function cocDiasEntre(desde, hasta){
+  const a=new Date(desde+'T00:00:00'), b=new Date(hasta+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+// Etiqueta de edad para mostrar
+function cocEtiquetaEdad(dias){
+  if(dias<=0) return 'Hoy';
+  if(dias===1) return '1 día';
+  return dias+' días';
+}
+function cocClaseEdad(dias){
+  if(dias<=0) return 'ce-0';
+  if(dias>cocLimiteDias) return 'ce-x';
+  if(dias===cocLimiteDias) return 'ce-2';
+  return 'ce-1';
+}
+
+// Lee las cocciones y las ventas de la ventana de días
+async function cocLoadAll(){
+  try{
+    const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
+    const desdeStr=cocFechaStr(desde);
+
+    const [snapCoc, snapPed] = await Promise.all([
+      getDocs(query(collection(db,'cocciones'))),
+      getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(desde))))
+    ]);
+
+    cocDataAll = snapCoc.docs.map(d=>({id:d.id,...d.data()}))
+                            .filter(c=>c.fecha && c.fecha>=desdeStr);
+
+    // Ventas por sabor y por día (se usa la fecha en que ENTRÓ el pedido)
+    const map={};
+    snapPed.forEach(d=>{
+      const o=d.data();
+      if(esDocCoccion(o)) return;   // el ticket de cocina no es una venta
+      const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate():null;
+      if(!ts) return;
+      const f=cocFechaStr(ts);
+      (o.items||[]).forEach(i=>{
+        if(i.tipo && i.tipo!=='empanada') return;
+        const s=nombreLimpio(i.nombre);
+        const q=parseInt(i.cantidad)||0;
+        if(!q) return;
+        map[s]=map[s]||{};
+        map[s][f]=(map[s][f]||0)+q;
+      });
+    });
+    cocVentasPorDia=map;
+
+    cocCalculado=cocCalcularFIFO();
+    cocRender();
+  }catch(e){
+    console.error('cocLoadAll error',e);
+    document.getElementById('coc-tbody').innerHTML='<tr><td colspan="6" class="coc-empty">Error al cargar: '+e.message+'</td></tr>';
+  }
+}
+
+// FIFO por sabor: devuelve los lotes que siguen vivos, con su fecha de cocción
+function cocCalcularFIFO(){
+  const eventos={};   // sabor -> [{fecha,tipo:'in'|'out',cant}]
+  const agregar=(sabor,fecha,tipo,cant)=>{
+    if(!sabor||!fecha||!cant||cant<=0) return;
+    (eventos[sabor]=eventos[sabor]||[]).push({fecha,tipo,cant});
+  };
+  cocDataAll.forEach(c=>{
+    const cant=parseInt(c.cantidad)||0;
+    if(c.tipo==='descarte') agregar(c.sabor,c.fecha,'out',cant);
+    else agregar(c.sabor,c.fecha,'in',cant);
+  });
+  Object.entries(cocVentasPorDia).forEach(([sabor,porDia])=>{
+    Object.entries(porDia).forEach(([fecha,cant])=>agregar(sabor,fecha,'out',cant));
+  });
+
+  const res={};
+  Object.entries(eventos).forEach(([sabor,evs])=>{
+    // Por fecha; dentro del mismo día primero las cocciones (se cocina antes de vender)
+    evs.sort((a,b)=>{
+      if(a.fecha!==b.fecha) return a.fecha.localeCompare(b.fecha);
+      if(a.tipo===b.tipo) return 0;
+      return a.tipo==='in' ? -1 : 1;
+    });
+    const lotes=[]; let asumidas=0;
+    evs.forEach(e=>{
+      if(e.tipo==='in'){ lotes.push({fecha:e.fecha, restante:e.cant}); return; }
+      let falta=e.cant;
+      while(falta>0){
+        const lote=lotes.find(l=>l.restante>0);
+        if(!lote){
+          // Se vendió más de lo registrado como cocinado.
+          // Se asume que esas empanadas se cocinaron ese mismo día y se consumieron enseguida.
+          asumidas+=falta;
+          falta=0;
+          break;
+        }
+        const usa=Math.min(lote.restante,falta);
+        lote.restante-=usa;
+        falta-=usa;
+      }
+    });
+    const vivos=lotes.filter(l=>l.restante>0);
+    res[sabor]={
+      lotes:vivos,
+      total:vivos.reduce((a,l)=>a+l.restante,0),
+      asumidas
+    };
+  });
+  return res;
+}
+
+function cocRender(){
+  const hoy=cocHoy();
+  const alertsDiv=document.getElementById('coc-alerts');
+  const gridDiv=document.getElementById('coc-grid');
+  if(!alertsDiv||!gridDiv) return;
+
+  // Recorre los sabores en el orden de la lista (EMP) y suma los que ya no existen
+  const nombres=EMP.map(e=>e.nombre);
+  Object.keys(cocCalculado).forEach(s=>{ if(!nombres.includes(s)) nombres.push(s); });
+
+  let totalVivas=0, totalVencidas=0, totalUltimoDia=0, totalAsumidas=0;
+  const vencidasPorSabor=[], ultimoDiaPorSabor=[];
+
+  const tarjetas=nombres.map(sabor=>{
+    const d=cocCalculado[sabor]||{lotes:[],total:0,asumidas:0};
+    totalAsumidas+=d.asumidas||0;
+    const lotes=[...d.lotes].sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    let venc=0, ult=0;
+    lotes.forEach(l=>{
+      const dias=cocDiasEntre(l.fecha,hoy);
+      if(dias>cocLimiteDias) venc+=l.restante;
+      else if(dias===cocLimiteDias) ult+=l.restante;
+    });
+    totalVivas+=d.total; totalVencidas+=venc; totalUltimoDia+=ult;
+    if(venc>0) vencidasPorSabor.push({sabor,cantidad:venc});
+    if(ult>0)  ultimoDiaPorSabor.push({sabor,cantidad:ult});
+
+    const clase = venc>0 ? 'coc-card vencida' : ult>0 ? 'coc-card ultimo' : d.total===0 ? 'coc-card cero' : 'coc-card';
+    const filas = lotes.length ? lotes.map(l=>{
+      const dias=cocDiasEntre(l.fecha,hoy);
+      return `<div class="coc-lote">
+        <span class="coc-lote-edad"><span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span> <span style="color:#bbb;">${l.fecha}</span></span>
+        <span class="coc-lote-cant">${l.restante}</span>
+      </div>`;
+    }).join('') : '<div class="coc-lote" style="color:#ccc;">Sin cocinadas</div>';
+
+    return `<div class="${clase}">
+      <div class="coc-card-top">
+        <div class="coc-card-name">${sabor}</div>
+        <div class="coc-card-num${d.total===0?' cero':''}">${d.total}</div>
+      </div>
+      ${filas}
+    </div>`;
+  }).join('');
+  gridDiv.innerHTML=tarjetas;
+
+  // ── Alertas ──
+  let ah='';
+  vencidasPorSabor.forEach(v=>{
+    ah+=`<div class="coc-alert">
+      <span>🚨 <strong>${v.sabor}</strong>: ${v.cantidad} ${v.cantidad===1?'unidad tiene':'unidades tienen'} más de ${cocLimiteDias} días — no se pueden vender</span>
+      <button class="coc-tirar-btn" onclick="cocTirar('${String(v.sabor).replace(/'/g,"\\'")}')">🗑 Tirar ${v.cantidad}</button>
+    </div>`;
+  });
+  ultimoDiaPorSabor.forEach(v=>{
+    ah+=`<div class="coc-alert coc-alert-warn">
+      <span>⏳ <strong>${v.sabor}</strong>: ${v.cantidad} ${v.cantidad===1?'unidad está':'unidades están'} en su último día — vendelas primero</span>
+    </div>`;
+  });
+  alertsDiv.innerHTML=ah;
+
+  document.getElementById('coc-total-num').textContent=totalVivas;
+  document.getElementById('coc-total-sub').textContent=
+    totalVencidas>0 ? `${totalVencidas} vencidas · ${totalUltimoDia} en último día`
+                    : (totalUltimoDia>0 ? `${totalUltimoDia} en su último día` : 'todo dentro de fecha');
+
+  // ── Historial de cocciones ──
+  const tb=document.getElementById('coc-tbody');
+  const orden=[...cocDataAll].sort((a,b)=>
+    a.fecha===b.fecha ? String(a.sabor).localeCompare(String(b.sabor)) : String(b.fecha).localeCompare(String(a.fecha))
+  );
+  if(!orden.length){
+    tb.innerHTML='<tr><td colspan="6" class="coc-empty">Todavía no registraste ninguna cocción</td></tr>';
+  }else{
+    tb.innerHTML=orden.map(c=>{
+      const dias=cocDiasEntre(c.fecha,hoy);
+      const esDesc=c.tipo==='descarte';
+      const badge=esDesc
+        ? '<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🗑 DESCARTE</span>'
+        : '<span style="color:#9a3412;background:#ffedd5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🍳 COCCIÓN</span>';
+      return `<tr>
+        <td style="color:#888;white-space:nowrap;">${c.fecha}</td>
+        <td style="font-weight:500;">${c.sabor}</td>
+        <td style="text-align:center;font-weight:700;">${c.cantidad}</td>
+        <td style="text-align:center;">${esDesc?'—':`<span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span>`}</td>
+        <td>${badge}</td>
+        <td style="white-space:nowrap;">
+          ${esDesc?'':`<button onclick="cocReimprimir('${c.id}')" title="Reimprimir por el navegador" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">🖨</button>`}
+          <button onclick="cocBorrar('${c.id}')" style="padding:4px 10px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('coc-nota').textContent = totalAsumidas>0
+    ? `Nota: ${totalAsumidas} empanadas se vendieron sin tener cocción registrada. El sistema asumió que se cocinaron ese mismo día. Si cargás la cocción real, este número baja solo.`
+    : '';
+}
+
+// ── Registrar una cocción ──
+let cocQ={};
+window.openCocModal=function(){
+  cocQ={};
+  document.getElementById('coc-modal-fecha').value=cocHoy();
+  document.getElementById('coc-modal-counter').textContent='0';
+  document.getElementById('coc-modal-detalle').textContent='';
+  cocRenderModal();
+  document.getElementById('coc-modal-overlay').classList.add('show');
+};
+window.closeCocModal=function(){ document.getElementById('coc-modal-overlay').classList.remove('show'); };
+
+function cocRenderModal(){
+  const cont=document.getElementById('coc-modal-list');
+  if(!EMP.length){ cont.innerHTML='<div style="text-align:center;color:#bbb;padding:20px;">Cargando sabores...</div>'; return; }
+  const card=e=>{
+    const q=cocQ[e.nombre]||0;
+    const disp=(cocCalculado[e.nombre]||{}).total||0;
+    const tipo=tipoDe(e);
+    const cls='coc-modal-card'+(tipo==='speciale'?' t-speciale':'')+(q>0?' selected':'');
+    return `<div class="${cls}" onclick="cocChg('${String(e.nombre).replace(/'/g,"\\'")}',1)">
+      <button class="modal-card-minus" style="${q>0?'display:flex;':''}" onclick="event.stopPropagation();cocChg('${String(e.nombre).replace(/'/g,"\\'")}',-1)">−</button>
+      <div class="modal-card-name">${e.nombre}</div>
+      <div class="modal-card-footer"><span class="modal-card-stock">tenés ${disp}</span><span class="modal-card-qty${q>0?' has-qty':''}">${q}</span></div>
+    </div>`;
+  };
+  const clas=EMP.filter(e=>tipoDe(e)==='classica');
+  const spec=EMP.filter(e=>tipoDe(e)==='speciale');
+  let h='';
+  if(clas.length) h+=`<div class="modal-section-label sec-classica">Le Classiche</div><div class="modal-grid">${clas.map(card).join('')}</div>`;
+  if(spec.length) h+=`<div class="modal-section-label sec-speciale">Le Speciali</div><div class="modal-grid">${spec.map(card).join('')}</div>`;
+  cont.innerHTML=h;
+}
+window.cocChg=function(sabor,d){
+  cocQ[sabor]=Math.max(0,(cocQ[sabor]||0)+d);
+  if(cocQ[sabor]===0) delete cocQ[sabor];
+  let c=0,s=0;
+  EMP.forEach(e=>{
+    const q=cocQ[e.nombre]||0;
+    if(!q) return;
+    if(tipoDe(e)==='speciale') s+=q; else c+=q;
+  });
+  document.getElementById('coc-modal-counter').textContent=c+s;
+  document.getElementById('coc-modal-detalle').textContent=(c+s)>0?`${c} cl · ${s} sp`:'';
+  cocRenderModal();
+};
+
+window.guardarCoccion=async function(){
+  const fecha=document.getElementById('coc-modal-fecha').value;
+  if(!fecha){ alert('Elegí la fecha de cocción.'); return; }
+  const sel=Object.entries(cocQ).filter(([,q])=>q>0);
+  if(!sel.length){ alert('Marcá cuántas vas a cocinar.'); return; }
+  const btn=document.getElementById('coc-modal-save-btn');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    // 1) Registro real en el control de cocción (uno por sabor)
+    await Promise.all(sel.map(([sabor,cantidad])=>
+      addDoc(collection(db,'cocciones'),{sabor,cantidad,fecha,tipo:'coccion',timestamp:serverTimestamp()})
+    ));
+    // 2) Ticket para la Munbyn: se mete en "pedidos" porque es lo único que la app
+    //    imprime sola, pero va marcado con tipoDoc:'coccion' y queda excluido de
+    //    ventas, stats, historial, stock y del propio cálculo de cocción.
+    await enviarTicketCocinaAImpresora(sel,fecha);
+    closeCocModal();
+    await cocLoadAll();
+  }catch(err){ alert('Error: '+err.message); }
+  finally{ btn.disabled=false; btn.textContent='Registrar e imprimir →'; }
+};
+
+// Arma los items del ticket de cocina, ordenados classiche → speciali y con (C)/(S)
+function cocItemsTicket(sel){
+  const clas=[],spec=[];
+  sel.forEach(([sabor,cantidad])=>{
+    const e=EMP.find(x=>x.nombre===sabor);
+    const t=e?tipoDe(e):tipoDeSabor(sabor);
+    (t==='speciale'?spec:clas).push({nombre:nombreConPrefijo(sabor,t),cantidad:parseInt(cantidad)||0,curcuma:false,tipo:'empanada',tipoEmp:t});
+  });
+  return [...clas,...spec];
+}
+
+// Manda la comanda de cocina a la impresora térmica
+async function enviarTicketCocinaAImpresora(sel,fecha){
+  const items=cocItemsTicket(sel);
+  const total=items.reduce((a,i)=>a+i.cantidad,0);
+  await addDoc(collection(db,'pedidos'),{
+    tipoDoc:'coccion',              // ← marca que NO es una venta
+    cliente:'🍳 DA CUCINARE',
+    items,
+    total,
+    estado:'nuevo',                 // para que la app lo tome e imprima
+    fecha,
+    fechaCoccion:fecha,
+    manual:true,
+    timestamp:serverTimestamp()
+  });
+}
+
+// Ticket para llevar a la cocina — NO es una venta, no toca pedidos
+function cocImprimirTicket(sel,fecha){
+  const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const n=new Date();
+  const clas=[],spec=[];
+  sel.forEach(([sabor,cant])=>{
+    const e=EMP.find(x=>x.nombre===sabor);
+    const t=e?tipoDe(e):tipoDeSabor(sabor);
+    (t==='speciale'?spec:clas).push({sabor,cant,t});
+  });
+  const suma=arr=>arr.reduce((a,i)=>a+i.cant,0);
+  const fila=i=>`<div class="row"><span>${nombreConPrefijo(esc(i.sabor),i.t)}</span><span>× ${i.cant}</span></div>`;
+  const bloque=(t,arr)=>arr.length?`<div class="sec">${t} (${suma(arr)})</div>${arr.map(fila).join('')}`:'';
+  const total=suma(clas)+suma(spec);
+  const w=window.open('','_blank','width=400,height=600');
+  w.document.write(`<html><head><title>Da cucinare</title><style>
+    body{font-family:monospace;padding:20px;font-size:14px;}
+    h2{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:10px;font-size:18px;}
+    .tit{border:2px solid #000;text-align:center;font-weight:bold;font-size:16px;padding:8px;margin-bottom:12px;letter-spacing:1px;}
+    .sec{margin-top:12px;margin-bottom:4px;font-weight:bold;font-size:15px;border-bottom:1px solid #000;padding-bottom:3px;letter-spacing:1px;}
+    .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc;}
+    .total{font-size:16px;font-weight:bold;margin-top:14px;border-top:2px solid #000;padding-top:8px;}
+    .meta{font-size:12px;color:#555;margin-bottom:12px;}
+  </style></head><body>
+    <h2>EMPANADAS DON SALO</h2>
+    <div class="tit">🍳 DA CUCINARE</div>
+    <div class="meta">Data cottura: <strong>${esc(fecha)}</strong><br>
+      Stampato: ${n.toLocaleDateString('it-IT')} ${n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</div>
+    ${bloque('EMPANADAS CLASSICHE',clas)}
+    ${bloque('EMPANADAS SPECIALI',spec)}
+    <div class="total">TOTALE: ${total} empanada${total!==1?'s':''}</div>
+  </body></html>`);
+  w.document.close(); w.print();
+}
+
+// Reimprime por el navegador la cocción de un día/sabor (respaldo si falla la Munbyn)
+window.cocReimprimir=function(id){
+  const c=cocDataAll.find(x=>x.id===id);
+  if(!c) return;
+  // Reimprime TODA la cocción de esa fecha, no solo esa línea
+  const delDia=cocDataAll.filter(x=>x.fecha===c.fecha && x.tipo!=='descarte');
+  const sel=delDia.map(x=>[x.sabor, x.cantidad]);
+  cocImprimirTicket(sel, c.fecha);
+};
+
+// ── Tirar las vencidas de un sabor ──
+// Las saca del control de cocinadas Y registra la rotura en el stock
+window.cocTirar=async function(sabor){
+  const hoy=cocHoy();
+  const d=cocCalculado[sabor];
+  if(!d) return;
+  const venc=d.lotes.filter(l=>cocDiasEntre(l.fecha,hoy)>cocLimiteDias);
+  const cant=venc.reduce((a,l)=>a+l.restante,0);
+  if(cant<=0){ alert('No hay unidades vencidas de '+sabor+'.'); return; }
+  if(!confirm(`¿Tirar ${cant} de ${sabor}?\n\nSe sacan del control de cocinadas y se registran como rotura en el stock.`)) return;
+  try{
+    // 1) Sale del control de cocinadas (se consume FIFO, o sea las más viejas)
+    await addDoc(collection(db,'cocciones'),{sabor,cantidad:cant,fecha:hoy,tipo:'descarte',timestamp:serverTimestamp()});
+    // 2) Rotura en el stock general
+    await addDoc(collection(db,'stock'),{sabor,cantidad:cant,fecha:hoy,tipo:'devolucion',timestamp:serverTimestamp()});
+    await cocLoadAll();
+    if(document.getElementById('stock-panel').style.display==='block') await stockLoadAll();
+    else await syncDisponibilidadFromDB();
+  }catch(err){ alert('Error al tirar: '+err.message); }
+};
+
+window.cocBorrar=async function(id){
+  const c=cocDataAll.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm(`¿Borrar el registro de ${c.tipo==='descarte'?'descarte':'cocción'} de ${c.sabor} (${c.cantidad}) del ${c.fecha}?`)) return;
+  try{
+    await deleteDoc(doc(db,'cocciones',id));
+    await cocLoadAll();
+  }catch(err){ alert('Error al borrar: '+err.message); }
+};
+
+// Límite de días configurable
+async function cocCargarLimite(){
+  try{
+    const snap=await getDoc(doc(db,'config','settings'));
+    if(snap.exists() && snap.data().limiteDiasCoccion){
+      cocLimiteDias=parseInt(snap.data().limiteDiasCoccion)||2;
+      const inp=document.getElementById('coc-limite-input');
+      if(inp) inp.value=cocLimiteDias;
+    }
+  }catch(e){console.error('cocCargarLimite error',e);}
+}
+window.cocGuardarLimite=async function(){
+  const v=parseInt(document.getElementById('coc-limite-input')?.value);
+  if(!v||v<1){ alert('Ingresá un número válido de días.'); return; }
+  try{
+    await setDoc(doc(db,'config','settings'),{limiteDiasCoccion:v},{merge:true});
+    cocLimiteDias=v;
+    cocRender();
+    alert(`✅ Límite guardado: ${v} días`);
+  }catch(e){ alert('Error al guardar: '+e.message); }
+};
+
+// ── Excel de COCCIÓN ──
+window.exportCoccion=function(){
+  if(!Object.keys(cocCalculado).length && !cocDataAll.length){
+    alert('Abrí la solapa COCCIÓN para que carguen los datos.'); return;
+  }
+  const hoy=cocHoy();
+  // Hoja 1: disponibles por sabor y edad
+  const disp=[
+    ['DON SALO — CONTROL DE COCCIÓN'],
+    ['Generado', fechaHoraLegible()],
+    ['Días máximos permitidos', cocLimiteDias],
+    [],
+    ['Sabor','Fecha cocción','Días','Cantidad','Estado']
+  ];
+  let tot=0;
+  const nombres=EMP.map(e=>e.nombre);
+  Object.keys(cocCalculado).forEach(s=>{ if(!nombres.includes(s)) nombres.push(s); });
+  nombres.forEach(sabor=>{
+    const d=cocCalculado[sabor]; if(!d||!d.lotes.length) return;
+    [...d.lotes].sort((a,b)=>a.fecha.localeCompare(b.fecha)).forEach(l=>{
+      const dias=cocDiasEntre(l.fecha,hoy);
+      tot+=l.restante;
+      disp.push([sabor,l.fecha,dias,l.restante, dias>cocLimiteDias?'VENCIDA':dias===cocLimiteDias?'ÚLTIMO DÍA':'OK']);
+    });
+  });
+  disp.push([]); disp.push(['TOTAL COCINADAS','','',tot]);
+
+  // Hoja 2: resumen por sabor
+  const res=[['Sabor','Cocinadas disponibles','Vencidas','Último día','Vendidas sin registrar']];
+  nombres.forEach(sabor=>{
+    const d=cocCalculado[sabor]; if(!d) return;
+    let venc=0,ult=0;
+    d.lotes.forEach(l=>{const x=cocDiasEntre(l.fecha,hoy); if(x>cocLimiteDias)venc+=l.restante; else if(x===cocLimiteDias)ult+=l.restante;});
+    res.push([sabor,d.total,venc,ult,d.asumidas||0]);
+  });
+
+  // Hoja 3: registro crudo de cocciones y descartes
+  const mov=[['Fecha','Sabor','Cantidad','Tipo','Días desde cocción']];
+  [...cocDataAll].sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).forEach(c=>{
+    mov.push([c.fecha,c.sabor,parseInt(c.cantidad)||0, c.tipo==='descarte'?'DESCARTE':'COCCIÓN',
+      c.tipo==='descarte'?'':cocDiasEntre(c.fecha,hoy)]);
+  });
+
+  descargarExcel(`DonSalo_Coccion_${selloArchivo()}.xlsx`,[
+    {nombre:'Disponibles por edad',filas:disp},
+    {nombre:'Resumen por sabor',filas:res},
+    {nombre:'Registro de cocciones',filas:mov}
+  ]);
+};
+
+document.getElementById('coc-modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('coc-modal-overlay')) closeCocModal();
+});
+
+// ── DISPONIBILIDAD AUTOMÁTICA ──
 // Calcula stock actual y escribe en Firebase config/disponibilidad
 // El menú del cliente lee esto en tiempo real
 async function syncDisponibilidad(){
