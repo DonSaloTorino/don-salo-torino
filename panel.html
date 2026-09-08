@@ -1186,7 +1186,11 @@ function updateStats(){
   document.getElementById('stat-nuevo').textContent=orders.filter(o=>o.estado==='nuevo').length;
   document.getElementById('stat-prep').textContent=orders.filter(o=>o.estado==='en-preparacion').length;
   document.getElementById('stat-comp').textContent=orders.filter(o=>o.estado==='completado').length;
-  let t=0;orders.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));
+  // "Empanadas hoy" es un contador de VENTAS: el consumo interno no suma acá.
+  // Los contadores de estado (nuevos / en preparación / completados) sí lo incluyen,
+  // porque esos pedidos hay que prepararlos igual.
+  let t=0;
+  soloVentas(orders).forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));
   document.getElementById('stat-total').textContent=t;
 }
 
