@@ -479,6 +479,20 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .coc-modal-card.selected{background:#1d4ed8;}
 .coc-modal-card.t-speciale.selected{background:#991b1b;}
 .coc-modal-card .modal-card-stock{font-size:10px;opacity:0.8;}
+/* Aviso de pérdidas registradas solas */
+.aviso-perdidas-box{
+  background:#7f1d1d;color:#fff;padding:14px 24px;display:flex;align-items:center;
+  justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:14px;
+}
+.aviso-perdidas-det{font-size:12px;opacity:0.8;margin-top:3px;line-height:1.5;}
+.aviso-perdidas-btn{
+  padding:7px 16px;background:#fff;color:#7f1d1d;border:none;border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.aviso-perdidas-x{
+  padding:7px 12px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.4);
+  border-radius:6px;font-size:12px;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -502,6 +516,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <div class="counter-badge" id="badge-count">0 pedidos</div>
   </div>
 </div>
+
+<div id="aviso-perdidas" style="display:none;"></div>
 
 <div class="main" id="main">
   <div class="stats-bar" id="stats-bar">
@@ -642,6 +658,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <option value="">Entradas + Ventas</option>
       <option value="entrada">Solo Entradas</option>
       <option value="venta">Solo Ventas</option>
+      <option value="cotta_non_venduta">Solo Cotta non venduta</option>
     </select>
     <button class="stock-btn" onclick="stockApplyFilter()">Ver</button>
     <button class="stock-btn stock-btn-sec" onclick="stockResetFilter()">Reset</button>
@@ -2012,7 +2029,7 @@ window.exportStock=function(){
     if(!grupos[k])grupos[k]={fecha:e.fecha||'—',sabor:e.sabor||'—',tipo:e.tipo||'—',cantidad:0};
     grupos[k].cantidad+=parseInt(e.cantidad)||0;
   });
-  const etiqTipo={entrada:'ENTRADA',venta:'VENTA',ajuste:'AJUSTE',devolucion:'DEVOLUCIÓN'};
+  const etiqTipo={entrada:'ENTRADA',venta:'VENTA',ajuste:'AJUSTE',devolucion:'DEVOLUCIÓN',cotta_non_venduta:LABEL_PERDIDA};
   const filasGrupo=Object.values(grupos).sort((a,b)=>
     a.fecha===b.fecha ? String(a.sabor).localeCompare(String(b.sabor)) : String(b.fecha).localeCompare(String(a.fecha))
   );
@@ -2328,6 +2345,13 @@ async function stockLoadAll(){
   }catch(e){console.error('stock load error',e);}
 }
 
+// ── PÉRDIDA POR VENCIMIENTO ──
+// La empanada se cocinó, pasó los días permitidos y se tiró sin venderse.
+// No es una venta ni una rotura: es la pérdida más cara, porque se pagó
+// el producto Y el trabajo de cocinarlo. Por eso tiene su propia categoría.
+const TIPO_PERDIDA  = 'cotta_non_venduta';
+const LABEL_PERDIDA = 'COTTA NON VENDUTA';
+
 function stockCalcBySabor(sourceData){
   const data=sourceData||stockAllData;
   const res={};
@@ -2342,7 +2366,7 @@ function stockCalcBySabor(sourceData){
     if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
     if(e.tipo==='ajuste'){res[e.sabor].entrada=e.cantidad||0;res[e.sabor].venta=0;}
     else if(e.tipo==='entrada'){res[e.sabor].entrada+=e.cantidad||0;}
-    else if(e.tipo==='venta'||e.tipo==='devolucion'){res[e.sabor].venta+=e.cantidad||0;}
+    else if(e.tipo==='venta'||e.tipo==='devolucion'||e.tipo===TIPO_PERDIDA){res[e.sabor].venta+=e.cantidad||0;}
     res[e.sabor].stock=res[e.sabor].entrada-res[e.sabor].venta;
   });
   return res;
@@ -2454,6 +2478,8 @@ function stockRenderTable(data){
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :g.tipo==='devolucion'
       ?'<span style="color:#1e40af;background:#dbeafe;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔵 DEVOLUCIÓN</span>'
+      :g.tipo===TIPO_PERDIDA
+      ?'<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ '+LABEL_PERDIDA+'</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
     const key=g.fecha+'|'+g.sabor+'|'+g.tipo;
     const editBtn=(g.tipo==='entrada'||g.tipo==='ajuste'||g.tipo==='devolucion')
@@ -2709,12 +2735,111 @@ async function cocLoadAll(){
     cocVentasPorDia=map;
 
     cocCalculado=cocCalcularFIFO();
+    // Registra solas las tandas que pasaron los días permitidos
+    const perdidas=await cocRegistrarPerdidas();
+    if(perdidas.total>0){
+      // Se escribieron pérdidas: hay que releer para que los números queden al día
+      await cocRecargarSilencioso();
+      cocMostrarAvisoPerdidas(perdidas);
+      // Refrescar el stock si su panel está abierto
+      if(document.getElementById('stock-panel').style.display==='block') await stockLoadAll();
+      else await syncDisponibilidadFromDB();
+    }
     cocRender();
   }catch(e){
     console.error('cocLoadAll error',e);
-    document.getElementById('coc-tbody').innerHTML='<tr><td colspan="6" class="coc-empty">Error al cargar: '+e.message+'</td></tr>';
+    const tb=document.getElementById('coc-tbody');
+    if(tb) tb.innerHTML='<tr><td colspan="6" class="coc-empty">Error al cargar: '+e.message+'</td></tr>';
   }
 }
+
+// Relee cocciones y recalcula, sin volver a disparar el registro automático
+async function cocRecargarSilencioso(){
+  const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
+  const desdeStr=cocFechaStr(desde);
+  const snap=await getDocs(query(collection(db,'cocciones')));
+  cocDataAll=snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.fecha && c.fecha>=desdeStr);
+  cocCalculado=cocCalcularFIFO();
+}
+
+// Suma días a una fecha YYYY-MM-DD
+function cocSumarDias(fecha, dias){
+  const d=new Date(fecha+'T00:00:00');
+  d.setDate(d.getDate()+dias);
+  return cocFechaStr(d);
+}
+
+// ── REGISTRO AUTOMÁTICO DE "COTTA NON VENDUTA" ──
+// Busca las tandas que pasaron el límite de días y todavía tienen unidades.
+// Por cada una escribe DOS registros con un ID fijo armado con sabor + fecha de cocción:
+//   · en "cocciones" → la saca del control de cocinadas
+//   · en "stock"     → la descuenta del stock
+// El ID fijo hace que el mismo lote no pueda generar la pérdida dos veces,
+// aunque abras el panel muchas veces o desde varios dispositivos.
+let cocAutoEnCurso=false;
+async function cocRegistrarPerdidas(){
+  const vacio={total:0,detalle:[]};
+  if(cocAutoEnCurso) return vacio;
+  const hoy=cocHoy();
+  const pendientes=[];
+  Object.entries(cocCalculado).forEach(([sabor,d])=>{
+    d.lotes.forEach(l=>{
+      const dias=cocDiasEntre(l.fecha,hoy);
+      if(dias>cocLimiteDias && l.restante>0){
+        pendientes.push({sabor,fechaCoccion:l.fecha,cantidad:l.restante,dias});
+      }
+    });
+  });
+  if(!pendientes.length) return vacio;
+
+  cocAutoEnCurso=true;
+  const hechas=[];
+  try{
+    for(const p of pendientes){
+      const idDoc='perdida_'+(p.sabor+'_'+p.fechaCoccion).replace(/[^a-zA-Z0-9]/g,'_');
+      // El movimiento se fecha el día en que efectivamente venció, no hoy
+      const fechaVenc=cocSumarDias(p.fechaCoccion, cocLimiteDias+1);
+      const datos={
+        sabor:p.sabor, cantidad:p.cantidad,
+        fecha:fechaVenc, fechaCoccion:p.fechaCoccion,
+        tipo:TIPO_PERDIDA, auto:true, timestamp:serverTimestamp()
+      };
+      await setDoc(doc(db,'cocciones',idDoc),datos);
+      await setDoc(doc(db,'stock',idDoc),datos);
+      hechas.push(p);
+    }
+  }catch(e){
+    console.error('cocRegistrarPerdidas error',e);
+  }finally{
+    cocAutoEnCurso=false;
+  }
+  return {total:hechas.reduce((a,p)=>a+p.cantidad,0), detalle:hechas};
+}
+
+// Aviso visible (no bloquea el trabajo) cuando se registraron pérdidas solas
+function cocMostrarAvisoPerdidas(p){
+  const cont=document.getElementById('aviso-perdidas');
+  if(!cont||!p.total) return;
+  const lineas=p.detalle
+    .map(d=>`${d.sabor}: ${d.cantidad} (cocinadas el ${d.fechaCoccion}, ${d.dias} días)`)
+    .join(' · ');
+  cont.innerHTML=`<div class="aviso-perdidas-box">
+    <div>
+      <strong>⚫ Se registraron ${p.total} empanadas como COTTA NON VENDUTA</strong>
+      <div class="aviso-perdidas-det">${lineas}</div>
+      <div class="aviso-perdidas-det">Ya se descontaron del stock.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="aviso-perdidas-btn" onclick="switchTab('coccion');cocCerrarAviso();">Ver detalle</button>
+      <button class="aviso-perdidas-x" onclick="cocCerrarAviso()">✕</button>
+    </div>
+  </div>`;
+  cont.style.display='block';
+}
+window.cocCerrarAviso=function(){
+  const c=document.getElementById('aviso-perdidas');
+  if(c){ c.style.display='none'; c.innerHTML=''; }
+};
 
 // FIFO por sabor: devuelve los lotes que siguen vivos, con su fecha de cocción
 function cocCalcularFIFO(){
@@ -2725,7 +2850,8 @@ function cocCalcularFIFO(){
   };
   cocDataAll.forEach(c=>{
     const cant=parseInt(c.cantidad)||0;
-    if(c.tipo==='descarte') agregar(c.sabor,c.fecha,'out',cant);
+    // El descarte y la pérdida por vencimiento sacan unidades del control de cocinadas
+    if(c.tipo==='descarte'||c.tipo===TIPO_PERDIDA) agregar(c.sabor,c.fecha,'out',cant);
     else agregar(c.sabor,c.fecha,'in',cant);
   });
   Object.entries(cocVentasPorDia).forEach(([sabor,porDia])=>{
@@ -2844,12 +2970,17 @@ function cocRender(){
   }else{
     tb.innerHTML=orden.map(c=>{
       const dias=cocDiasEntre(c.fecha,hoy);
-      const esDesc=c.tipo==='descarte';
-      const badge=esDesc
+      const esPerdida=c.tipo===TIPO_PERDIDA;
+      const esDesc=c.tipo==='descarte'||esPerdida;
+      const badge=esPerdida
+        ? `<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ ${LABEL_PERDIDA}</span>`
+        : c.tipo==='descarte'
         ? '<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🗑 DESCARTE</span>'
         : '<span style="color:#9a3412;background:#ffedd5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🍳 COCCIÓN</span>';
+      const detalleFecha = esPerdida && c.fechaCoccion
+        ? `<div style="font-size:10px;color:#bbb;">cocinada ${c.fechaCoccion}</div>` : '';
       return `<tr>
-        <td style="color:#888;white-space:nowrap;">${c.fecha}</td>
+        <td style="color:#888;white-space:nowrap;">${c.fecha}${detalleFecha}</td>
         <td style="font-weight:500;">${c.sabor}</td>
         <td style="text-align:center;font-weight:700;">${c.cantidad}</td>
         <td style="text-align:center;">${esDesc?'—':`<span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span>`}</td>
@@ -3018,12 +3149,14 @@ window.cocTirar=async function(sabor){
   const venc=d.lotes.filter(l=>cocDiasEntre(l.fecha,hoy)>cocLimiteDias);
   const cant=venc.reduce((a,l)=>a+l.restante,0);
   if(cant<=0){ alert('No hay unidades vencidas de '+sabor+'.'); return; }
-  if(!confirm(`¿Tirar ${cant} de ${sabor}?\n\nSe sacan del control de cocinadas y se registran como rotura en el stock.`)) return;
+  if(!confirm(`¿Tirar ${cant} de ${sabor}?\n\nSe registran como ${LABEL_PERDIDA} y se descuentan del stock.`)) return;
   try{
-    // 1) Sale del control de cocinadas (se consume FIFO, o sea las más viejas)
-    await addDoc(collection(db,'cocciones'),{sabor,cantidad:cant,fecha:hoy,tipo:'descarte',timestamp:serverTimestamp()});
-    // 2) Rotura en el stock general
-    await addDoc(collection(db,'stock'),{sabor,cantidad:cant,fecha:hoy,tipo:'devolucion',timestamp:serverTimestamp()});
+    const hoyF=hoy;
+    const datos={sabor,cantidad:cant,fecha:hoyF,tipo:TIPO_PERDIDA,auto:false,timestamp:serverTimestamp()};
+    // 1) Sale del control de cocinadas (FIFO: se van las más viejas)
+    await addDoc(collection(db,'cocciones'),datos);
+    // 2) Se descuenta del stock con la misma categoría
+    await addDoc(collection(db,'stock'),datos);
     await cocLoadAll();
     if(document.getElementById('stock-panel').style.display==='block') await stockLoadAll();
     else await syncDisponibilidadFromDB();
@@ -3098,23 +3231,46 @@ window.exportCoccion=function(){
     res.push([sabor,d.total,venc,ult,d.asumidas||0]);
   });
 
-  // Hoja 3: registro crudo de cocciones y descartes
-  const mov=[['Fecha','Sabor','Cantidad','Tipo','Días desde cocción']];
+  // Hoja 3: registro crudo de cocciones, descartes y pérdidas
+  const mov=[['Fecha','Sabor','Cantidad','Tipo','Fecha cocción','Días desde cocción','Automático']];
   [...cocDataAll].sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).forEach(c=>{
-    mov.push([c.fecha,c.sabor,parseInt(c.cantidad)||0, c.tipo==='descarte'?'DESCARTE':'COCCIÓN',
-      c.tipo==='descarte'?'':cocDiasEntre(c.fecha,hoy)]);
+    const et = c.tipo===TIPO_PERDIDA ? LABEL_PERDIDA : c.tipo==='descarte' ? 'DESCARTE' : 'COCCIÓN';
+    mov.push([c.fecha,c.sabor,parseInt(c.cantidad)||0, et, c.fechaCoccion||'',
+      c.tipo==='coccion'?cocDiasEntre(c.fecha,hoy):'', c.auto?'SÍ':'']);
   });
+
+  // Hoja 4: solo las pérdidas — cuánto se cocinó y no se pudo vender
+  const per=[
+    ['COTTA NON VENDUTA — empanadas cocinadas que no se vendieron'],
+    ['Costo por empanada', COSTO_EMPANADA],
+    [],
+    ['Fecha vencimiento','Sabor','Cantidad','Fecha cocción','Costo perdido']
+  ];
+  let totPer=0;
+  [...cocDataAll].filter(c=>c.tipo===TIPO_PERDIDA)
+    .sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)))
+    .forEach(c=>{
+      const q=parseInt(c.cantidad)||0; totPer+=q;
+      per.push([c.fecha,c.sabor,q,c.fechaCoccion||'',r2(q*COSTO_EMPANADA)]);
+    });
+  per.push([]);
+  per.push(['TOTAL PERDIDO','',totPer,'',r2(totPer*COSTO_EMPANADA)]);
 
   descargarExcel(`DonSalo_Coccion_${selloArchivo()}.xlsx`,[
     {nombre:'Disponibles por edad',filas:disp},
     {nombre:'Resumen por sabor',filas:res},
-    {nombre:'Registro de cocciones',filas:mov}
+    {nombre:'Registro de cocciones',filas:mov},
+    {nombre:'Cotta non venduta',filas:per}
   ]);
 };
 
 document.getElementById('coc-modal-overlay').addEventListener('click',e=>{
   if(e.target===document.getElementById('coc-modal-overlay')) closeCocModal();
 });
+
+// Al abrir el mostrador se revisa una vez si hay tandas vencidas, sin importar
+// en qué solapa estés. Si no, podrías pasar días sin que se registre la pérdida.
+setTimeout(()=>{ cocCargarLimite().then(()=>cocLoadAll()).catch(e=>console.error('chequeo inicial cocción',e)); }, 2500);
 
 // ── DISPONIBILIDAD AUTOMÁTICA ──
 // Calcula stock actual y escribe en Firebase config/disponibilidad
