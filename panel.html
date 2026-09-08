@@ -479,17 +479,19 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .coc-modal-card.selected{background:#1d4ed8;}
 .coc-modal-card.t-speciale.selected{background:#991b1b;}
 .coc-modal-card .modal-card-stock{font-size:10px;opacity:0.8;}
-/* Aviso de pérdidas registradas solas */
-.aviso-perdidas-box{
-  background:#7f1d1d;color:#fff;padding:14px 24px;display:flex;align-items:center;
+/* Avisos de lo que el sistema registró solo */
+.aviso-box{
+  padding:14px 24px;display:flex;align-items:center;color:#fff;
   justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:14px;
 }
-.aviso-perdidas-det{font-size:12px;opacity:0.8;margin-top:3px;line-height:1.5;}
-.aviso-perdidas-btn{
-  padding:7px 16px;background:#fff;color:#7f1d1d;border:none;border-radius:6px;
+.aviso-perdida{background:#7f1d1d;}
+.aviso-coccion{background:#9a3412;}
+.aviso-det{font-size:12px;opacity:0.85;margin-top:3px;line-height:1.5;}
+.aviso-btn{
+  padding:7px 16px;background:#fff;color:#111;border:none;border-radius:6px;
   font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
 }
-.aviso-perdidas-x{
+.aviso-x{
   padding:7px 12px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.4);
   border-radius:6px;font-size:12px;cursor:pointer;
 }
@@ -2735,12 +2737,17 @@ async function cocLoadAll(){
     cocVentasPorDia=map;
 
     cocCalculado=cocCalcularFIFO();
-    // Registra solas las tandas que pasaron los días permitidos
+
+    // 1) Reconciliar el faltante: lo vendido sin registrar pasa a cocinado
+    const recon=await cocCorrerControles();
+    if(recon.total>0) await cocRecargarSilencioso();
+
+    // 2) Registrar las tandas que pasaron los días permitidos
     const perdidas=await cocRegistrarPerdidas();
-    if(perdidas.total>0){
-      // Se escribieron pérdidas: hay que releer para que los números queden al día
-      await cocRecargarSilencioso();
-      cocMostrarAvisoPerdidas(perdidas);
+    if(perdidas.total>0) await cocRecargarSilencioso();
+
+    if(recon.total>0 || perdidas.total>0){
+      cocMostrarAviso(recon,perdidas);
       // Refrescar el stock si su panel está abierto
       if(document.getElementById('stock-panel').style.display==='block') await stockLoadAll();
       else await syncDisponibilidadFromDB();
@@ -2761,6 +2768,80 @@ async function cocRecargarSilencioso(){
   cocDataAll=snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.fecha && c.fecha>=desdeStr);
   cocCalculado=cocCalcularFIFO();
 }
+
+// ── RECONCILIACIÓN AUTOMÁTICA DEL FALTANTE ──
+// Si se vendió más de lo registrado como cocinado, quiere decir que se cocinó
+// sobre la marcha y no se marcó. Dos veces por día se convierte ese faltante
+// en cocciones reales, fechadas EN EL DÍA de la venta.
+//
+// La página solo corre cuando está abierta, así que al abrir el mostrador se
+// revisa si quedó pendiente algún control y se ejecuta ahí mismo (recuperación).
+const COC_CONTROLES=[
+  {turno:'t1', hora:15, minuto:0,  label:'15:00'},
+  {turno:'t2', hora:22, minuto:30, label:'22:30'}
+];
+const cocControlesHechos=new Set();   // turnos ya corridos en esta sesión
+
+// Qué controles ya deberían haber pasado hoy según la hora actual
+function cocControlesPasados(){
+  const n=new Date();
+  const minutosAhora=n.getHours()*60+n.getMinutes();
+  return COC_CONTROLES.filter(c=>minutosAhora >= c.hora*60+c.minuto);
+}
+
+// Convierte el faltante en cocciones reales.
+// El ID es fijo (sabor + fecha + turno), así el mismo faltante no se puede
+// escribir dos veces aunque haya dos dispositivos con el panel abierto.
+async function cocReconciliarDeficit(turno){
+  const pend=[];
+  Object.entries(cocCalculado).forEach(([sabor,d])=>{
+    Object.entries(d.deficitPorDia||{}).forEach(([fecha,cant])=>{
+      if(cant>0) pend.push({sabor,fecha,cantidad:cant});
+    });
+  });
+  if(!pend.length) return {total:0,detalle:[]};
+
+  const hechas=[];
+  try{
+    for(const p of pend){
+      const idDoc='auto_'+(p.sabor+'_'+p.fecha).replace(/[^a-zA-Z0-9]/g,'_')+'_'+turno;
+      await setDoc(doc(db,'cocciones',idDoc),{
+        sabor:p.sabor, cantidad:p.cantidad, fecha:p.fecha,
+        tipo:'coccion', auto:true, origen:'deficit', turno,
+        timestamp:serverTimestamp()
+      });
+      hechas.push(p);
+    }
+  }catch(e){ console.error('cocReconciliarDeficit error',e); }
+  return {total:hechas.reduce((a,p)=>a+p.cantidad,0), detalle:hechas};
+}
+
+// Corre los controles que correspondan y devuelve lo que se registró
+async function cocCorrerControles(){
+  const resumen={total:0,detalle:[],turnos:[]};
+  for(const c of cocControlesPasados()){
+    if(cocControlesHechos.has(c.turno)) continue;
+    cocControlesHechos.add(c.turno);
+    const r=await cocReconciliarDeficit(c.turno);
+    if(r.total>0){
+      resumen.total+=r.total;
+      resumen.detalle.push(...r.detalle);
+      resumen.turnos.push(c.label);
+    }
+  }
+  return resumen;
+}
+
+// A medianoche se limpian los turnos para que vuelvan a correr al día siguiente
+let cocDiaControl=cocHoy();
+setInterval(()=>{
+  const hoy=cocHoy();
+  if(hoy!==cocDiaControl){ cocDiaControl=hoy; cocControlesHechos.clear(); }
+  // Revisa cada 5 minutos si se cruzó alguna hora de control
+  if(cocControlesPasados().some(c=>!cocControlesHechos.has(c.turno))){
+    cocLoadAll().catch(e=>console.error('control automático',e));
+  }
+}, 5*60*1000);
 
 // Suma días a una fecha YYYY-MM-DD
 function cocSumarDias(fecha, dias){
@@ -2816,24 +2897,43 @@ async function cocRegistrarPerdidas(){
   return {total:hechas.reduce((a,p)=>a+p.cantidad,0), detalle:hechas};
 }
 
-// Aviso visible (no bloquea el trabajo) cuando se registraron pérdidas solas
-function cocMostrarAvisoPerdidas(p){
+// Aviso visible (no bloquea el trabajo) de lo que el sistema registró solo
+function cocMostrarAviso(recon,perdidas){
   const cont=document.getElementById('aviso-perdidas');
-  if(!cont||!p.total) return;
-  const lineas=p.detalle
-    .map(d=>`${d.sabor}: ${d.cantidad} (cocinadas el ${d.fechaCoccion}, ${d.dias} días)`)
-    .join(' · ');
-  cont.innerHTML=`<div class="aviso-perdidas-box">
-    <div>
-      <strong>⚫ Se registraron ${p.total} empanadas como COTTA NON VENDUTA</strong>
-      <div class="aviso-perdidas-det">${lineas}</div>
-      <div class="aviso-perdidas-det">Ya se descontaron del stock.</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-shrink:0;">
-      <button class="aviso-perdidas-btn" onclick="switchTab('coccion');cocCerrarAviso();">Ver detalle</button>
-      <button class="aviso-perdidas-x" onclick="cocCerrarAviso()">✕</button>
-    </div>
-  </div>`;
+  if(!cont) return;
+  let h='';
+  if(recon && recon.total>0){
+    const lineas=recon.detalle.map(d=>`${d.sabor}: ${d.cantidad} (${d.fecha})`).join(' · ');
+    h+=`<div class="aviso-box aviso-coccion">
+      <div>
+        <strong>🍳 Se registraron ${recon.total} empanadas como cocinadas</strong>
+        <div class="aviso-det">Se vendieron sin estar cargadas — control de las ${recon.turnos.join(' y ')}</div>
+        <div class="aviso-det">${lineas}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="aviso-btn" onclick="switchTab('coccion');cocCerrarAviso();">Ver detalle</button>
+        <button class="aviso-x" onclick="cocCerrarAviso()">✕</button>
+      </div>
+    </div>`;
+  }
+  if(perdidas && perdidas.total>0){
+    const lineas=perdidas.detalle
+      .map(d=>`${d.sabor}: ${d.cantidad} (cocinadas el ${d.fechaCoccion}, ${d.dias} días)`)
+      .join(' · ');
+    h+=`<div class="aviso-box aviso-perdida">
+      <div>
+        <strong>⚫ Se registraron ${perdidas.total} empanadas como COTTA NON VENDUTA</strong>
+        <div class="aviso-det">${lineas}</div>
+        <div class="aviso-det">Ya se descontaron del stock.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="aviso-btn" onclick="switchTab('coccion');cocCerrarAviso();">Ver detalle</button>
+        <button class="aviso-x" onclick="cocCerrarAviso()">✕</button>
+      </div>
+    </div>`;
+  }
+  if(!h){ cont.style.display='none'; cont.innerHTML=''; return; }
+  cont.innerHTML=h;
   cont.style.display='block';
 }
 window.cocCerrarAviso=function(){
@@ -2866,7 +2966,7 @@ function cocCalcularFIFO(){
       if(a.tipo===b.tipo) return 0;
       return a.tipo==='in' ? -1 : 1;
     });
-    const lotes=[]; let asumidas=0;
+    const lotes=[]; let asumidas=0; const deficitPorDia={};
     evs.forEach(e=>{
       if(e.tipo==='in'){ lotes.push({fecha:e.fecha, restante:e.cant}); return; }
       let falta=e.cant;
@@ -2874,8 +2974,10 @@ function cocCalcularFIFO(){
         const lote=lotes.find(l=>l.restante>0);
         if(!lote){
           // Se vendió más de lo registrado como cocinado.
-          // Se asume que esas empanadas se cocinaron ese mismo día y se consumieron enseguida.
+          // Se anota el faltante EN EL DÍA de esa venta, para poder registrarlo después
+          // con la fecha correcta en la reconciliación automática.
           asumidas+=falta;
+          deficitPorDia[e.fecha]=(deficitPorDia[e.fecha]||0)+falta;
           falta=0;
           break;
         }
@@ -2888,7 +2990,8 @@ function cocCalcularFIFO(){
     res[sabor]={
       lotes:vivos,
       total:vivos.reduce((a,l)=>a+l.restante,0),
-      asumidas
+      asumidas,
+      deficitPorDia
     };
   });
   return res;
@@ -2976,6 +3079,8 @@ function cocRender(){
         ? `<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ ${LABEL_PERDIDA}</span>`
         : c.tipo==='descarte'
         ? '<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🗑 DESCARTE</span>'
+        : (c.auto && c.origen==='deficit')
+        ? '<span style="color:#9a3412;background:#ffedd5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🍳 COCCIÓN <b>AUTO</b></span>'
         : '<span style="color:#9a3412;background:#ffedd5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🍳 COCCIÓN</span>';
       const detalleFecha = esPerdida && c.fechaCoccion
         ? `<div style="font-size:10px;color:#bbb;">cocinada ${c.fechaCoccion}</div>` : '';
