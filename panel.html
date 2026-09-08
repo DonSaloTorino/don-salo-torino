@@ -371,6 +371,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .canal-btn.glovo.active{background:#f2b100;border-color:#f2b100;color:#111;}
 .canal-btn.justeat.active{background:#ff8000;border-color:#ff8000;color:#fff;}
 .canal-btn.deliveroo.active{background:#00ccbc;border-color:#00ccbc;color:#063;}
+.canal-btn.interno.active{background:#7e22ce;border-color:#7e22ce;color:#fff;}
+.cb-interno{background:#f3e8ff;color:#6b21a8;}
 /* Promo Pranzo */
 .modal-promo-row{margin-bottom:12px;}
 .promo-check{
@@ -818,6 +820,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
           <button class="canal-btn glovo" id="canal-glovo" onclick="setCanal('glovo')">Glovo</button>
           <button class="canal-btn justeat" id="canal-justeat" onclick="setCanal('justeat')">Just Eat</button>
           <button class="canal-btn deliveroo" id="canal-deliveroo" onclick="setCanal('deliveroo')">Deliveroo</button>
+          <button class="canal-btn interno" id="canal-interno" onclick="setCanal('interno')">🏠 Interno</button>
         </div>
       </div>
 
@@ -834,6 +837,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="modal-nombre-row">
         <label class="modal-label" id="modal-nombre-label">Nombre del cliente</label>
         <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco... (podés dejar vacío)" autocomplete="off"/>
+      </div>
+
+      <!-- Aviso: el consumo interno no factura -->
+      <div id="modal-interno-aviso" style="display:none;margin-bottom:12px;">
+        <div style="background:#f3e8ff;border:1px solid #d8b4fe;color:#6b21a8;border-radius:8px;padding:9px 14px;font-size:12px;line-height:1.5;">
+          <strong>No cuenta como venta.</strong> Descuenta del stock y de las cocinadas, pero no suma ingreso. En el historial aparece con venta € 0,00.
+        </div>
       </div>
 
       <!-- Fila 5: Promo Pranzo — solo visible en Mostrador -->
@@ -956,8 +966,12 @@ function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',compl
 // Ese documento NO es una venta: lleva tipoDoc:'coccion' y se descarta en TODOS
 // los lugares que leen ventas (pantalla, stats, historial, stock y cocción).
 function esDocCoccion(o){ return !!(o && o.tipoDoc==='coccion'); }
-// Filtra una lista de pedidos dejando solo las ventas reales
-function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o)); }
+// Pedidos de verdad: todo lo que hay que preparar, incluido el consumo interno.
+// Se usa en el panel PEDIDOS y en el HISTORIAL.
+function soloPedidos(arr){ return (arr||[]).filter(o=>!esDocCoccion(o)); }
+// Ventas reales: además saca el consumo interno, que no factura.
+// Se usa en STATS, que es el análisis de ventas.
+function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esConsumoInterno(o)); }
 
 // ═══════════════════════════════════════════════════════
 //  CANALES, TIPOS DE EMPANADA, COSTOS Y PRECIOS
@@ -1026,9 +1040,14 @@ const CANALES = {
   glovo:    {label:'Glovo',     corto:'Glovo',     delivery:true},
   justeat:  {label:'Just Eat',  corto:'Just Eat',  delivery:true},
   deliveroo:{label:'Deliveroo', corto:'Deliveroo', delivery:true},
+  // Consumo interno: NO es una venta (no factura nada) pero sí descuenta
+  // del stock y de las cocinadas, porque la empanada se consumió igual.
+  interno:  {label:'Consumo interno', corto:'Interno', delivery:false, esVenta:false},
   qr:       {label:'QR',        corto:'QR',        delivery:false},
   web:      {label:'Web',       corto:'Web',       delivery:false}
 };
+// ¿Este pedido factura? El consumo interno no.
+function esConsumoInterno(o){ return canalKey(o)==='interno'; }
 
 // Determina el canal de un pedido.
 // Los pedidos viejos (sin canalVenta) se clasifican por los campos que ya existían:
@@ -1087,6 +1106,9 @@ function ventaPedido(o){
   const n = contarPorTipo(o);
   if(n.total===0) return 0;
   const k = canalKey(o);
+  // El consumo interno no factura: venta 0. El costo se sigue contando,
+  // así en el historial se ve como pérdida limpia.
+  if(CANALES[k].esVenta===false) return 0;
   if(CANALES[k].delivery){
     return n.classicas*PRECIO_DELIVERY.classica + n.especiales*PRECIO_DELIVERY.speciale;
   }
@@ -1379,17 +1401,30 @@ window.setConsumo=function(c){
 window.setCanal=function(c){
   if(!CANALES[c]) return;
   canalActivo=c;
-  ['mostrador','glovo','justeat','deliveroo'].forEach(k=>{
+  ['mostrador','glovo','justeat','deliveroo','interno'].forEach(k=>{
     const b=document.getElementById('canal-'+k);
     if(b) b.className='canal-btn '+k+(k===c?' active':'');
   });
   const esMostrador = (c==='mostrador');
-  document.getElementById('modal-nombre-label').textContent = esMostrador ? 'Nombre del cliente' : 'Número de pedido';
+  const esInterno   = (c==='interno');
+  const lbl=document.getElementById('modal-nombre-label');
   const inp=document.getElementById('modal-nombre');
-  inp.placeholder = esMostrador ? 'Ej: Marco... (podés dejar vacío)' : 'Ej: 4821';
+  if(esInterno){
+    lbl.textContent='Motivo o persona';
+    inp.placeholder='Ej: personal, degustación... (podés dejar vacío)';
+  }else if(esMostrador){
+    lbl.textContent='Nombre del cliente';
+    inp.placeholder='Ej: Marco... (podés dejar vacío)';
+  }else{
+    lbl.textContent='Número de pedido';
+    inp.placeholder='Ej: 4821';
+  }
+  // La promo y el takeaway solo tienen sentido en una venta de mostrador
   document.getElementById('modal-promo-row').style.display = esMostrador ? 'block' : 'none';
-  // Takeaway / Mangia qui: solo tiene sentido en Mostrador
   document.getElementById('modal-consumo-row').style.display = esMostrador ? 'flex' : 'none';
+  // Aviso de que no factura
+  const av=document.getElementById('modal-interno-aviso');
+  if(av) av.style.display = esInterno ? 'block' : 'none';
   if(!esMostrador){
     document.getElementById('modal-promo-pranzo').checked=false;
     setConsumo('mostrador');
@@ -1557,11 +1592,15 @@ window.confirmarManual=async function(){
       alert('Poné el número de pedido de '+CANALES[canalActivo].label+'.');
       return;
     }
-    // Mostrador sin nombre: auto-número "Mostrador N"
-    const sodM=new Date();sodM.setHours(0,0,0,0);
-    const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
-    const ventasHoy=snapM.docs.filter(d=>!esDocCoccion(d.data())).length;
-    nombre='Mostrador '+(ventasHoy+1);
+    if(canalActivo==='interno'){
+      nombre='INTERNO';
+    }else{
+      // Mostrador sin nombre: auto-número "Mostrador N"
+      const sodM=new Date();sodM.setHours(0,0,0,0);
+      const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
+      const ventasHoy=snapM.docs.filter(d=>!esDocCoccion(d.data())).length;
+      nombre='Mostrador '+(ventasHoy+1);
+    }
   }
   // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible).
   // Las empanadas van ORDENADAS: primero las classiche, después las speciali,
@@ -2231,7 +2270,7 @@ let hAll=[];
 window.histLoad=async function(){
   const f=document.getElementById('hist-from').value,t=document.getElementById('hist-to').value;
   const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f?new Date(f+'T00:00:00'):new Date('2024-01-01'))),where('timestamp','<=',Timestamp.fromDate(t?new Date(t+'T23:59:59'):new Date())),orderBy('timestamp','desc')));
-  hAll=soloVentas(s.docs.map(d=>({id:d.id,...d.data()})));hRender(hAll);
+  hAll=soloPedidos(s.docs.map(d=>({id:d.id,...d.data()})));hRender(hAll);
 };
 window.histFilter=function(){const q=document.getElementById('hist-search').value.toLowerCase().trim();hRender(q?hAll.filter(o=>(o.cliente||'').toLowerCase().includes(q)):hAll);};
 window.histReset=function(){document.getElementById('hist-search').value='';document.getElementById('hist-from').value='';document.getElementById('hist-to').value='';hAll=[];hRender([]);};
