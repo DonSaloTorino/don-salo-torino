@@ -205,7 +205,11 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
 /* STATS */
 .stats-panel { display:none;padding:28px;max-width:1200px;margin:0 auto; }
-.s-fixed-row { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px; }
+.s-fixed-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:20px; }
+.s-fixed-card.record { background:#fffbeb;border-color:#fde68a; }
+.s-fixed-card.record .s-fixed-label { color:#b45309; }
+.s-fixed-card.record .s-fixed-num { color:#92400e; }
+.s-fixed-card.record .s-fixed-sub { color:#b45309;opacity:0.75; }
 .s-fixed-card { background:#fff;border-radius:10px;border:1px solid #eee;padding:16px 20px;display:flex;flex-direction:column;gap:4px; }
 .s-fixed-card.dark { background:#111;border-color:#111; }
 .s-fixed-label { font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#bbb; }
@@ -570,7 +574,12 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="s-fixed-num" id="s-prev-month-num">—</div>
       <div class="s-fixed-sub" id="s-prev-month-sub">empanadas vendidas</div>
     </div>
-    <div class="s-fixed-card">
+    <div class="s-fixed-card record">
+      <div class="s-fixed-label">🏆 Mejor mes</div>
+      <div class="s-fixed-num" id="s-best-month-num">—</div>
+      <div class="s-fixed-sub" id="s-best-month-sub">empanadas</div>
+    </div>
+    <div class="s-fixed-card record">
       <div class="s-fixed-label">🏆 Mejor día</div>
       <div class="s-fixed-num" id="s-best-day-num">—</div>
       <div class="s-fixed-sub" id="s-best-day-sub">empanadas</div>
@@ -2267,18 +2276,41 @@ async function sLoadFixed(){
     document.getElementById('s-prev-month-num').textContent=prevTotal;
     document.getElementById('s-prev-month-sub').textContent=`empanadas · ${prevOs.length} pedidos`;
 
-    // Mejor día de todos los tiempos
+    // Mejor día y mejor mes de todos los tiempos (una sola consulta para los dos)
     const allOs=await sFt(new Date('2024-01-01'),dE(now));
     const byDay={};
+    const byMonth={};
     const days=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
     allOs.forEach(o=>{
       if(!o.timestamp)return;
       const d=o.timestamp.toDate();
+      const emp=cE([o]);
+      // por día
       const dateStr=d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
       const dayName=days[d.getDay()];
-      const key=dayName+' '+dateStr;
-      byDay[key]=(byDay[key]||0)+cE([o]);
+      byDay[dayName+' '+dateStr]=(byDay[dayName+' '+dateStr]||0)+emp;
+      // por mes
+      const claveMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      if(!byMonth[claveMes]) byMonth[claveMes]={emp:0,pedidos:0};
+      byMonth[claveMes].emp+=emp;
+      byMonth[claveMes].pedidos++;
     });
+
+    // Mejor mes
+    const mesesOrden=Object.entries(byMonth).sort((a,b)=>b[1].emp-a[1].emp);
+    if(mesesOrden.length>0){
+      const [clave,val]=mesesOrden[0];
+      const [y,m]=clave.split('-');
+      const nombreMes=new Date(parseInt(y),parseInt(m)-1,1)
+        .toLocaleString('it-IT',{month:'long',year:'numeric'});
+      document.getElementById('s-best-month-num').textContent=val.emp;
+      document.getElementById('s-best-month-sub').textContent=
+        'empanadas · '+nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)+' · '+val.pedidos+' pedidos';
+    }else{
+      document.getElementById('s-best-month-num').textContent='—';
+      document.getElementById('s-best-month-sub').textContent='sin datos';
+    }
+
     const entries=Object.entries(byDay);
     if(entries.length>0){
       const best=entries.sort((a,b)=>b[1]-a[1])[0];
