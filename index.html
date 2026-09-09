@@ -172,7 +172,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 
   <div class="nombre-section">
     <label>Il tuo nome (opzionale)</label>
-    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco... (puoi lasciare vuoto)" autocomplete="off"/>
+    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco... (puoi lasciare vuoto)" autocomplete="off" style="text-transform:uppercase;"/>
   </div>
 
   <div class="date-section">
@@ -502,7 +502,9 @@ window.confirmarPedido = async function() {
     }
   }
 
-  let nombre = document.getElementById('nombre-input').value.trim();
+  // El nombre se guarda en MAYÚSCULAS: así sale igual en el ticket impreso
+  // y en el panel del mostrador, sin importar cómo lo escriba el cliente.
+  let nombre = document.getElementById('nombre-input').value.trim().toUpperCase();
   let isAutoNumber = false;
 
   const empItems = EMPANADAS.filter(e => qtys[e.id]  > 0).map(e => ({ nombre: e.nombre, cantidad: qtys[e.id],  curcuma: e.curcuma, tipo: 'empanada' }));
