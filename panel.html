@@ -229,6 +229,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .s-counters { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px; }
 .s-counter { background:#fff;border-radius:10px;border:1px solid #eee;padding:20px; }
 .s-counter.dark { background:#111;border-color:#111; }
+.s-counter.promedio { background:#eff6ff;border-color:#bfdbfe; }
+.s-counter.promedio .s-c-label { color:#1d4ed8; }
+.s-counter.promedio .s-c-num { color:#1e3a8a; }
+.s-counter.promedio .s-c-sub { color:#1d4ed8;opacity:0.7; }
 .s-counter.dark .s-c-label { color:rgba(255,255,255,0.4); }
 .s-counter.dark .s-c-num { color:#fff; }
 .s-counter.dark .s-c-sub { color:rgba(255,255,255,0.3); }
@@ -1929,6 +1933,9 @@ window.exportStats=function(){
     ['Este mes', d.mes.emp, d.mes.pedidos],
     ['Período seleccionado', d.empanadas, d.pedidos.length],
     [],
+    ['PROMEDIO DIARIO', d.promedio!=null?r2(d.promedio):'—'],
+    ['Días trabajados (lun-sáb, sin feriados)', d.diasTrabajados||0],
+    [],
     ['Bebidas del período', d.bebidas],
     []
   ];
@@ -2164,13 +2171,111 @@ const cE=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo
 const cB=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(i.tipo==='bebida')t+=i.cantidad||0;}));return t;};
 const cR=os=>{const m={};os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada'){const n=nombreLimpio(i.nombre);m[n]=(m[n]||0)+(i.cantidad||0);}}));return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
 
+// ═══════════════════════════════════════════════════════
+//  DÍAS TRABAJADOS — para el promedio diario
+//  Se trabaja de lunes a sábado. Domingo no, y tampoco los feriados italianos.
+// ═══════════════════════════════════════════════════════
+
+// Domingo de Pascua (algoritmo de Meeus/Jones/Butcher).
+// Hace falta porque el Lunes de Pascua cambia todos los años.
+function domingoDePascua(y){
+  const a=y%19, b=Math.floor(y/100), c=y%100;
+  const d=Math.floor(b/4), e=b%4;
+  const f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4), k=c%4;
+  const l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31);
+  const dia=((h+l-7*m+114)%31)+1;
+  return new Date(y, mes-1, dia);
+}
+
+// Feriados italianos de un año: los nacionales + San Giovanni, patrono de Turín
+const _cacheFeriados={};
+function feriadosItalia(anio){
+  if(_cacheFeriados[anio]) return _cacheFeriados[anio];
+  const p=x=>String(x).padStart(2,'0');
+  const set=new Set([
+    `${anio}-01-01`,  // Capodanno
+    `${anio}-01-06`,  // Epifania
+    `${anio}-04-25`,  // Liberazione
+    `${anio}-05-01`,  // Festa del Lavoro
+    `${anio}-06-02`,  // Festa della Repubblica
+    `${anio}-06-24`,  // San Giovanni — patrono de Turín
+    `${anio}-08-15`,  // Ferragosto
+    `${anio}-11-01`,  // Ognissanti
+    `${anio}-12-08`,  // Immacolata
+    `${anio}-12-25`,  // Natale
+    `${anio}-12-26`   // Santo Stefano
+  ]);
+  // Lunes de Pascua (Pasquetta)
+  const pas=domingoDePascua(anio);
+  const lun=new Date(pas); lun.setDate(pas.getDate()+1);
+  set.add(`${lun.getFullYear()}-${p(lun.getMonth()+1)}-${p(lun.getDate())}`);
+  _cacheFeriados[anio]=set;
+  return set;
+}
+
+// Cuenta los días trabajados entre dos fechas, ambas incluidas
+function diasTrabajados(desde, hasta){
+  const p=x=>String(x).padStart(2,'0');
+  const d=new Date(desde); d.setHours(0,0,0,0);
+  const fin=new Date(hasta); fin.setHours(0,0,0,0);
+  let n=0, guarda=0;
+  while(d<=fin && guarda<4000){
+    guarda++;
+    if(d.getDay()!==0){   // 0 = domingo, no se trabaja
+      const clave=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+      if(!feriadosItalia(d.getFullYear()).has(clave)) n++;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  return n;
+}
+
+// Promedio diario del período.
+// Los días se cuentan desde el PRIMER DÍA CON VENTAS del período (no desde su
+// inicio teórico) y hasta hoy como máximo. Si no, en "Todo el historial"
+// se dividiría por días en los que el local ni existía.
+function promedioDiario(pedidos, desdePeriodo, hastaPeriodo){
+  const emp=cE(pedidos);
+  if(!pedidos.length || emp===0) return {promedio:null, dias:0, empanadas:emp};
+  let primera=null;
+  pedidos.forEach(o=>{
+    if(!o.timestamp||!o.timestamp.toDate) return;
+    const t=o.timestamp.toDate();
+    if(primera===null||t<primera) primera=t;
+  });
+  if(!primera) return {promedio:null, dias:0, empanadas:emp};
+  const ahora=new Date();
+  const desde = primera > desdePeriodo ? primera : desdePeriodo;
+  const hasta = hastaPeriodo > ahora ? ahora : hastaPeriodo;
+  const dias=diasTrabajados(desde, hasta);
+  return {promedio: dias>0 ? emp/dias : null, dias, empanadas:emp};
+}
+
 async function sLoadData(){
   document.getElementById('s-loading').style.display='block';document.getElementById('s-content').style.display='none';
   const r=sP==='custom'?window._sCR:sRng(sP);if(!r)return;
   document.getElementById('s-period-label').textContent=r.label;
   const os=await sFt(r.from,r.to),emp=cE(os),beb=cB(os);
   const[tO,wO,mO]=await Promise.all([sP==='today'?os:sFt(sRng('today').from,sRng('today').to),sP==='week'?os:sFt(sRng('week').from,sRng('week').to),sP==='month'?os:sFt(sRng('month').from,sRng('month').to)]);
-  document.getElementById('s-counters').innerHTML=`<div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${os.length} pedidos</div></div>`;
+  // Promedio diario del período (lunes a sábado, sin feriados italianos)
+  // El promedio solo tiene sentido en un período acotado: hoy, ayer, semana,
+  // mes o un rango de fechas elegido a mano. En "Todo el historial" no se calcula,
+  // porque un promedio sobre años enteros no dice nada útil.
+  const promAplica = (sP!=='all');
+  const prom = promAplica ? promedioDiario(os, r.from, r.to) : {promedio:null,dias:0};
+  const promTxt = prom.promedio!==null
+    ? prom.promedio.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})
+    : '—';
+  const promSub = !promAplica
+    ? 'elegí semana, mes o un rango'
+    : prom.promedio!==null
+      ? `${prom.dias} ${prom.dias===1?'día trabajado':'días trabajados'}`
+      : 'sin días trabajados';
+  document.getElementById('s-counters').innerHTML=`<div class="s-counter promedio"><div class="s-c-label">📈 Promedio diario</div><div class="s-c-num">${promTxt}</div><div class="s-c-sub">${promSub}</div></div><div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${os.length} pedidos</div></div>`;
   const pR=sPrv(sP);
   let prevEmpExport=null, prevPedidosExport=null;
   if(pR){const pO=await sFt(pR.from,pR.to),pE=cE(pO),mx1=Math.max(emp,pE)||1,mx2=Math.max(os.length,pO.length)||1;
@@ -2245,6 +2350,7 @@ async function sLoadData(){
   sExportData={
     label:r.label, from:r.from, to:r.to,
     pedidos:os, empanadas:emp, bebidas:beb,
+    promedio:prom.promedio, diasTrabajados:prom.dias,
     hoy:{emp:cE(tO),pedidos:tO.length},
     semana:{emp:cE(wO),pedidos:wO.length},
     mes:{emp:cE(mO),pedidos:mO.length},
