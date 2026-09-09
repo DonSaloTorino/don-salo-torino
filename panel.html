@@ -9,7 +9,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
-body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min-height: 100vh; }
+/* TODO EL PANEL EN MAYÚSCULAS.
+   Se hace por CSS para que alcance a cada texto de la pantalla sin tocar
+   ni un dato: lo guardado en Firestore no cambia, solo cómo se ve. */
+body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min-height: 100vh; text-transform: uppercase; }
 
 .header { background:#111;color:#fff;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; }
 .header-left .brand { font-family:'Playfair Display',serif;font-size:22px;letter-spacing:1px; }
@@ -481,6 +484,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .coc-modal-card.selected{background:#1d4ed8;}
 .coc-modal-card.t-speciale.selected{background:#991b1b;}
 .coc-modal-card .modal-card-stock{font-size:10px;opacity:0.8;}
+/* Tarjeta sin stock crudo: no se puede cocinar */
+.coc-modal-card.sin-stock{background:#e5e7eb;cursor:not-allowed;}
+.coc-modal-card.sin-stock .modal-card-name{color:#aaa;}
+.coc-modal-card.sin-stock .coc-card-cocinadas{color:#bbb;}
+.coc-modal-card .modal-card-stock.sin{color:#991b1b;background:#fff;padding:1px 6px;border-radius:8px;font-weight:700;opacity:1;}
+.coc-modal-card .modal-card-stock.tope{color:#fff;background:rgba(0,0,0,0.35);padding:1px 6px;border-radius:8px;font-weight:700;opacity:1;}
+.coc-card-cocinadas{font-size:9px;opacity:0.7;letter-spacing:0.3px;margin-top:2px;}
 /* Avisos de lo que el sistema registró solo */
 .aviso-box{
   padding:14px 24px;display:flex;align-items:center;color:#fff;
@@ -836,7 +846,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <!-- Fila 3: nombre cliente / número de pedido (cambia según el canal) -->
       <div class="modal-nombre-row">
         <label class="modal-label" id="modal-nombre-label">Nombre del cliente</label>
-        <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco... (podés dejar vacío)" autocomplete="off"/>
+        <input class="modal-input" id="modal-nombre" type="text" placeholder="Ej: Marco... (podés dejar vacío)" autocomplete="off" style="text-transform:uppercase;"/>
       </div>
 
       <!-- Aviso: el consumo interno no factura -->
@@ -959,6 +969,20 @@ function fFecha(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)
 function fFechaFull(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)} ${'gennaio,febbraio,marzo,aprile,maggio,giugno,luglio,agosto,settembre,ottobre,novembre,dicembre'.split(',')[parseInt(m)-1]} ${y}`;}
 function fTime(ts){return ts?ts.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—';}
 function eLabel(e){return{nuevo:'Nuovo','en-preparacion':'In Preparazione',completado:'Completato'}[e]||e;}
+
+// ── TODO EN MAYÚSCULAS ──
+// Todo el texto que escribe una persona se guarda Y se muestra en mayúsculas.
+// Se aplica también al mostrar, para que los pedidos que vienen del menú QR
+// (que los escribe el cliente) salgan igual en pantalla, en el ticket y en Excel.
+function MAY(s){ return String(s==null?'':s).toUpperCase(); }
+
+// Los carteles de aviso los dibuja el navegador, así que el CSS no los alcanza.
+// Se envuelven una sola vez para que todo mensaje salga en mayúsculas,
+// sin tener que tocar cada texto por separado.
+const _alertOriginal   = window.alert.bind(window);
+const _confirmOriginal = window.confirm.bind(window);
+window.alert   = m => _alertOriginal(MAY(m));
+window.confirm = m => _confirmOriginal(MAY(m));
 
 // ── DOCUMENTOS DE COCCIÓN DENTRO DE "pedidos" ──
 // Para que la comanda de cocina salga por la Munbyn hay que meter un documento
@@ -1176,7 +1200,7 @@ function renderOrders(){
       + takeBadge
       + (o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':'');
 
-    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${o.cliente||'Anonimo'}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
+    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${MAY(o.cliente||'ANONIMO')}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
   }).join('');
   const act=orders.filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
@@ -1253,7 +1277,7 @@ window.printOrder=function(id){
 
   const w=window.open('','_blank','width=400,height=600');
   w.document.write(`<html><head><title>Comanda</title><style>
-    body{font-family:monospace;padding:20px;font-size:14px;}
+    body{font-family:monospace;padding:20px;font-size:14px;text-transform:uppercase;}
     h2{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:10px;font-size:18px;}
     .consumo{border:2px solid #000;text-align:center;font-weight:bold;font-size:16px;padding:8px;margin-bottom:12px;letter-spacing:1px;}
     .sec{margin-top:12px;margin-bottom:4px;font-weight:bold;font-size:15px;border-bottom:1px solid #000;padding-bottom:3px;letter-spacing:1px;}
@@ -1264,7 +1288,7 @@ window.printOrder=function(id){
   </style></head><body>
     <h2>EMPANADAS DON SALO</h2>
     <div class="consumo">${consumoTxt}</div>
-    <div class="meta">${esMostrador?'Cliente':'N° pedido'}: <strong>${esc(o.cliente)}</strong><br>
+    <div class="meta">${esMostrador?'Cliente':'N° pedido'}: <strong>${esc(MAY(o.cliente))}</strong><br>
       Canale: ${esc(CANALES[ck].label)}<br>
       Ora: ${n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}<br>
       Data: ${n.toLocaleDateString('it-IT')}</div>
@@ -1588,7 +1612,7 @@ window.editOrder=function(id){
 };
 
 window.confirmarManual=async function(){
-  let nombre=document.getElementById('modal-nombre').value.trim();
+  let nombre=MAY(document.getElementById('modal-nombre').value.trim());
   const esDelivery=CANALES[canalActivo].delivery;
   const promo=document.getElementById('modal-promo-pranzo').checked && !esDelivery;
   if(!nombre){
@@ -1603,7 +1627,7 @@ window.confirmarManual=async function(){
       const sodM=new Date();sodM.setHours(0,0,0,0);
       const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
       const ventasHoy=snapM.docs.filter(d=>!esDocCoccion(d.data())).length;
-      nombre='Mostrador '+(ventasHoy+1);
+      nombre='MOSTRADOR '+(ventasHoy+1);
     }
   }
   // Recoge TODOS los items seleccionados (de todas las categorías, no solo la visible).
@@ -1829,15 +1853,15 @@ window.exportPedidos=function(){
     tEmp+=n.total; tBeb+=beb; tCla+=n.classicas; tSpe+=n.especiales;
     filas.push([
       o.timestamp?o.timestamp.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
-      o.cliente||'Anonimo',
-      eLabel(o.estado),
-      canalPedido(o),
-      consumoLabel(o),
+      MAY(o.cliente||'ANONIMO'),
+      MAY(eLabel(o.estado)),
+      MAY(canalPedido(o)),
+      MAY(consumoLabel(o)),
       n.classicas, n.especiales, n.total, beb,
       o.fecha||'', o.orario||'',
       o.modificado?'SÍ':'',
       o.qtyPagata||'',
-      itemsTexto(o)
+      MAY(itemsTexto(o))
     ]);
   });
   filas.push([]);
@@ -1849,12 +1873,12 @@ window.exportPedidos=function(){
     (o.items||[]).forEach(i=>{
       detalle.push([
         o.timestamp?o.timestamp.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
-        o.cliente||'Anonimo',
-        eLabel(o.estado),
-        canalPedido(o),
-        consumoLabel(o),
-        i.nombre,
-        tipoItemLabel(i),
+        MAY(o.cliente||'ANONIMO'),
+        MAY(eLabel(o.estado)),
+        MAY(canalPedido(o)),
+        MAY(consumoLabel(o)),
+        MAY(i.nombre),
+        MAY(tipoItemLabel(i)),
         parseInt(i.cantidad)||0,
         i.curcuma?'SÍ':''
       ]);
@@ -1871,7 +1895,7 @@ window.exportPedidos=function(){
   }));
   const resumen=[['Producto','Tipo','Cantidad total']];
   Object.entries(porProd).sort((a,b)=>b[1].cant-a[1].cant)
-    .forEach(([n,v])=>resumen.push([n,v.tipo,v.cant]));
+    .forEach(([n,v])=>resumen.push([MAY(n),MAY(v.tipo),v.cant]));
 
   descargarExcel(`DonSalo_Pedidos_${selloArchivo()}.xlsx`,[
     {nombre:'Pedidos',filas},
@@ -1927,8 +1951,8 @@ window.exportStats=function(){
     det.push([
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
-      o.cliente||'Anonimo', eLabel(o.estado), canalPedido(o),
-      contarEmp(o), contarBeb(o), itemsTexto(o)
+      MAY(o.cliente||'ANONIMO'), MAY(eLabel(o.estado)), MAY(canalPedido(o)),
+      contarEmp(o), contarBeb(o), MAY(itemsTexto(o))
     ]);
   });
 
@@ -1967,12 +1991,12 @@ window.exportHistorial=function(){
     filas.push([
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
-      o.cliente||'—',
-      canalLabel(o), consumoLabel(o),
+      MAY(o.cliente||'—'),
+      MAY(canalLabel(o)), MAY(consumoLabel(o)),
       n.classicas, n.especiales, n.total, beb,
       r2(costo), r2(venta), r2(venta-costo),
       o.promoPranzo?'SÍ':'',
-      eLabel(o.estado), itemsTexto(o)
+      MAY(eLabel(o.estado)), MAY(itemsTexto(o))
     ]);
   });
   filas.push([]);
@@ -1994,7 +2018,7 @@ window.exportHistorial=function(){
   const resumenCanal=[['Canal','Pedidos','Classiche','Speciali','Empanadas','Costo','Venta','Ganancia','Ganancia por empanada']];
   Object.entries(porCanal).sort((a,b)=>b[1].venta-a[1].venta).forEach(([k,v])=>{
     resumenCanal.push([
-      CANALES[k].label, v.pedidos, v.cla, v.spe, v.emp,
+      MAY(CANALES[k].label), v.pedidos, v.cla, v.spe, v.emp,
       r2(v.costo), r2(v.venta), r2(v.venta-v.costo),
       v.emp?r2((v.venta-v.costo)/v.emp):0
     ]);
@@ -2015,8 +2039,8 @@ window.exportHistorial=function(){
     (o.items||[]).forEach(i=>det.push([
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
-      o.cliente||'—', i.nombre,
-      tipoItemLabel(i),
+      MAY(o.cliente||'—'), MAY(i.nombre),
+      MAY(tipoItemLabel(i)),
       parseInt(i.cantidad)||0
     ]));
   });
@@ -2327,7 +2351,7 @@ function hRender(list){
 
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;">${hora}</td>
-      <td style="font-weight:600;">${o.cliente||'—'}${o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':''}</td>
+      <td style="font-weight:600;">${MAY(o.cliente||'—')}${o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':''}</td>
       <td style="white-space:nowrap;"><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>${takeTag}</td>
       <td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td>
       <td style="font-weight:700;text-align:center;">${ec}${desglose}</td>
@@ -3153,9 +3177,30 @@ window.openCocModal=function(){
   document.getElementById('coc-modal-fecha').value=cocHoy();
   document.getElementById('coc-modal-counter').textContent='0';
   document.getElementById('coc-modal-detalle').textContent='';
-  cocRenderModal();
   document.getElementById('coc-modal-overlay').classList.add('show');
+  // El límite para cocinar sale del stock, así que hay que tenerlo cargado
+  if(stockAllData.length===0){
+    cocRenderModal();
+    getDocs(query(collection(db,'stock'))).then(snap=>{
+      stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
+      cocRenderModal();
+    }).catch(()=>cocRenderModal());
+  }else{
+    cocRenderModal();
+  }
 };
+
+// Cuántas se pueden cocinar de un sabor.
+// El stock incluye las que ya están cocinadas, así que lo que queda CRUDO
+// (y por lo tanto cocinable) es: stock − cocinadas.
+// Devuelve null si todavía no se cargó el stock: en ese caso no se bloquea nada.
+function cocMaxCocinable(nombre){
+  if(!stockAllData.length) return null;
+  const calc=stockCalcBySabor(stockDataHastaHoy());
+  const enStock=Math.max(0, calc[nombre]?.stock || 0);
+  const cocinadas=(cocCalculado[nombre]||{}).total || 0;
+  return Math.max(0, enStock - cocinadas);
+}
 window.closeCocModal=function(){ document.getElementById('coc-modal-overlay').classList.remove('show'); };
 
 function cocRenderModal(){
@@ -3164,12 +3209,24 @@ function cocRenderModal(){
   const card=e=>{
     const q=cocQ[e.nombre]||0;
     const disp=(cocCalculado[e.nombre]||{}).total||0;
+    const max=cocMaxCocinable(e.nombre);          // null = stock no cargado todavía
+    const sinCrudas = max!==null && max<=0;       // no hay nada para cocinar
+    const alTope   = max!==null && q>=max;        // ya llegó al máximo
     const tipo=tipoDe(e);
-    const cls='coc-modal-card'+(tipo==='speciale'?' t-speciale':'')+(q>0?' selected':'');
-    return `<div class="${cls}" onclick="cocChg('${String(e.nombre).replace(/'/g,"\\'")}',1)">
-      <button class="modal-card-minus" style="${q>0?'display:flex;':''}" onclick="event.stopPropagation();cocChg('${String(e.nombre).replace(/'/g,"\\'")}',-1)">−</button>
+    const cls='coc-modal-card'+(tipo==='speciale'?' t-speciale':'')
+             +(q>0?' selected':'')+(sinCrudas?' sin-stock':'');
+    const nomEsc=String(e.nombre).replace(/'/g,"\\'");
+    const clickFn = sinCrudas ? '' : `onclick="cocChg('${nomEsc}',1)"`;
+    const infoCrudas = max===null
+      ? '<span class="modal-card-stock">…</span>'
+      : sinCrudas
+        ? '<span class="modal-card-stock sin">sin stock</span>'
+        : `<span class="modal-card-stock${alTope?' tope':''}">crudas ${max}</span>`;
+    return `<div class="${cls}" ${clickFn}>
+      <button class="modal-card-minus" style="${q>0?'display:flex;':''}" onclick="event.stopPropagation();cocChg('${nomEsc}',-1)">−</button>
       <div class="modal-card-name">${e.nombre}</div>
-      <div class="modal-card-footer"><span class="modal-card-stock">tenés ${disp}</span><span class="modal-card-qty${q>0?' has-qty':''}">${q}</span></div>
+      <div class="coc-card-cocinadas">cocinadas: ${disp}</div>
+      <div class="modal-card-footer">${infoCrudas}<span class="modal-card-qty${q>0?' has-qty':''}">${q}</span></div>
     </div>`;
   };
   const clas=EMP.filter(e=>tipoDe(e)==='classica');
@@ -3180,7 +3237,13 @@ function cocRenderModal(){
   cont.innerHTML=h;
 }
 window.cocChg=function(sabor,d){
-  cocQ[sabor]=Math.max(0,(cocQ[sabor]||0)+d);
+  const actual=cocQ[sabor]||0;
+  if(d>0){
+    // No se puede cocinar más de lo que hay crudo en stock
+    const max=cocMaxCocinable(sabor);
+    if(max!==null && actual>=max) return;
+  }
+  cocQ[sabor]=Math.max(0,actual+d);
   if(cocQ[sabor]===0) delete cocQ[sabor];
   let c=0,s=0;
   EMP.forEach(e=>{
@@ -3198,6 +3261,17 @@ window.guardarCoccion=async function(){
   if(!fecha){ alert('Elegí la fecha de cocción.'); return; }
   const sel=Object.entries(cocQ).filter(([,q])=>q>0);
   if(!sel.length){ alert('Marcá cuántas vas a cocinar.'); return; }
+  // Revalidar contra el stock: pudo cambiar mientras el modal estaba abierto
+  const excedidos=sel.filter(([sabor,q])=>{
+    const max=cocMaxCocinable(sabor);
+    return max!==null && q>max;
+  });
+  if(excedidos.length){
+    alert('No hay suficientes empanadas crudas en stock:\n\n'+
+      excedidos.map(([s,q])=>`${s}: querés cocinar ${q} y hay ${cocMaxCocinable(s)}`).join('\n'));
+    cocRenderModal();
+    return;
+  }
   const btn=document.getElementById('coc-modal-save-btn');
   btn.disabled=true; btn.textContent='Guardando...';
   try{
@@ -3259,7 +3333,7 @@ function cocImprimirTicket(sel,fecha){
   const total=suma(clas)+suma(spec);
   const w=window.open('','_blank','width=400,height=600');
   w.document.write(`<html><head><title>Da cucinare</title><style>
-    body{font-family:monospace;padding:20px;font-size:14px;}
+    body{font-family:monospace;padding:20px;font-size:14px;text-transform:uppercase;}
     h2{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:10px;font-size:18px;}
     .tit{border:2px solid #000;text-align:center;font-weight:bold;font-size:16px;padding:8px;margin-bottom:12px;letter-spacing:1px;}
     .sec{margin-top:12px;margin-bottom:4px;font-weight:bold;font-size:15px;border-bottom:1px solid #000;padding-bottom:3px;letter-spacing:1px;}
