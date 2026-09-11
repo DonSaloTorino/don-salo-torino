@@ -3032,6 +3032,11 @@ async function cocCorrerControles(){
       resumen.total+=r.total;
       resumen.detalle.push(...r.detalle);
       resumen.turnos.push(c.label);
+      // IMPRESCINDIBLE: releer antes del siguiente control.
+      // Si no se recalcula, el control de las 22:30 vuelve a ver el mismo
+      // faltante que ya cubrió el de las 15:00 y lo registra DOS VECES,
+      // dejando empanadas cocinadas fantasma al día siguiente.
+      await cocRecargarSilencioso();
     }
   }
   return resumen;
