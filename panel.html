@@ -524,7 +524,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 }
 .aviso-perdida{background:#7f1d1d;}
 .aviso-coccion{background:#9a3412;}
-.aviso-det{font-size:12px;opacity:0.85;margin-top:3px;line-height:1.5;}
+.aviso-det{font-size:12px;opacity:0.85;margin-top:6px;line-height:1.6;max-height:220px;overflow-y:auto;padding-right:6px;}
+.aviso-det.plegado{display:none;}
 .aviso-btn{
   padding:7px 16px;background:#fff;color:#111;border:none;border-radius:6px;
   font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
@@ -3267,13 +3268,14 @@ function cocMostrarAviso(recon,perdidas){
   if(recon && recon.total>0){
     const lineas=recon.detalle.map(d=>`${d.sabor}: ${d.cantidad} (${d.fecha})`).join(' · ');
     h+=`<div class="aviso-box aviso-coccion">
-      <div>
+      <div style="flex:1;min-width:220px;">
         <strong>🍳 Se registraron ${recon.total} empanadas como cocinadas</strong>
-        <div class="aviso-det">Se vendieron sin estar cargadas — control de las ${recon.turnos.join(' y ')}</div>
-        <div class="aviso-det">${lineas}</div>
+        <div class="aviso-det plegado" id="aviso-det-coc">
+          Se vendieron sin estar cargadas — control de las ${recon.turnos.join(' y ')}<br>${lineas}
+        </div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
-        <button class="aviso-btn" onclick="switchTab('coccion');cocCerrarAviso();">Ver detalle</button>
+        <button class="aviso-btn" onclick="toggleDetalleAviso('aviso-det-coc',this)">Ver detalle</button>
         <button class="aviso-x" onclick="cocCerrarAviso()">✕</button>
       </div>
     </div>`;
@@ -3283,13 +3285,14 @@ function cocMostrarAviso(recon,perdidas){
       .map(d=>`${d.sabor}: ${d.cantidad} (cocinadas el ${d.fechaCoccion}, ${d.dias} días)`)
       .join(' · ');
     h+=`<div class="aviso-box aviso-perdida">
-      <div>
+      <div style="flex:1;min-width:220px;">
         <strong>⚫ Se registraron ${perdidas.total} empanadas como COTTA NON VENDUTA</strong>
-        <div class="aviso-det">${lineas}</div>
-        <div class="aviso-det">Ya se descontaron del stock.</div>
+        <div class="aviso-det plegado" id="aviso-det-per">
+          Ya se descontaron del stock.<br>${lineas}
+        </div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
-        <button class="aviso-btn" onclick="switchTab('coccion');cocCerrarAviso();">Ver detalle</button>
+        <button class="aviso-btn" onclick="toggleDetalleAviso('aviso-det-per',this)">Ver detalle</button>
         <button class="aviso-x" onclick="cocCerrarAviso()">✕</button>
       </div>
     </div>`;
@@ -3301,6 +3304,15 @@ function cocMostrarAviso(recon,perdidas){
 window.cocCerrarAviso=function(){
   const c=document.getElementById('aviso-perdidas');
   if(c){ c.style.display='none'; c.innerHTML=''; }
+};
+// El aviso muestra solo el renglón principal. El detalle se despliega a pedido,
+// porque con muchos días acumulados la lista tapaba media pantalla.
+window.toggleDetalleAviso=function(id,btn){
+  const d=document.getElementById(id);
+  if(!d) return;
+  const abierto=!d.classList.contains('plegado');
+  d.classList.toggle('plegado', abierto);
+  btn.textContent = abierto ? 'Ver detalle' : 'Ocultar detalle';
 };
 
 // FIFO por sabor: devuelve los lotes que siguen vivos, con su fecha de cocción
