@@ -937,7 +937,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <label class="modal-label">Sabor</label>
     <select class="modal-input" id="stock-modal-sabor" style="cursor:pointer;"></select>
     <label class="modal-label" style="margin-top:12px;">Cantidad</label>
-    <input class="modal-input" id="stock-modal-cantidad" type="number" min="1" placeholder="Ej: 50" style="margin-bottom:12px;"/>
+    <input class="modal-input" id="stock-modal-cantidad" type="number" min="0" placeholder="Ej: 50" style="margin-bottom:12px;"/>
     <label class="modal-label">Tipo</label>
     <select class="modal-input" id="stock-modal-tipo" style="cursor:pointer;margin-bottom:12px;">
       <option value="entrada">🟢 Entrada (llega mercadería)</option>
@@ -2900,7 +2900,17 @@ window.guardarStock=async function(){
   const cantidad=parseInt(document.getElementById('stock-modal-cantidad').value);
   const fecha=document.getElementById('stock-modal-fecha').value;
   const tipo=document.getElementById('stock-modal-tipo').value;
-  if(!sabor||!cantidad||cantidad<=0){alert('Completá sabor y cantidad.');return;}
+  // El 0 es válido en un AJUSTE: significa "no tengo ninguna".
+  // En una entrada o una devolución, en cambio, no tiene sentido.
+  const esAjuste = (tipo==='ajuste');
+  if(!sabor){ alert('Elegí un sabor.'); return; }
+  if(isNaN(cantidad) || cantidad<0){
+    alert('Poné una cantidad válida.'); return;
+  }
+  if(!esAjuste && cantidad===0){
+    alert('La cantidad tiene que ser mayor a 0.\n\nSi lo que querés es dejar el stock en cero, elegí el tipo AJUSTE.');
+    return;
+  }
   const btn=document.getElementById('stock-modal-save-btn');
   btn.disabled=true;btn.textContent='Guardando...';
   try{
