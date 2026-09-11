@@ -312,6 +312,24 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .stock-add-btn:hover{background:#333;}
 .stock-alerts{margin-bottom:16px;}
 .stock-alert{background:#fee2e2;color:#991b1b;padding:8px 16px;border-radius:8px;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.stock-alert.neg{background:#7f1d1d;color:#fff;padding:12px 18px;line-height:1.6;align-items:flex-start;}
+.stock-alert.neg strong{color:#fff;}
+.stock-bar-fill.neg{background:repeating-linear-gradient(45deg,#7f1d1d,#7f1d1d 6px,#991b1b 6px,#991b1b 12px);}
+/* Auditoría del cálculo de stock */
+.calc-resumen{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.calc-resumen>div{background:#f5f5f3;border-radius:8px;padding:8px 14px;min-width:92px;}
+.calc-resumen>div.malo{background:#7f1d1d;color:#fff;}
+.calc-resumen span{display:block;font-size:9px;letter-spacing:2px;color:#aaa;}
+.calc-resumen>div.malo span{color:rgba(255,255,255,0.6);}
+.calc-resumen b{font-size:20px;}
+.calc-aviso{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:9px 14px;font-size:12px;line-height:1.5;margin-bottom:8px;}
+.calc-aviso.malo{background:#fee2e2;border-color:#fca5a5;color:#991b1b;font-weight:600;}
+.calc-tabla{width:100%;border-collapse:collapse;font-size:12px;}
+.calc-tabla th{background:#f5f5f3;color:#aaa;font-size:10px;letter-spacing:1px;padding:8px 10px;text-align:left;font-weight:500;position:sticky;top:0;}
+.calc-tabla td{padding:7px 10px;border-top:0.5px solid #f0f0f0;}
+.calc-tabla tr.calc-ajuste td{background:#f3f4f6;font-weight:600;}
+.calc-tabla tr.calc-neg td{background:#fff5f5;}
+.calc-nota{font-size:10px;color:#6b7280;font-weight:400;margin-top:2px;}
 .stock-chart-wrap{background:#fff;border-radius:10px;border:1px solid #eee;padding:20px;margin-bottom:20px;}
 .stock-chart-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#aaa;margin-bottom:16px;}
 .stock-bar-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:0.5px solid #f5f5f5;}
@@ -689,6 +707,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </select>
     <button class="stock-btn" onclick="stockApplyFilter()">Ver</button>
     <button class="stock-btn stock-btn-sec" onclick="stockResetFilter()">Reset</button>
+    <button class="stock-btn" style="background:#7e22ce;" onclick="stockVerCalculo()">🔍 Ver cálculo</button>
     <button class="xls-btn small" onclick="exportStock()">📊 Excel</button>
   </div>
   <!-- Tabla movimientos -->
@@ -743,6 +762,22 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </table>
   </div>
   <div class="coc-nota" id="coc-nota"></div>
+</div>
+
+<!-- MODAL: AUDITORÍA DEL CÁLCULO DE UN SABOR -->
+<div class="modal-overlay no-print" id="calc-modal-overlay">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-top">
+      <div class="modal-top-row">
+        <div class="modal-title" id="calc-modal-title">🔍 Cálculo del stock</div>
+        <button class="modal-cancel" onclick="cerrarCalculo()">Cerrar</button>
+      </div>
+      <div id="calc-modal-resumen"></div>
+    </div>
+    <div class="modal-scroll">
+      <div id="calc-modal-body"></div>
+    </div>
+  </div>
 </div>
 
 <!-- COCCIÓN MODAL -->
@@ -2596,9 +2631,22 @@ function stockDataHastaHoy(sourceData){
 function stockRenderAlerts(sourceData){
   const bySabor=stockCalcBySabor(sourceData);
   const umbral=parseInt(document.getElementById('stock-umbral-input')?.value)||20;
-  const alerts=Object.entries(bySabor).filter(([,v])=>v.stock>0&&v.stock<=umbral);
   const div=document.getElementById('stock-alerts');
-  div.innerHTML=alerts.map(([sabor,v])=>`<div class="stock-alert">⚠️ <strong>${sabor}</strong>: solo ${v.stock} unidades</div>`).join('');
+  let h='';
+  // Primero los negativos: son el problema grave. Significa que se vendió más
+  // de lo que figura cargado, y hasta que no se ajuste, cualquier entrada nueva
+  // se "come" para tapar ese pozo en vez de sumar.
+  const negativos=Object.entries(bySabor).filter(([,v])=>v.stock<0);
+  if(negativos.length){
+    const detalle=negativos.map(([s,v])=>`${s}: ${v.stock}`).join(' · ');
+    h+=`<div class="stock-alert neg">
+      <span>🚨 <strong>${negativos.length} ${negativos.length===1?'sabor está':'sabores están'} en NEGATIVO</strong> — ${detalle}<br>
+      <span style="font-size:12px;opacity:0.85;">Se vendió más de lo cargado. Si cargás mercadería, primero tapa este pozo y recién después sube. Conviene corregirlo con un AJUSTE al número real que tenés.</span></span>
+    </div>`;
+  }
+  const alerts=Object.entries(bySabor).filter(([,v])=>v.stock>0&&v.stock<=umbral);
+  h+=alerts.map(([sabor,v])=>`<div class="stock-alert">⚠️ <strong>${sabor}</strong>: solo ${v.stock} unidades</div>`).join('');
+  div.innerHTML=h;
 }
 
 let stockChartEntries=[];
@@ -2609,13 +2657,21 @@ function stockRenderChart(sourceData){
   stockChartEntries=entries; // guardado para exportar a Excel lo mismo que se ve
   const max=Math.max(...entries.map(([,v])=>Math.max(0,v.stock)),1);
   chartDiv.innerHTML=entries.map(([sabor,v])=>{
-    const s=Math.max(0,v.stock);
+    // Se muestra el número REAL, también cuando es negativo.
+    // Antes se tapaba con Math.max(0,...) y un sabor en −15 se veía como 0:
+    // cargabas mercadería y el número no se movía, sin saber por qué.
+    const real=v.stock||0;
+    const s=Math.max(0,real);
     const pct=Math.round(s/max*100);
-    const color=s===0?'#e5e7eb':s<20?'#ef4444':s<50?'#f59e0b':'#111';
+    const color = real<0 ? '#7f1d1d' : s===0?'#e5e7eb':s<20?'#ef4444':s<50?'#f59e0b':'#111';
+    const etiqueta = real<0 ? `${real} ⚠` : String(s);
+    const barra = real<0
+      ? '<div class="stock-bar-fill neg" style="width:100%;"></div>'
+      : `<div class="stock-bar-fill" style="width:${pct}%;background:${color};"></div>`;
     return`<div class="stock-bar-row">
       <div class="stock-bar-label">${sabor}</div>
-      <div class="stock-bar-track"><div class="stock-bar-fill" style="width:${pct}%;background:${color};"></div></div>
-      <div class="stock-bar-val" style="color:${color};">${s}</div>
+      <div class="stock-bar-track">${barra}</div>
+      <div class="stock-bar-val" style="color:${color};font-weight:700;">${etiqueta}</div>
     </div>`;
   }).join('');
 }
@@ -2641,8 +2697,94 @@ window.stockApplyFilter=async function(){
   stockRenderTable(data);
 };
 
-window.stockResetFilter=function(){
-  document.getElementById('stock-filter-sabor').value='';
+// ═══════════════════════════════════════════════════════
+//  AUDITORÍA DEL CÁLCULO DE STOCK
+//  Rehace el cálculo de un sabor movimiento por movimiento, en el mismo orden
+//  que usa el sistema, mostrando el saldo después de cada uno. Sirve para ver
+//  exactamente en qué momento y por qué un sabor se va a negativo.
+// ═══════════════════════════════════════════════════════
+window.stockVerCalculo=function(){
+  const sabor=document.getElementById('stock-filter-sabor').value;
+  if(!sabor){ alert('Elegí primero un sabor en el filtro de la izquierda y después tocá Ver cálculo.'); return; }
+  if(!stockAllData.length){ alert('Todavía no cargaron los datos de stock.'); return; }
+
+  // Mismos datos y mismo orden que usa el cálculo real
+  const datos=stockDataHastaHoy(stockAllData).filter(e=>e.sabor===sabor);
+  const orden=[...datos].sort((a,b)=>{
+    const fa=a.fecha||'', fb=b.fecha||'';
+    if(fa!==fb) return fa.localeCompare(fb);
+    return (a.timestamp?.seconds||0)-(b.timestamp?.seconds||0);
+  });
+
+  const etiq={entrada:'🟢 ENTRADA',venta:'🔴 VENTA',ajuste:'⚪ AJUSTE',
+              devolucion:'🔵 DEVOLUCIÓN',[TIPO_PERDIDA]:'⚫ '+LABEL_PERDIDA};
+  let entrada=0, venta=0, totalEnt=0, totalSal=0, nAjustes=0;
+  let primerNeg=null, filas='';
+
+  orden.forEach((e,i)=>{
+    const q=parseInt(e.cantidad)||0;
+    let mov='', nota='';
+    if(e.tipo==='ajuste'){
+      nAjustes++;
+      entrada=q; venta=0;
+      mov='= '+q;
+      nota='<div class="calc-nota">Reinicia el cálculo: borra todo lo anterior y fija el stock en '+q+'</div>';
+    }else if(e.tipo==='entrada'){
+      entrada+=q; totalEnt+=q; mov='+ '+q;
+    }else{
+      venta+=q; totalSal+=q; mov='− '+q;
+    }
+    const saldo=entrada-venta;
+    if(saldo<0 && primerNeg===null) primerNeg={i:i+1, fecha:e.fecha, saldo};
+    // Hora de carga, para entender el orden dentro de un mismo día
+    const hora=e.timestamp?.seconds
+      ? new Date(e.timestamp.seconds*1000).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+      : '—';
+    filas+=`<tr class="${e.tipo==='ajuste'?'calc-ajuste':''}${saldo<0?' calc-neg':''}">
+      <td>${i+1}</td>
+      <td style="white-space:nowrap;">${e.fecha||'—'}</td>
+      <td>${etiq[e.tipo]||e.tipo}${nota}</td>
+      <td style="text-align:right;font-weight:600;white-space:nowrap;">${mov}</td>
+      <td style="text-align:right;font-weight:700;${saldo<0?'color:#991b1b;':''}">${saldo}</td>
+      <td style="white-space:nowrap;color:#bbb;font-size:11px;">${hora}</td>
+    </tr>`;
+  });
+
+  const saldoFinal=entrada-venta;
+  document.getElementById('calc-modal-title').textContent='🔍 '+sabor;
+
+  let resumen=`<div class="calc-resumen">
+    <div><span>Movimientos</span><b>${orden.length}</b></div>
+    <div><span>Entradas</span><b>+${totalEnt}</b></div>
+    <div><span>Salidas</span><b>−${totalSal}</b></div>
+    <div><span>Ajustes</span><b>${nAjustes}</b></div>
+    <div class="${saldoFinal<0?'malo':''}"><span>Saldo final</span><b>${saldoFinal}</b></div>
+  </div>`;
+  if(nAjustes>0){
+    resumen+=`<div class="calc-aviso">⚪ Hay ${nAjustes} ajuste${nAjustes>1?'s':''}. Un ajuste BORRA todo lo cargado antes.
+      Si cargaste una entrada con fecha anterior a un ajuste, esa entrada no cuenta.</div>`;
+  }
+  if(primerNeg){
+    resumen+=`<div class="calc-aviso malo">🚨 El saldo se va a negativo en el movimiento ${primerNeg.i} (${primerNeg.fecha}), quedando en ${primerNeg.saldo}.
+      A partir de ahí faltan entradas cargadas: se vendió más de lo que figura cargado.</div>`;
+  }
+  document.getElementById('calc-modal-resumen').innerHTML=resumen;
+
+  document.getElementById('calc-modal-body').innerHTML = orden.length
+    ? `<table class="calc-tabla">
+        <thead><tr><th>#</th><th>Fecha</th><th>Tipo</th><th style="text-align:right;">Mov.</th><th style="text-align:right;">Saldo</th><th>Cargado</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>`
+    : '<div style="text-align:center;color:#bbb;padding:30px;">Este sabor no tiene ningún movimiento cargado</div>';
+
+  document.getElementById('calc-modal-overlay').classList.add('show');
+};
+window.cerrarCalculo=function(){ document.getElementById('calc-modal-overlay').classList.remove('show'); };
+document.getElementById('calc-modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('calc-modal-overlay')) cerrarCalculo();
+});
+
+window.stockResetFilter=function(){  document.getElementById('stock-filter-sabor').value='';
   document.getElementById('stock-filter-from').value='';
   document.getElementById('stock-filter-to').value='';
   document.getElementById('stock-filter-tipo').value='';
@@ -3418,11 +3560,27 @@ window.guardarCoccion=async function(){
   const btn=document.getElementById('coc-modal-save-btn');
   btn.disabled=true; btn.textContent='Guardando...';
   try{
-    // 1) Registro real en el control de cocción (uno por sabor)
+    // 1) Si el sistema ya había anotado una cocción AUTO para ese sabor y esa fecha,
+    //    se borra. Esa anotación era una suposición para cubrir ventas sin cocción
+    //    registrada; la carga manual es la real y la reemplaza.
+    //    Si después de esto todavía falta algo, el próximo control lo vuelve a
+    //    anotar con el número correcto. Sin esto se sumaban las dos y quedaban
+    //    empanadas cocinadas fantasma.
+    await Promise.all(sel.flatMap(([sabor])=>
+      COC_CONTROLES.map(ctrl=>{
+        const idAuto='auto_'+(sabor+'_'+fecha).replace(/[^a-zA-Z0-9]/g,'_')+'_'+ctrl.turno;
+        return deleteDoc(doc(db,'cocciones',idAuto)).catch(()=>{});
+      })
+    ));
+    // Se habilitan de nuevo los controles del día: si al recalcular sigue
+    // faltando algo, que lo pueda anotar en el acto.
+    cocControlesHechos.clear();
+
+    // 2) Registro real en el control de cocción (uno por sabor)
     await Promise.all(sel.map(([sabor,cantidad])=>
       addDoc(collection(db,'cocciones'),{sabor,cantidad,fecha,tipo:'coccion',timestamp:serverTimestamp()})
     ));
-    // 2) Ticket para la Munbyn: se mete en "pedidos" porque es lo único que la app
+    // 3) Ticket para la Munbyn: se mete en "pedidos" porque es lo único que la app
     //    imprime sola, pero va marcado con tipoDoc:'coccion' y queda excluido de
     //    ventas, stats, historial, stock y del propio cálculo de cocción.
     await enviarTicketCocinaAImpresora(sel,fecha);
