@@ -452,6 +452,21 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .hist-subtotal td{background:#eeeeec;color:#333;font-weight:600;border-top:1px solid #d8d8d4;font-size:13px;}
 .hist-subtotal td.money{color:#333;}
 .hist-subtotal td:first-child{letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#666;}
+/* Promos del modal */
+.promo-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.promo-item{border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:8px 12px;min-width:118px;}
+.promo-item.on{border-color:#f59e0b;background:#fef3c7;box-shadow:0 0 0 2px rgba(245,158,11,0.18);}
+.promo-item-top{font-size:11px;font-weight:700;color:#92400e;letter-spacing:0.3px;}
+.promo-item-precio{font-size:12px;color:#b45309;margin-top:1px;}
+.promo-item-ctrl{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:5px;}
+.promo-item-ctrl button{width:24px;height:24px;border-radius:6px;border:1px solid #fcd34d;background:#fff;color:#92400e;font-size:15px;line-height:1;cursor:pointer;padding:0;}
+.promo-item-ctrl button:hover{background:#fde68a;}
+.promo-item-num{font-size:16px;font-weight:700;color:#92400e;min-width:18px;text-align:center;}
+/* Precio en vivo del modal */
+.modal-precio-box{background:#065f46;color:#fff;border-radius:8px;padding:6px 12px;text-align:center;flex-shrink:0;min-width:96px;}
+.modal-precio-num{font-size:18px;font-weight:700;line-height:1.2;white-space:nowrap;}
+.modal-precio-aviso{font-size:9px;opacity:0.75;letter-spacing:0.3px;margin-top:1px;min-height:11px;line-height:1.3;}
+.modal-precio-aviso.malo{color:#fecaca;opacity:1;font-weight:700;}
 .promo-tag{font-size:9px;background:#fffbeb;color:#92400e;padding:1px 6px;border-radius:10px;letter-spacing:1px;margin-left:4px;}
 
 /* ── CLASSICHE vs SPECIALI ── */
@@ -930,6 +945,11 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
           <div class="modal-counter-num" id="modal-emp-counter">0</div>
           <div class="modal-counter-det" id="modal-emp-detalle"></div>
         </div>
+        <div class="modal-precio-box">
+          <div class="modal-counter-label">Precio</div>
+          <div class="modal-precio-num" id="modal-precio-num">—</div>
+          <div class="modal-precio-aviso" id="modal-precio-aviso"></div>
+        </div>
         <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
         <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmarManual()">Confirmar →</button>
       </div>
@@ -969,12 +989,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         </div>
       </div>
 
-      <!-- Fila 5: Promo Pranzo — solo visible en Mostrador -->
+      <!-- Fila 5: Promos — solo visibles en Mostrador. Se pueden combinar y repetir -->
       <div class="modal-promo-row" id="modal-promo-row">
-        <label class="promo-check">
-          <input type="checkbox" id="modal-promo-pranzo"/>
-          <span>🍽️ Promo Pranzo — 3 empanadas 10,50</span>
-        </label>
+        <label class="modal-label">Promos <span style="text-transform:none;letter-spacing:0;color:#bbb;">(se pueden combinar)</span></label>
+        <div class="promo-btns" id="promo-btns"></div>
       </div>
 
       <!-- Fila 6: tabs categoría -->
@@ -1112,27 +1130,76 @@ function soloPedidos(arr){ return (arr||[]).filter(o=>!esDocCoccion(o)); }
 function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esConsumoInterno(o) && !esDevolucionProveedor(o)); }
 
 // ═══════════════════════════════════════════════════════
-//  CANALES, TIPOS DE EMPANADA, COSTOS Y PRECIOS
+//  LISTAS DE PRECIOS CON VIGENCIA
+//  Cada pedido se cobra con la lista que regía EL DÍA QUE ENTRÓ.
+//  Por eso un cambio de precios no toca ni un número del historial viejo:
+//  las listas anteriores quedan acá para siempre.
+//  Las listas van de la más nueva a la más vieja.
 // ═══════════════════════════════════════════════════════
 const COSTO_EMPANADA = 2.20;   // costo por empanada, IVA incluido (igual para classiche y speciali)
 
-// Precio por unidad según la CANTIDAD TOTAL de empanadas del pedido.
-// Se suma todo para saber en qué tramo cae, y después cada empanada
-// se cobra al precio de SU tipo dentro de ese tramo.
-const TRAMOS = [
-  {min:1,  max:5,        classica:3.80, speciale:4.00, label:'1–5'},
-  {min:6,  max:8,        classica:3.75, speciale:3.95, label:'6–8'},
-  {min:9,  max:11,       classica:3.70, speciale:3.90, label:'9–11'},
-  {min:12, max:Infinity, classica:3.65, speciale:3.85, label:'12+'}
+const LISTAS_PRECIOS = [
+  {
+    desde: '2026-09-14',
+    nombre: 'Desde el 14/09/2026',
+    // Sueltas: el precio por unidad depende de la cantidad TOTAL de empanadas
+    tramos: [
+      {min:1, max:8,        classica:4.00, speciale:4.50, label:'1–8'},
+      {min:9, max:Infinity, classica:3.80, speciale:4.30, label:'9+'}
+    ],
+    // Promos de mostrador. Se pueden combinar y repetir.
+    promos: {
+      duoAgua:   {label:'2 + Agua',   corto:'DUO AGUA',   cant:2, precio:9.50, conBebida:true},
+      duoBebida: {label:'2 + Bebida', corto:'DUO BEBIDA', cant:2, precio:9.99, conBebida:true},
+      pranzo:    {label:'Pranzo 3',   corto:'PRANZO',     cant:3, precio:11.49}
+    },
+    // Delivery: SOLO combos, sin unidades sueltas. Gustos a elección.
+    combosDelivery: [
+      {n:6,  precio:38.00, label:'Per Due'},
+      {n:9,  precio:55.00, label:'Per Tre'},
+      {n:12, precio:72.00, label:'La Famiglia'}
+    ]
+  },
+  {
+    desde: '0000-01-01',
+    nombre: 'Hasta el 13/09/2026',
+    tramos: [
+      {min:1,  max:5,        classica:3.80, speciale:4.00, label:'1–5'},
+      {min:6,  max:8,        classica:3.75, speciale:3.95, label:'6–8'},
+      {min:9,  max:11,       classica:3.70, speciale:3.90, label:'9–11'},
+      {min:12, max:Infinity, classica:3.65, speciale:3.85, label:'12+'}
+    ],
+    promos: {
+      pranzo: {label:'Pranzo 3', corto:'PRANZO', cant:3, precio:10.50}
+    },
+    // El delivery viejo se cobraba por unidad, sin combos
+    deliveryPorUnidad: { classica:4.75, speciale:4.85 }
+  }
 ];
-const PROMO_PRANZO = 10.50;  // 3 empanadas de cualquier tipo · UNA sola por pedido
-const PROMO_CANT   = 3;
-// Delivery: precio fijo por empanada, según tipo
-const PRECIO_DELIVERY = { classica:4.75, speciale:4.85 };
 
-// Tramo que corresponde a una cantidad
-function tramoPara(qty){
-  return TRAMOS.find(t=>qty>=t.min && qty<=t.max) || TRAMOS[TRAMOS.length-1];
+// Fecha del pedido en formato YYYY-MM-DD (la del momento en que entró)
+function fechaDePedido(o){
+  if(o && o.timestamp && o.timestamp.toDate){
+    const d=o.timestamp.toDate();
+    const p=x=>String(x).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }
+  if(o && o.fecha) return String(o.fecha);
+  return new Date().toISOString().split('T')[0];
+}
+// Lista vigente en una fecha
+function listaEnFecha(fecha){
+  return LISTAS_PRECIOS.find(l=>String(fecha)>=l.desde) || LISTAS_PRECIOS[LISTAS_PRECIOS.length-1];
+}
+// Lista que le corresponde a un pedido
+function listaDePedido(o){ return listaEnFecha(fechaDePedido(o)); }
+// Lista vigente hoy (la que se usa al cargar un pedido nuevo)
+function listaHoy(){ return listaEnFecha(new Date().toISOString().split('T')[0]); }
+
+// Tramo que corresponde a una cantidad, dentro de una lista
+function tramoPara(qty, lista){
+  const L=lista||listaHoy();
+  return L.tramos.find(t=>qty>=t.min && qty<=t.max) || L.tramos[L.tramos.length-1];
 }
 
 // Clasificación de respaldo: se usa para pedidos viejos y para cuando
@@ -1152,7 +1219,8 @@ const TIPO_FALLBACK = {
   'PARMIGIANA':'speciale',
   'POLLO — CURCUMA':'speciale',
   'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO':'speciale',
-  'VACIO (BAVETTA)':'speciale'
+  'VACIO (BAVETTA)':'speciale',
+  'BONDIOLA ALLA BIRRA':'speciale'
 };
 // Tipo de un sabor por nombre: primero la lista viva de Firestore, después el respaldo
 function tipoDeSabor(nombre){
@@ -1216,29 +1284,102 @@ function contarPorTipo(o){
   return {classicas:c, especiales:s, total:c+s};
 }
 
-// Precio de mostrador / QR / web.
-// La Promo Pranzo se aplica UNA sola vez: cubre 3 empanadas de cualquier tipo por 10,50.
-// La promo se llena primero con las classiche, así la que sobra conserva su precio
-// (3 classiche + 1 speciale = 10,50 + 4,00). El resto se cobra según el tramo de ESE resto.
-function precioSinPromo(c, s){
+// Precio de las empanadas sueltas, según el tramo de esa cantidad
+function precioSinPromo(c, s, lista){
   const resto = c+s;
   if(resto<=0) return 0;
-  const t = tramoPara(resto);
+  const t = tramoPara(resto, lista);
   return c*t.classica + s*t.speciale;
 }
-function precioMostrador(nClass, nSpec, promo){
+
+// Etiqueta corta de las promos de un pedido, para badges y tickets
+function promosLabel(o){
+  const p=promosDePedido(o);
+  const L=listaDePedido(o);
+  const partes=[];
+  Object.entries(p).forEach(([k,n])=>{
+    const def=(L.promos&&L.promos[k])||(LISTAS_PRECIOS[0].promos&&LISTAS_PRECIOS[0].promos[k]);
+    const nom=def?def.corto:k.toUpperCase();
+    partes.push(n>1 ? `${nom} x${n}` : nom);
+  });
+  return partes.join(' · ');
+}
+
+// Lee las promos de un pedido. Los pedidos nuevos guardan {duoAgua:1, pranzo:1};
+// los viejos solo tenían promoPranzo:true, y se leen igual.
+function promosDePedido(o){
+  if(o && o.promos && typeof o.promos==='object'){
+    const r={};
+    Object.entries(o.promos).forEach(([k,v])=>{ const n=parseInt(v)||0; if(n>0) r[k]=n; });
+    return r;
+  }
+  if(o && o.promoPranzo===true) return {pranzo:1};
+  return {};
+}
+
+// Precio de mostrador / QR / web.
+// Se pueden combinar promos y repetirlas: 2 DUO, o un DUO más un PRANZO.
+// Las promos se llenan primero con las classiche, así las que sobran conservan
+// su precio. El resto se cobra según el tramo que le corresponda a ESE resto.
+function precioMostrador(nClass, nSpec, promos, lista){
+  const L = lista || listaHoy();
   const c0=nClass||0, s0=nSpec||0;
-  const base = precioSinPromo(c0, s0);
-  if(!promo || (c0+s0)<PROMO_CANT) return base;
-  // Con promo: 10,50 por 3 empanadas + el resto según su propio tramo
-  let c=c0, s=s0, quedan=PROMO_CANT;
+  const base = precioSinPromo(c0, s0, L);
+  const p = promos || {};
+
+  let cubiertas=0, precioPromos=0, hayBebida=false;
+  Object.entries(p).forEach(([clave,veces])=>{
+    const def=L.promos && L.promos[clave];
+    const n=parseInt(veces)||0;
+    if(!def || n<=0) return;
+    cubiertas   += def.cant*n;
+    precioPromos += def.precio*n;
+    if(def.conBebida) hayBebida=true;
+  });
+  if(cubiertas===0) return base;
+  // No puede haber más empanadas en promo que empanadas en el pedido
+  if(cubiertas > c0+s0) return base;
+
+  let c=c0, s=s0, quedan=cubiertas;
   const usaC = Math.min(c, quedan); c -= usaC; quedan -= usaC;
   const usaS = Math.min(s, quedan); s -= usaS; quedan -= usaS;
-  const conPromo = PROMO_PRANZO + precioSinPromo(c, s);
-  // Salvaguarda: en pedidos grandes, sacar 3 del conteo puede empujar al resto
-  // a un tramo más caro. La promo nunca puede terminar costando más que sin ella.
+  const conPromo = precioPromos + precioSinPromo(c, s, L);
+
+  // Salvaguarda: sacar empanadas del conteo puede empujar al resto a un tramo
+  // más caro, y la promo terminaría costando más que sin ella. Eso se corrige.
+  // PERO no se aplica a las promos que incluyen bebida: ahí el precio es mayor
+  // porque se está pagando también la bebida, no porque haya un error de cálculo.
+  if(hayBebida) return conPromo;
   return Math.min(conPromo, base);
 }
+
+// ── DELIVERY POR COMBOS ──
+// Solo se venden combos de 6, 9 y 12. Devuelve la combinación más barata que
+// suma EXACTAMENTE esa cantidad, o null si esa cantidad no es un combo válido.
+function combinacionCombos(qty, lista){
+  const L = lista || listaHoy();
+  const combos = L.combosDelivery;
+  if(!combos || !qty || qty<=0) return null;
+  // Programación dinámica: para cada cantidad, el precio mínimo y qué combo usar
+  const INF=Infinity;
+  const mejor=new Array(qty+1).fill(INF);
+  const usado=new Array(qty+1).fill(null);
+  mejor[0]=0;
+  for(let q=1;q<=qty;q++){
+    combos.forEach(cb=>{
+      if(q-cb.n>=0 && mejor[q-cb.n]!==INF && mejor[q-cb.n]+cb.precio < mejor[q]){
+        mejor[q]=mejor[q-cb.n]+cb.precio;
+        usado[q]=cb;
+      }
+    });
+  }
+  if(mejor[qty]===INF) return null;   // cantidad imposible: 7, 10, 11...
+  const detalle=[]; let q=qty;
+  while(q>0){ const cb=usado[q]; detalle.push(cb); q-=cb.n; }
+  return {precio:mejor[qty], combos:detalle};
+}
+// ¿Es una cantidad válida para delivery?
+function cantidadDeliveryValida(qty, lista){ return combinacionCombos(qty, lista)!==null; }
 
 // Cantidad de empanadas de un pedido (las bebidas no entran en costo ni en venta)
 function empDePedido(o){ return contarPorTipo(o).total; }
@@ -1263,13 +1404,24 @@ function ventaPedido(o){
   const n = contarPorTipo(o);
   if(n.total===0) return 0;
   const k = canalKey(o);
-  // El consumo interno no factura: venta 0. El costo se sigue contando,
-  // así en el historial se ve como pérdida limpia.
+  // El consumo interno y las devoluciones no facturan
   if(CANALES[k].esVenta===false) return 0;
+  // Cada pedido se cobra con la lista que regía el día que entró
+  const L = listaDePedido(o);
   if(CANALES[k].delivery){
-    return n.classicas*PRECIO_DELIVERY.classica + n.especiales*PRECIO_DELIVERY.speciale;
+    if(L.combosDelivery){
+      const comb=combinacionCombos(n.total, L);
+      // Si la cantidad no arma ningún combo, se cobra el combo más chico que la cubra
+      if(comb) return comb.precio;
+      const ordenados=[...L.combosDelivery].sort((a,b)=>a.n-b.n);
+      const cubre=ordenados.find(cb=>cb.n>=n.total);
+      return cubre ? cubre.precio : ordenados[ordenados.length-1].precio;
+    }
+    // Listas viejas: delivery por unidad
+    const pu=L.deliveryPorUnidad;
+    return n.classicas*pu.classica + n.especiales*pu.speciale;
   }
-  return precioMostrador(n.classicas, n.especiales, o.promoPranzo===true);
+  return precioMostrador(n.classicas, n.especiales, promosDePedido(o), L);
 }
 function gananciaPedido(o){ return ventaPedido(o)-costoPedido(o); }
 
@@ -1331,7 +1483,7 @@ function renderOrders(){
     const takeBadge = esTakeaway(o) ? '<span class="canal-badge cb-takeaway">🥡 Takeaway</span>' : '';
     const canalBadge=`<span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>`
       + takeBadge
-      + (o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':'');
+      + (promosLabel(o)?'<span class="promo-tag">'+promosLabel(o)+'</span>':'');
 
     return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${MAY(o.cliente||'ANONIMO')}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
   }).join('');
@@ -1429,7 +1581,7 @@ window.printOrder=function(id){
     ${bloque('EMPANADAS SPECIALI',spec)}
     ${bloque('BEVANDE',bebs)}
     <div class="total">TOTALE: ${suma(emps)} empanada${suma(emps)!==1?'s':''}</div>
-    ${o.promoPranzo?'<div class="promo">✔ PROMO PRANZO applicata</div>':''}
+    ${promosLabel(o)?'<div class="promo">✔ PROMO: '+esc(promosLabel(o))+'</div>':''}
   </body></html>`);
   w.document.close();w.print();
 };
@@ -1479,6 +1631,7 @@ const SABORES_DEFAULT=[
   {nombre:'POLLO — CURCUMA',curcuma:true,tipoEmp:'speciale', orden:12},
   {nombre:'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO',curcuma:false,tipoEmp:'speciale', orden:13},
   {nombre:'CHORIZO + BROCCOLI',curcuma:false,tipoEmp:'speciale', orden:14},
+  {nombre:'BONDIOLA ALLA BIRRA',curcuma:false,tipoEmp:'speciale', orden:15},
 ];
 async function saboresSeedIfEmpty(){
   const snap=await getDocs(query(collection(db,'sabores')));
@@ -1597,10 +1750,68 @@ window.setCanal=function(c){
       : '<strong>No cuenta como venta.</strong> Descuenta del stock y de las cocinadas, pero no suma ingreso. En el historial aparece con venta € 0,00.';
   }
   if(!esMostrador){
-    document.getElementById('modal-promo-pranzo').checked=false;
+    promoQ={}; renderPromos();
     setConsumo('mostrador');
   }
 };
+
+// ── PROMOS DEL MODAL ──
+// Se pueden combinar y repetir: 2 DUO, o un DUO más un PRANZO.
+let promoQ={};
+function renderPromos(){
+  const cont=document.getElementById('promo-btns');
+  if(!cont) return;
+  const L=listaHoy();
+  const defs=L.promos||{};
+  cont.innerHTML=Object.entries(defs).map(([clave,d])=>{
+    const n=promoQ[clave]||0;
+    return `<div class="promo-item${n>0?' on':''}">
+      <div class="promo-item-top">${d.label}</div>
+      <div class="promo-item-precio">${eur(d.precio)}</div>
+      <div class="promo-item-ctrl">
+        <button onclick="chgPromo('${clave}',-1)">−</button>
+        <span class="promo-item-num">${n}</span>
+        <button onclick="chgPromo('${clave}',1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.chgPromo=function(clave,d){
+  promoQ[clave]=Math.max(0,(promoQ[clave]||0)+d);
+  if(promoQ[clave]===0) delete promoQ[clave];
+  renderPromos();
+  actualizarContadorModal();
+};
+
+// Precio en vivo de lo que se está cargando, con la lista de hoy
+function precioEnVivo(){
+  let c=0,s=0;
+  EMP.forEach(e=>{
+    const q=eQ[e.id]||0;
+    if(!q) return;
+    if(tipoDe(e)==='speciale') s+=q; else c+=q;
+  });
+  const total=c+s;
+  const L=listaHoy();
+  if(total===0) return {texto:'', aviso:''};
+  if(CANALES[canalActivo] && CANALES[canalActivo].delivery && L.combosDelivery){
+    const comb=combinacionCombos(total,L);
+    if(comb){
+      const nombres=comb.combos.map(cb=>cb.label).join(' + ');
+      return {texto:eur(comb.precio), aviso:nombres};
+    }
+    const validos=L.combosDelivery.map(cb=>cb.n).join(' / ');
+    return {texto:'—', aviso:`⚠️ ${total} no es un combo. Solo ${validos}`};
+  }
+  if(CANALES[canalActivo] && CANALES[canalActivo].esVenta===false){
+    return {texto:eur(0), aviso:'no factura'};
+  }
+  const cubiertas=Object.entries(promoQ).reduce((a,[k,n])=>{
+    const d=L.promos&&L.promos[k]; return a+(d?d.cant*n:0);
+  },0);
+  const aviso = cubiertas>total ? `⚠️ las promos cubren ${cubiertas} y hay ${total}` : '';
+  return {texto:eur(precioMostrador(c,s,promoQ,L)), aviso};
+}
 
 window.openModal = function() {
   editId=null;
@@ -1611,7 +1822,7 @@ window.openModal = function() {
   document.getElementById('modal-confirm-btn').textContent='Confirmar →';
   document.getElementById('modal-emp-counter').textContent='0';
   const detIni=document.getElementById('modal-emp-detalle'); if(detIni) detIni.textContent='';
-  document.getElementById('modal-promo-pranzo').checked=false;
+  promoQ={}; renderPromos();
   setConsumo('mostrador');
   setCanal('mostrador');
   activeModalTab = 'empanadas';
@@ -1710,6 +1921,12 @@ function actualizarContadorModal(){
   if(box) box.textContent=c+s;
   const det=document.getElementById('modal-emp-detalle');
   if(det) det.textContent = (c+s)>0 ? `${c} cl · ${s} sp` : '';
+  // Precio en vivo, para poder contrastarlo con lo que dice la plataforma
+  const pv=precioEnVivo();
+  const cajaP=document.getElementById('modal-precio-num');
+  if(cajaP) cajaP.textContent=pv.texto||'—';
+  const cajaA=document.getElementById('modal-precio-aviso');
+  if(cajaA){ cajaA.textContent=pv.aviso||''; cajaA.className='modal-precio-aviso'+(pv.aviso.startsWith('⚠')?' malo':''); }
 }
 window.chgB=function(id,d){
   bQ[id]=Math.max(0,(bQ[id]||0)+d);
@@ -1741,7 +1958,7 @@ window.editOrder=function(id){
   const ckEdit=canalKey(o);
   setCanal(CANALES[ckEdit].delivery ? ckEdit : 'mostrador');
   setConsumo(o.consumo==='takeaway' ? 'takeaway' : 'mostrador');
-  document.getElementById('modal-promo-pranzo').checked = (o.promoPranzo===true);
+  promoQ = {...promosDePedido(o)}; renderPromos();
   // Actualizar contador con valores cargados
   actualizarContadorModal();
   // Reset tab a Empanadas al editar
@@ -1757,7 +1974,23 @@ window.editOrder=function(id){
 window.confirmarManual=async function(){
   let nombre=MAY(document.getElementById('modal-nombre').value.trim());
   const esDelivery=CANALES[canalActivo].delivery;
-  const promo=document.getElementById('modal-promo-pranzo').checked && !esDelivery;
+  const promosSel = esDelivery ? {} : {...promoQ};
+
+  // El delivery se vende SOLO por combos: 6, 9 o 12 empanadas, ni más ni menos.
+  // Si el número no es uno de esos, se avisa antes de guardar.
+  if(esDelivery){
+    const L=listaHoy();
+    if(L.combosDelivery){
+      let totalEmp=0;
+      EMP.forEach(e=>{ totalEmp += (eQ[e.id]||0); });
+      const validos=L.combosDelivery.map(cb=>cb.n);
+      if(totalEmp>0 && !validos.includes(totalEmp)){
+        alert(`${CANALES[canalActivo].label} vende solo combos de ${validos.join(', ')} empanadas.\n\n`+
+              `Cargaste ${totalEmp}. Revisá el pedido antes de guardarlo.`);
+        return;
+      }
+    }
+  }
   if(!nombre){
     if(esDelivery){
       alert('Poné el número de pedido de '+CANALES[canalActivo].label+'.');
@@ -1790,11 +2023,35 @@ window.confirmarManual=async function(){
   const bi=BEB.filter(b=>bQ[b.id]>0).map(b=>({nombre:b.nombre,cantidad:bQ[b.id],curcuma:false,tipo:'bebida'}));
   const items=[...ei,...bi];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
+  // Delivery: solo combos exactos. Una cantidad que no arma combo es un error de carga.
+  if(esDelivery){
+    const L=listaHoy();
+    if(L.combosDelivery){
+      const totalEmp=ei.reduce((a,i)=>a+i.cantidad,0);
+      if(!cantidadDeliveryValida(totalEmp,L)){
+        const validos=L.combosDelivery.map(cb=>`${cb.n} (${cb.label})`).join(' · ');
+        alert(`En delivery solo se venden combos.\n\nCargaste ${totalEmp} empanadas y eso no arma ningún combo.\n\nCombos válidos: ${validos}`);
+        return;
+      }
+    }
+  }
+  // Las promos no pueden cubrir más empanadas de las que hay en el pedido
+  if(!esDelivery){
+    const L=listaHoy();
+    const totalEmp=ei.reduce((a,i)=>a+i.cantidad,0);
+    const cubiertas=Object.entries(promosSel).reduce((a,[k,n])=>{
+      const d=L.promos&&L.promos[k]; return a+(d?d.cant*n:0);
+    },0);
+    if(cubiertas>totalEmp){
+      alert(`Las promos cubren ${cubiertas} empanadas pero el pedido tiene ${totalEmp}.\n\nAjustá las promos o agregá empanadas.`);
+      return;
+    }
+  }
   const consumo = esDelivery ? 'delivery' : consumoActivo;
   const btn=document.getElementById('modal-confirm-btn');btn.disabled=true;btn.textContent='...';
   try{
-    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true,canalVenta:canalActivo,promoPranzo:promo,consumo});
-    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promoPranzo:promo,consumo,timestamp:serverTimestamp()});
+    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true,canalVenta:canalActivo,promos:promosSel,consumo});
+    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,timestamp:serverTimestamp()});
     closeModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;editId=null;btn.textContent='Confirmar →';document.getElementById('modal-title').textContent='🫔 Pedido Manual';}
@@ -2128,7 +2385,7 @@ window.exportHistorial=function(){
     ['Pedidos encontrados', hCurrentList.length],
     ['Costo por empanada', COSTO_EMPANADA],
     [],
-    ['Fecha','Hora','Cliente / N° pedido','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Costo','Venta','Ganancia','Promo 3','Estado','Detalle']
+    ['Fecha','Hora','Cliente / N° pedido','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Costo','Venta','Ganancia','Promos','Estado','Detalle']
   ];
   let tEmp=0,tBeb=0,tCosto=0,tVenta=0,tCla=0,tSpe=0;
   hCurrentList.forEach(o=>{
@@ -2143,7 +2400,7 @@ window.exportHistorial=function(){
       MAY(canalLabel(o)), MAY(consumoLabel(o)),
       n.classicas, n.especiales, n.total, beb,
       r2(costo), r2(venta), r2(venta-costo),
-      o.promoPranzo?'SÍ':'',
+      MAY(promosLabel(o)),
       MAY(eLabel(o.estado)), MAY(itemsTexto(o))
     ]);
   });
@@ -2621,7 +2878,7 @@ function hRender(list){
 
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;">${hora}</td>
-      <td style="font-weight:600;">${MAY(o.cliente||'—')}${o.promoPranzo?'<span class="promo-tag">PROMO 3</span>':''}</td>
+      <td style="font-weight:600;">${MAY(o.cliente||'—')}${promosLabel(o)?'<span class="promo-tag">'+promosLabel(o)+'</span>':''}</td>
       <td style="white-space:nowrap;"><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>${takeTag}</td>
       <td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td>
       <td style="font-weight:700;text-align:center;">${ec}${desglose}</td>
