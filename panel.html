@@ -3760,7 +3760,7 @@ async function cocRecargarSilencioso(){
 // revisa si quedó pendiente algún control y se ejecuta ahí mismo (recuperación).
 const COC_CONTROLES=[
   {turno:'t1', hora:15, minuto:0,  label:'15:00'},
-  {turno:'t2', hora:22, minuto:30, label:'22:30'}
+  {turno:'t2', hora:22, minuto:0,  label:'22:00'}
 ];
 const cocControlesHechos=new Set();   // turnos ya corridos en esta sesión
 
@@ -3775,11 +3775,14 @@ function cocControlesPasados(){
 // El ID es fijo (sabor + fecha + turno), así el mismo faltante no se puede
 // escribir dos veces aunque haya dos dispositivos con el panel abierto.
 async function cocReconciliarDeficit(turno){
+  // SOLO el día en curso. El control cierra el día y no vuelve a tocar
+  // los anteriores: reconstruir semanas viejas no sirve de nada y además
+  // llenaba el registro de cocciones inventadas cada vez que se abría el panel.
+  const hoy=cocHoy();
   const pend=[];
   Object.entries(cocCalculado).forEach(([sabor,d])=>{
-    Object.entries(d.deficitPorDia||{}).forEach(([fecha,cant])=>{
-      if(cant>0) pend.push({sabor,fecha,cantidad:cant});
-    });
+    const cant=(d.deficitPorDia||{})[hoy]||0;
+    if(cant>0) pend.push({sabor,fecha:hoy,cantidad:cant});
   });
   if(!pend.length) return {total:0,detalle:[]};
 
@@ -4010,7 +4013,7 @@ function cocRender(){
 
   const tarjetas=nombres.map(sabor=>{
     const d=cocCalculado[sabor]||{lotes:[],total:0,asumidas:0};
-    totalAsumidas+=d.asumidas||0;
+    totalAsumidas+=(d.deficitPorDia||{})[hoy]||0;   // solo el día en curso
     const lotes=[...d.lotes].sort((a,b)=>a.fecha.localeCompare(b.fecha));
     let venc=0, ult=0;
     lotes.forEach(l=>{
@@ -4097,7 +4100,7 @@ function cocRender(){
   }
 
   document.getElementById('coc-nota').textContent = totalAsumidas>0
-    ? `Nota: ${totalAsumidas} empanadas se vendieron sin tener cocción registrada. El sistema asumió que se cocinaron ese mismo día. Si cargás la cocción real, este número baja solo.`
+    ? `Nota: hoy se vendieron ${totalAsumidas} empanadas sin tener cocción registrada. El control de las 15:00 o de las 22:00 las va a dar de alta. Si cargás la cocción real antes, este número baja solo.`
     : '';
 }
 
