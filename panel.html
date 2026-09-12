@@ -427,6 +427,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .cb-interno{background:#f3e8ff;color:#6b21a8;}
 /* Promo Pranzo */
 .modal-promo-row{margin-bottom:12px;}
+.lista-vigente{font-size:11px;color:#777;background:#f5f5f3;border-radius:6px;padding:6px 12px;margin-bottom:12px;letter-spacing:0.3px;}
 .promo-check{
   display:inline-flex;align-items:center;gap:8px;background:#fffbeb;
   border:1px solid #fde68a;border-radius:8px;padding:8px 14px;cursor:pointer;
@@ -995,6 +996,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         <div class="promo-btns" id="promo-btns"></div>
       </div>
 
+      <!-- Qué lista de precios rige hoy. Sin esto no se entiende por qué
+           aparecen unas promos y no otras, ni por qué cambian los precios. -->
+      <div class="lista-vigente" id="lista-vigente"></div>
+
       <!-- Fila 6: tabs categoría -->
       <div class="modal-tabs">
         <button class="modal-tab-btn active" id="mtab-empanadas" onclick="setModalTab('empanadas')">🫔 Empanadas</button>
@@ -1149,9 +1154,9 @@ const LISTAS_PRECIOS = [
     ],
     // Promos de mostrador. Se pueden combinar y repetir.
     promos: {
-      duoAgua:   {label:'2 + Agua',   corto:'DUO AGUA',   cant:2, precio:9.50, conBebida:true},
-      duoBebida: {label:'2 + Bebida', corto:'DUO BEBIDA', cant:2, precio:9.99, conBebida:true},
-      pranzo:    {label:'Pranzo 3',   corto:'PRANZO',     cant:3, precio:11.49}
+      duoAgua:   {label:'Promo 2 + A', corto:'2+A',    cant:2, precio:9.50, conBebida:true},
+      duoBebida: {label:'Promo 2 + B', corto:'2+B',    cant:2, precio:9.99, conBebida:true},
+      pranzo:    {label:'Promo Pranzo',corto:'PRANZO', cant:3, precio:11.49}
     },
     // Delivery: SOLO combos, sin unidades sueltas. Gustos a elección.
     combosDelivery: [
@@ -1760,8 +1765,17 @@ window.setCanal=function(c){
 let promoQ={};
 function renderPromos(){
   const cont=document.getElementById('promo-btns');
-  if(!cont) return;
   const L=listaHoy();
+  // Cartelito con la lista de precios que rige hoy, y cuándo entra la próxima
+  const av=document.getElementById('lista-vigente');
+  if(av){
+    const hoy=new Date().toISOString().split('T')[0];
+    const futuras=LISTAS_PRECIOS.filter(l=>l.desde>hoy).sort((a,b)=>a.desde.localeCompare(b.desde));
+    const prox=futuras.length ? futuras[futuras.length-1] : null;
+    av.innerHTML=`💶 Lista de precios: <strong>${L.nombre}</strong>`
+      + (prox ? ` · la próxima empieza el ${prox.desde.split('-').reverse().join('/')}` : '');
+  }
+  if(!cont) return;
   const defs=L.promos||{};
   cont.innerHTML=Object.entries(defs).map(([clave,d])=>{
     const n=promoQ[clave]||0;
