@@ -305,6 +305,27 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 /* ── STOCK ── */
 .stock-panel{display:none;padding:24px;max-width:1200px;margin:0 auto;}
 .stock-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+/* Renglón 1: total centrado */
+.stock-fila-total{display:flex;justify-content:center;margin-bottom:16px;}
+.stock-fila-total .stock-total-box{text-align:center;min-width:300px;}
+/* Renglón 2: controles */
+.stock-fila-controles{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+/* Renglón 3: control de consegna */
+.stock-fila-ddt{margin-bottom:20px;}
+.ddt-selector-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.ddt-selector-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#aaa;}
+.ddt-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;}
+.ddt-card{background:#111;color:#fff;border-radius:12px;padding:16px 20px;border:2px solid #111;}
+.ddt-card.ok{background:#065f46;border-color:#065f46;}
+.ddt-card.mal{background:#7f1d1d;border-color:#7f1d1d;}
+.ddt-card.aviso{background:#92400e;border-color:#92400e;}
+.ddt-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:0.55;margin-bottom:4px;line-height:1.4;}
+.ddt-num{font-size:42px;font-weight:700;line-height:1;}
+.ddt-sub{font-size:11px;opacity:0.6;margin-top:5px;line-height:1.5;}
+.ddt-vacio{background:#fff;border:1px dashed #ddd;border-radius:12px;padding:20px;text-align:center;color:#bbb;font-size:13px;}
+.ddt-lista-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid #f0f0f0;font-size:13px;}
+.stock-ddt-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:12px;}
+.stock-ddt-falta{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.5;}
 .stock-total-box{background:#111;color:#fff;border-radius:12px;padding:16px 28px;}
 .stock-total-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;opacity:0.5;margin-bottom:4px;}
 .stock-total-num{font-size:52px;font-weight:700;line-height:1;}
@@ -401,6 +422,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .canal-btn.justeat.active{background:#ff8000;border-color:#ff8000;color:#fff;}
 .canal-btn.deliveroo.active{background:#00ccbc;border-color:#00ccbc;color:#063;}
 .canal-btn.interno.active{background:#7e22ce;border-color:#7e22ce;color:#fff;}
+.canal-btn.devolucion.active{background:#0369a1;border-color:#0369a1;color:#fff;}
+.cb-devolucion{background:#e0f2fe;color:#075985;}
 .cb-interno{background:#f3e8ff;color:#6b21a8;}
 /* Promo Pranzo */
 .modal-promo-row{margin-bottom:12px;}
@@ -673,12 +696,15 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
 <!-- STOCK PANEL -->
 <div class="stock-panel" id="stock-panel">
-  <!-- Total siempre visible -->
-  <div class="stock-top">
+  <!-- Renglón 1: total, centrado -->
+  <div class="stock-fila-total">
     <div class="stock-total-box">
       <div class="stock-total-label">Total Empanadas en Stock</div>
       <div class="stock-total-num" id="stock-total-num">—</div>
     </div>
+  </div>
+  <!-- Renglón 2: controles -->
+  <div class="stock-fila-controles">
     <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 20px;flex-wrap:wrap;">
       <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">⚠️ Alerta mínima</span>
       <input type="number" id="stock-umbral-input" min="1" value="20" style="width:60px;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;text-align:center;"/>
@@ -686,6 +712,15 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </div>
     <button class="stock-add-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="openSaborModal()">+ Agregar Sabor</button>
     <button class="stock-add-btn" onclick="openStockModal()">+ Cargar Stock</button>
+    <button class="stock-add-btn" style="background:#0369a1;" onclick="openDdtModal()">🚚 Consegna</button>
+  </div>
+  <!-- Renglón 3: control del DDT -->
+  <div class="stock-fila-ddt">
+    <div class="ddt-selector-row">
+      <span class="ddt-selector-label">Control de consegna</span>
+      <select class="stock-select" id="ddt-selector" onchange="ddtRender()"><option value="">Sin consegnas cargadas</option></select>
+    </div>
+    <div class="ddt-cards" id="ddt-cards"></div>
   </div>
   <!-- Alertas stock bajo -->
   <div id="stock-alerts"></div>
@@ -704,6 +739,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <option value="">Entradas + Ventas</option>
       <option value="entrada">Solo Entradas</option>
       <option value="venta">Solo Ventas</option>
+      <option value="interno">Solo Interno</option>
+      <option value="devolucion">Solo Devoluciones</option>
       <option value="cotta_non_venduta">Solo Cotta non venduta</option>
     </select>
     <button class="stock-btn" onclick="stockApplyFilter()">Ver</button>
@@ -763,6 +800,32 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </table>
   </div>
   <div class="coc-nota" id="coc-nota"></div>
+</div>
+
+<!-- MODAL: CONSEGNA (DDT) -->
+<div class="modal-overlay no-print" id="ddt-modal-overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-top">
+      <div class="modal-top-row">
+        <div class="modal-title">🚚 Nueva consegna</div>
+        <button class="modal-cancel" onclick="closeDdtModal()">Cancelar</button>
+        <button class="modal-confirm" id="ddt-modal-save-btn" onclick="guardarDdt()">Guardar →</button>
+      </div>
+    </div>
+    <div class="modal-scroll" style="padding:20px 24px;">
+      <label class="modal-label">Número de DDT</label>
+      <input class="modal-input" id="ddt-modal-numero" type="text" placeholder="Ej: 1234/26" style="margin-bottom:16px;"/>
+      <label class="modal-label">Fecha del DDT</label>
+      <input class="modal-input" id="ddt-modal-fecha" type="date" style="margin-bottom:16px;"/>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.6;">
+        Las entradas que cargues <strong>con esta misma fecha</strong> se van a vincular solas a este DDT.
+      </div>
+      <div style="margin-top:18px;">
+        <div class="modal-label">Consegnas cargadas</div>
+        <div id="ddt-modal-lista"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: AUDITORÍA DEL CÁLCULO DE UN SABOR -->
@@ -880,6 +943,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
           <button class="canal-btn justeat" id="canal-justeat" onclick="setCanal('justeat')">Just Eat</button>
           <button class="canal-btn deliveroo" id="canal-deliveroo" onclick="setCanal('deliveroo')">Deliveroo</button>
           <button class="canal-btn interno" id="canal-interno" onclick="setCanal('interno')">🏠 Interno</button>
+          <button class="canal-btn devolucion" id="canal-devolucion" onclick="setCanal('devolucion')">↩️ Devolución</button>
         </div>
       </div>
 
@@ -900,7 +964,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
       <!-- Aviso: el consumo interno no factura -->
       <div id="modal-interno-aviso" style="display:none;margin-bottom:12px;">
-        <div style="background:#f3e8ff;border:1px solid #d8b4fe;color:#6b21a8;border-radius:8px;padding:9px 14px;font-size:12px;line-height:1.5;">
+        <div id="modal-interno-texto" style="background:#f3e8ff;border:1px solid #d8b4fe;color:#6b21a8;border-radius:8px;padding:9px 14px;font-size:12px;line-height:1.5;">
           <strong>No cuenta como venta.</strong> Descuenta del stock y de las cocinadas, pero no suma ingreso. En el historial aparece con venta € 0,00.
         </div>
       </div>
@@ -940,13 +1004,14 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <label class="modal-label" style="margin-top:12px;">Cantidad</label>
     <input class="modal-input" id="stock-modal-cantidad" type="number" min="0" placeholder="Ej: 50" style="margin-bottom:12px;"/>
     <label class="modal-label">Tipo</label>
-    <select class="modal-input" id="stock-modal-tipo" style="cursor:pointer;margin-bottom:12px;">
+    <select class="modal-input" id="stock-modal-tipo" style="cursor:pointer;margin-bottom:12px;" onchange="stockAvisoDdt()">
       <option value="entrada">🟢 Entrada (llega mercadería)</option>
       <option value="devolucion">🔵 Devolución / Rotura (resta stock)</option>
       <option value="ajuste">⚪ Ajuste (fija el stock a este número exacto)</option>
     </select>
     <label class="modal-label">Fecha</label>
-    <input class="modal-input" id="stock-modal-fecha" type="date" style="margin-bottom:20px;"/>
+    <input class="modal-input" id="stock-modal-fecha" type="date" style="margin-bottom:10px;" onchange="stockAvisoDdt()"/>
+    <div id="stock-modal-ddt" style="margin-bottom:20px;"></div>
     <div style="display:flex;gap:10px;">
       <button class="modal-cancel" style="flex:1;" onclick="closeStockModal()">Cancelar</button>
       <button class="modal-confirm" style="flex:2;" id="stock-modal-save-btn" onclick="guardarStock()">Guardar →</button>
@@ -1044,7 +1109,7 @@ function esDocCoccion(o){ return !!(o && o.tipoDoc==='coccion'); }
 function soloPedidos(arr){ return (arr||[]).filter(o=>!esDocCoccion(o)); }
 // Ventas reales: además saca el consumo interno, que no factura.
 // Se usa en STATS, que es el análisis de ventas.
-function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esConsumoInterno(o)); }
+function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esConsumoInterno(o) && !esDevolucionProveedor(o)); }
 
 // ═══════════════════════════════════════════════════════
 //  CANALES, TIPOS DE EMPANADA, COSTOS Y PRECIOS
@@ -1116,6 +1181,9 @@ const CANALES = {
   // Consumo interno: NO es una venta (no factura nada) pero sí descuenta
   // del stock y de las cocinadas, porque la empanada se consumió igual.
   interno:  {label:'Consumo interno', corto:'Interno', delivery:false, esVenta:false},
+  // Devolución al proveedor: la empanada sale del stock y va a la caja para
+  // devolver. No factura y tampoco es un costo, porque se recupera.
+  devolucion:{label:'Devolución', corto:'Devol.', delivery:false, esVenta:false, sinCosto:true},
   qr:       {label:'QR',        corto:'QR',        delivery:false},
   web:      {label:'Web',       corto:'Web',       delivery:false}
 };
@@ -1174,7 +1242,23 @@ function precioMostrador(nClass, nSpec, promo){
 
 // Cantidad de empanadas de un pedido (las bebidas no entran en costo ni en venta)
 function empDePedido(o){ return contarPorTipo(o).total; }
-function costoPedido(o){ return empDePedido(o)*COSTO_EMPANADA; }
+// El costo se cuenta salvo en las devoluciones, donde la empanada se recupera
+function costoPedido(o){
+  const k=canalKey(o);
+  if(CANALES[k].sinCosto) return 0;
+  return empDePedido(o)*COSTO_EMPANADA;
+}
+// Con qué tipo entra la salida al stock, según el origen del pedido.
+// Así en la solapa STOCK se distingue una venta real de un consumo interno
+// o de una devolución, en vez de que aparezca todo como VENTA.
+function tipoMovimientoStock(o){
+  const k=canalKey(o);
+  if(k==='interno')    return 'interno';
+  if(k==='devolucion') return 'devolucion';
+  return 'venta';
+}
+// ¿Es un pedido que sale para devolver al proveedor?
+function esDevolucionProveedor(o){ return canalKey(o)==='devolucion'; }
 function ventaPedido(o){
   const n = contarPorTipo(o);
   if(n.total===0) return 0;
@@ -1478,15 +1562,19 @@ window.setConsumo=function(c){
 window.setCanal=function(c){
   if(!CANALES[c]) return;
   canalActivo=c;
-  ['mostrador','glovo','justeat','deliveroo','interno'].forEach(k=>{
+  ['mostrador','glovo','justeat','deliveroo','interno','devolucion'].forEach(k=>{
     const b=document.getElementById('canal-'+k);
     if(b) b.className='canal-btn '+k+(k===c?' active':'');
   });
   const esMostrador = (c==='mostrador');
   const esInterno   = (c==='interno');
+  const esDevol     = (c==='devolucion');
   const lbl=document.getElementById('modal-nombre-label');
   const inp=document.getElementById('modal-nombre');
-  if(esInterno){
+  if(esDevol){
+    lbl.textContent='Motivo de la devolución';
+    inp.placeholder='Ej: mal selladas, rotas... (podés dejar vacío)';
+  }else if(esInterno){
     lbl.textContent='Motivo o persona';
     inp.placeholder='Ej: personal, degustación... (podés dejar vacío)';
   }else if(esMostrador){
@@ -1501,7 +1589,13 @@ window.setCanal=function(c){
   document.getElementById('modal-consumo-row').style.display = esMostrador ? 'flex' : 'none';
   // Aviso de que no factura
   const av=document.getElementById('modal-interno-aviso');
-  if(av) av.style.display = esInterno ? 'block' : 'none';
+  if(av){
+    av.style.display = (esInterno||esDevol) ? 'block' : 'none';
+    const txt=document.getElementById('modal-interno-texto');
+    if(txt) txt.innerHTML = esDevol
+      ? '<strong>No es una venta ni un costo.</strong> La empanada se devuelve, así que no se factura y tampoco se cuenta como gasto. Sí baja del stock y de las cocinadas.'
+      : '<strong>No cuenta como venta.</strong> Descuenta del stock y de las cocinadas, pero no suma ingreso. En el historial aparece con venta € 0,00.';
+  }
   if(!esMostrador){
     document.getElementById('modal-promo-pranzo').checked=false;
     setConsumo('mostrador');
@@ -1671,6 +1765,8 @@ window.confirmarManual=async function(){
     }
     if(canalActivo==='interno'){
       nombre='INTERNO';
+    }else if(canalActivo==='devolucion'){
+      nombre='DEVOLUCIÓN';
     }else{
       // Mostrador sin nombre: auto-número "Mostrador N"
       const sodM=new Date();sodM.setHours(0,0,0,0);
@@ -1807,7 +1903,7 @@ window.switchTab=function(tab){
   document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas'}[tab];
-  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
+  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -2150,7 +2246,7 @@ window.exportStock=function(){
     if(!grupos[k])grupos[k]={fecha:e.fecha||'—',sabor:e.sabor||'—',tipo:e.tipo||'—',cantidad:0};
     grupos[k].cantidad+=parseInt(e.cantidad)||0;
   });
-  const etiqTipo={entrada:'ENTRADA',venta:'VENTA',ajuste:'AJUSTE',devolucion:'DEVOLUCIÓN',cotta_non_venduta:LABEL_PERDIDA};
+  const etiqTipo={entrada:'ENTRADA',venta:'VENTA',interno:'INTERNO',ajuste:'AJUSTE',devolucion:'DEVOLUCIÓN',cotta_non_venduta:LABEL_PERDIDA};
   const filasGrupo=Object.values(grupos).sort((a,b)=>
     a.fecha===b.fecha ? String(a.sabor).localeCompare(String(b.sabor)) : String(b.fecha).localeCompare(String(a.fecha))
   );
@@ -2584,6 +2680,7 @@ async function stockLoadAll(){
     stockRenderAlerts(dataHoy);
     stockRenderChart(dataHoy);
     stockRenderTable(stockAllData);
+    ddtRender();                // las cajas del DDT dependen del stock
     await syncDisponibilidad(); // Sincroniza disponibilidad con menú cliente
   }catch(e){console.error('stock load error',e);}
 }
@@ -2609,7 +2706,7 @@ function stockCalcBySabor(sourceData){
     if(!res[e.sabor])res[e.sabor]={entrada:0,venta:0,stock:0};
     if(e.tipo==='ajuste'){res[e.sabor].entrada=e.cantidad||0;res[e.sabor].venta=0;}
     else if(e.tipo==='entrada'){res[e.sabor].entrada+=e.cantidad||0;}
-    else if(e.tipo==='venta'||e.tipo==='devolucion'||e.tipo===TIPO_PERDIDA){res[e.sabor].venta+=e.cantidad||0;}
+    else if(e.tipo==='venta'||e.tipo==='interno'||e.tipo==='devolucion'||e.tipo===TIPO_PERDIDA){res[e.sabor].venta+=e.cantidad||0;}
     res[e.sabor].stock=res[e.sabor].entrada-res[e.sabor].venta;
   });
   return res;
@@ -2717,7 +2814,7 @@ window.stockVerCalculo=function(){
     return (a.timestamp?.seconds||0)-(b.timestamp?.seconds||0);
   });
 
-  const etiq={entrada:'🟢 ENTRADA',venta:'🔴 VENTA',ajuste:'⚪ AJUSTE',
+  const etiq={entrada:'🟢 ENTRADA',venta:'🔴 VENTA',interno:'🏠 INTERNO',ajuste:'⚪ AJUSTE',
               devolucion:'🔵 DEVOLUCIÓN',[TIPO_PERDIDA]:'⚫ '+LABEL_PERDIDA};
   let entrada=0, venta=0, totalEnt=0, totalSal=0, nAjustes=0;
   let primerNeg=null, filas='';
@@ -2781,9 +2878,215 @@ window.stockVerCalculo=function(){
   document.getElementById('calc-modal-overlay').classList.add('show');
 };
 window.cerrarCalculo=function(){ document.getElementById('calc-modal-overlay').classList.remove('show'); };
+document.getElementById('ddt-modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('ddt-modal-overlay')) closeDdtModal();
+});
 document.getElementById('calc-modal-overlay').addEventListener('click',e=>{
   if(e.target===document.getElementById('calc-modal-overlay')) cerrarCalculo();
 });
+
+// ═══════════════════════════════════════════════════════
+//  DDT / CONSEGNA
+//  Cada entrega llega con un número de DDT y una fecha. Las entradas cargadas
+//  con esa misma fecha se vinculan solas, sin guardar nada extra: el vínculo
+//  se resuelve por fecha al momento de mostrar, así que si después corregís la
+//  fecha del DDT, todo se reacomoda solo.
+//
+//  Cada DDT define un PERÍODO: desde su fecha hasta la del DDT siguiente
+//  (o hasta hoy si es el último). Sobre ese período se arma el control:
+//     stock antes + entradas − salidas = stock al final
+// ═══════════════════════════════════════════════════════
+let ddtAll=[];
+
+async function ddtLoad(){
+  try{
+    const snap=await getDocs(query(collection(db,'ddt')));
+    ddtAll=snap.docs.map(d=>({id:d.id,...d.data()}))
+                    .sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+    ddtLlenarSelector();
+    ddtRender();
+  }catch(e){ console.error('ddtLoad error',e); }
+}
+
+function ddtLlenarSelector(){
+  const sel=document.getElementById('ddt-selector');
+  if(!sel) return;
+  const previo=sel.value;
+  if(!ddtAll.length){
+    sel.innerHTML='<option value="">Sin consegnas cargadas</option>';
+    return;
+  }
+  sel.innerHTML=ddtAll.map(d=>
+    `<option value="${d.id}">DDT ${d.numero} · ${d.fecha}${d.interno?' (interno)':''}</option>`
+  ).join('');
+  // Por defecto el más reciente, salvo que ya hubiera uno elegido
+  sel.value = (previo && ddtAll.some(d=>d.id===previo)) ? previo : ddtAll[0].id;
+}
+
+// Calcula las cuatro cajas del DDT elegido
+function ddtCalcular(ddt){
+  const movs=stockDataHastaHoy(stockAllData);
+  // El DDT siguiente marca el final del período
+  const posteriores=ddtAll.filter(d=>String(d.fecha)>String(ddt.fecha))
+                          .sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  const finPeriodo = posteriores.length ? posteriores[0].fecha : null;  // null = hasta hoy
+  const dentroDelPeriodo = f => f>=ddt.fecha && (finPeriodo===null || f<finPeriodo);
+
+  // Caja 2: stock que había ANTES del DDT (todo lo anterior a su fecha)
+  const antes=movs.filter(e=>String(e.fecha)<String(ddt.fecha));
+  const calcAntes=stockCalcBySabor(antes);
+  const stockAntes=Object.values(calcAntes).reduce((a,v)=>a+(v.stock||0),0);
+
+  // Caja 1: entradas del período. Las de la fecha exacta del DDT son "suyas";
+  // si hay entradas en otras fechas del período, se cuentan aparte pero suman.
+  let entDdt=0, entOtras=0;
+  // Caja 3: salidas del período, separadas por tipo
+  let ventas=0, interno=0, devol=0, perdida=0;
+  let hayAjuste=false;
+
+  movs.forEach(e=>{
+    const f=String(e.fecha||'');
+    if(!dentroDelPeriodo(f)) return;
+    const q=parseInt(e.cantidad)||0;
+    if(e.tipo==='entrada'){ if(f===String(ddt.fecha)) entDdt+=q; else entOtras+=q; }
+    else if(e.tipo==='ajuste') hayAjuste=true;
+    else if(e.tipo==='interno') interno+=q;
+    else if(e.tipo==='devolucion') devol+=q;
+    else if(e.tipo===TIPO_PERDIDA) perdida+=q;
+    else ventas+=q;
+  });
+
+  const entradas=entDdt+entOtras;
+  const salidas=ventas+interno+devol+perdida;
+  const calculado=stockAntes+entradas-salidas;
+
+  // Stock real al final del período, según el cálculo normal del sistema
+  const hasta = finPeriodo===null ? null : finPeriodo;
+  const real = hasta===null
+    ? Object.values(stockCalcBySabor(movs)).reduce((a,v)=>a+(v.stock||0),0)
+    : Object.values(stockCalcBySabor(movs.filter(e=>String(e.fecha)<hasta))).reduce((a,v)=>a+(v.stock||0),0);
+
+  return {stockAntes,entDdt,entOtras,entradas,ventas,interno,devol,perdida,salidas,
+          calculado,real,hayAjuste,esUltimo:finPeriodo===null,finPeriodo};
+}
+
+function ddtRender(){
+  const cont=document.getElementById('ddt-cards');
+  if(!cont) return;
+  const sel=document.getElementById('ddt-selector');
+  const ddt=ddtAll.find(d=>d.id===(sel?sel.value:''));
+  if(!ddt){
+    cont.innerHTML='<div class="ddt-vacio">Todavía no cargaste ninguna consegna. Tocá 🚚 CONSEGNA para registrar la primera.</div>';
+    return;
+  }
+  if(!stockAllData.length){ cont.innerHTML='<div class="ddt-vacio">Cargando stock...</div>'; return; }
+
+  const c=ddtCalcular(ddt);
+  const coincide = c.calculado===c.real;
+  const claseCheck = c.hayAjuste ? 'ddt-card aviso' : (coincide ? 'ddt-card ok' : 'ddt-card mal');
+
+  const subEntradas = c.entOtras>0
+    ? `<div class="ddt-sub">${c.entDdt} con fecha del DDT · ${c.entOtras} en otra fecha del período</div>`
+    : '<div class="ddt-sub">empanadas que entraron</div>';
+
+  const subSalidas = `<div class="ddt-sub">
+      🏠 interno ${c.interno} · ⚫ cotta non venduta ${c.perdida} · ↩️ devolución ${c.devol}
+    </div>`;
+
+  const periodo = c.esUltimo ? 'hasta hoy' : `hasta el ${c.finPeriodo}`;
+
+  const cuarta = c.hayAjuste
+    ? `<div class="ddt-num">${c.calculado}</div>
+       <div class="ddt-sub">⚠️ Hay un AJUSTE en el período. El ajuste fija el stock a mano y borra lo anterior, así que esta cuenta no aplica. Stock real: ${c.real}</div>`
+    : `<div class="ddt-num">${c.calculado}</div>
+       <div class="ddt-sub">${coincide ? '✓ coincide con el stock real' : '✗ el stock real es '+c.real+' — hay una diferencia de '+(c.real-c.calculado)}</div>`;
+
+  cont.innerHTML=`
+    <div class="ddt-card">
+      <div class="ddt-label">DDT ${ddt.numero} · ${ddt.fecha}${ddt.interno?' (interno)':''}</div>
+      <div class="ddt-num">${c.entradas}</div>
+      ${subEntradas}
+    </div>
+    <div class="ddt-card">
+      <div class="ddt-label">Stock antes del DDT</div>
+      <div class="ddt-num">${c.stockAntes}</div>
+      <div class="ddt-sub">al ${ddt.fecha}</div>
+    </div>
+    <div class="ddt-card">
+      <div class="ddt-label">Vendidas después del DDT</div>
+      <div class="ddt-num">${c.ventas}</div>
+      ${subSalidas}
+    </div>
+    <div class="${claseCheck}">
+      <div class="ddt-label">Stock (${periodo})</div>
+      ${cuarta}
+    </div>`;
+}
+
+window.openDdtModal=function(){
+  document.getElementById('ddt-modal-numero').value='';
+  document.getElementById('ddt-modal-fecha').value=new Date().toISOString().split('T')[0];
+  ddtRenderLista();
+  document.getElementById('ddt-modal-overlay').classList.add('show');
+};
+window.closeDdtModal=function(){ document.getElementById('ddt-modal-overlay').classList.remove('show'); };
+
+function ddtRenderLista(){
+  const div=document.getElementById('ddt-modal-lista');
+  if(!div) return;
+  div.innerHTML = ddtAll.length
+    ? ddtAll.map(d=>`<div class="ddt-lista-row">
+        <span>DDT <strong>${d.numero}</strong> · ${d.fecha}${d.interno?' <span style="color:#b45309;">(interno)</span>':''}</span>
+        <button onclick="borrarDdt('${d.id}')" style="padding:3px 9px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>
+      </div>`).join('')
+    : '<div style="color:#bbb;font-size:12px;padding:6px 0;">Ninguna todavía</div>';
+}
+
+window.guardarDdt=async function(){
+  const numero=MAY(document.getElementById('ddt-modal-numero').value.trim());
+  const fecha=document.getElementById('ddt-modal-fecha').value;
+  if(!numero){ alert('Poné el número de DDT.'); return; }
+  if(!fecha){ alert('Elegí la fecha del DDT.'); return; }
+  if(ddtAll.some(d=>String(d.fecha)===fecha)){
+    if(!confirm('Ya hay una consegna con esa fecha.\n\nSi cargás otra, las entradas de ese día se van a vincular a la primera. ¿Guardar igual?')) return;
+  }
+  const btn=document.getElementById('ddt-modal-save-btn');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    await addDoc(collection(db,'ddt'),{numero,fecha,interno:false,timestamp:serverTimestamp()});
+    await ddtLoad();
+    ddtRenderLista();
+    document.getElementById('ddt-modal-numero').value='';
+  }catch(e){ alert('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='Guardar →'; }
+};
+
+window.borrarDdt=async function(id){
+  const d=ddtAll.find(x=>x.id===id);
+  if(!d) return;
+  if(!confirm(`¿Borrar la consegna DDT ${d.numero} del ${d.fecha}?\n\nLas entradas de ese día quedan cargadas, solo se desvinculan.`)) return;
+  try{
+    await deleteDoc(doc(db,'ddt',id));
+    await ddtLoad();
+    ddtRenderLista();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+// Muestra en el modal de stock a qué consegna se va a vincular la entrada
+window.stockAvisoDdt=function(){
+  const div=document.getElementById('stock-modal-ddt');
+  if(!div) return;
+  const tipo=document.getElementById('stock-modal-tipo')?.value;
+  const fecha=document.getElementById('stock-modal-fecha')?.value;
+  if(tipo!=='entrada' || !fecha){ div.innerHTML=''; return; }
+  const d=ddtDeFecha(fecha);
+  div.innerHTML = d
+    ? `<div class="stock-ddt-ok">🚚 Se vincula a <strong>DDT ${d.numero}</strong>${d.interno?' (interno)':''}</div>`
+    : `<div class="stock-ddt-falta">⚠️ No hay consegna con esta fecha. Al guardar te va a ofrecer crear un DDT interno.</div>`;
+};
+
+// ¿Hay un DDT para esta fecha?
+function ddtDeFecha(fecha){ return ddtAll.find(d=>String(d.fecha)===String(fecha)) || null; }
 
 window.stockResetFilter=function(){  document.getElementById('stock-filter-sabor').value='';
   document.getElementById('stock-filter-from').value='';
@@ -2828,6 +3131,8 @@ function stockRenderTable(data){
       ?'<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
       :g.tipo==='devolucion'
       ?'<span style="color:#1e40af;background:#dbeafe;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔵 DEVOLUCIÓN</span>'
+      :g.tipo==='interno'
+      ?'<span style="color:#6b21a8;background:#f3e8ff;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🏠 INTERNO</span>'
       :g.tipo===TIPO_PERDIDA
       ?'<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ '+LABEL_PERDIDA+'</span>'
       :'<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🔴 VENTA</span>';
@@ -2879,6 +3184,7 @@ window.editStockEntry=function(key){
   document.getElementById('stock-modal-cantidad').value=group.cantidad;
   document.getElementById('stock-modal-fecha').value=group.fecha;
   document.getElementById('stock-modal-tipo').value=group.tipo;
+  stockAvisoDdt();
   document.getElementById('stock-modal-overlay').classList.add('show');
 };
 
@@ -2889,6 +3195,7 @@ window.openStockModal=function(){
   document.getElementById('stock-modal-fecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('stock-modal-cantidad').value='';
   document.getElementById('stock-modal-tipo').value='entrada';
+  stockAvisoDdt();
   document.getElementById('stock-modal-overlay').classList.add('show');
 };
 
@@ -2911,6 +3218,21 @@ window.guardarStock=async function(){
   if(!esAjuste && cantidad===0){
     alert('La cantidad tiene que ser mayor a 0.\n\nSi lo que querés es dejar el stock en cero, elegí el tipo AJUSTE.');
     return;
+  }
+  // Una entrada siempre debería venir con su DDT. Si no hay ninguno con esa
+  // fecha, se ofrece crear un DDT INTERNO: suma igual en todos los cuadros,
+  // pero queda marcado para que se note que no vino de una entrega real.
+  if(tipo==='entrada' && !editingStockId && !ddtDeFecha(fecha)){
+    const opcion=confirm(
+      `No hay ninguna consegna con fecha ${fecha}.\n\n`+
+      `Aceptar: crear un DDT INTERNO para ese día y vincular la entrada.\n`+
+      `Cancelar: volver, para cargar antes la consegna con su número real.`
+    );
+    if(!opcion) return;
+    try{
+      await addDoc(collection(db,'ddt'),{numero:'INTERNO',fecha,interno:true,timestamp:serverTimestamp()});
+      await ddtLoad();
+    }catch(e){ alert('No se pudo crear el DDT interno: '+e.message); return; }
   }
   const btn=document.getElementById('stock-modal-save-btn');
   btn.disabled=true;btn.textContent='Guardando...';
@@ -2953,7 +3275,7 @@ async function stockSyncToday(){
             if(!existing.exists()){
               return setDoc(ref,{
                 fecha:hoy,sabor,cantidad:item.cantidad,
-                tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
+                tipo:tipoMovimientoStock(order),orderId:order.id,timestamp:serverTimestamp()
               });
             }
           }).catch(()=>{})
@@ -2974,7 +3296,7 @@ async function autoRegisterVentas(order){
     try{
       await setDoc(doc(db,'stock',docId),{
         fecha,sabor,cantidad:item.cantidad,
-        tipo:'venta',orderId:order.id,timestamp:serverTimestamp()
+        tipo:tipoMovimientoStock(order),orderId:order.id,timestamp:serverTimestamp()
       },{merge:false});
     }catch(e){console.error('autoRegisterVentas error',e);}
   }
