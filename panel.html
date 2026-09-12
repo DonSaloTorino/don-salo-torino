@@ -1650,12 +1650,43 @@ async function saboresSeedIfEmpty(){
 function initSabores(){
   saboresSeedIfEmpty().then(()=>{
     patchTiposSabores();
+    altaSaboresNuevos();
     onSnapshot(query(collection(db,'sabores'),orderBy('orden')),snap=>{
       EMP=snap.docs.map(d=>({id:d.id,...d.data()}));
       EMP.forEach(e=>{ if(!(e.id in eQ)) eQ[e.id]=0; });
       onSaboresUpdate();
     });
   });
+}
+
+// ── ALTA DE SABORES NUEVOS ──
+// La lista inicial solo se crea cuando la base está vacía, así que un sabor
+// nuevo no aparecería nunca en una base que ya existe. Se dan de alta acá,
+// por código, para que el nombre quede EXACTAMENTE igual que en el menú QR:
+// si difiere aunque sea en una letra, se rompe el vínculo con el stock.
+//
+// Cada alta se ejecuta UNA sola vez y queda anotada en config/settings.
+// Así, si más adelante borrás el sabor a propósito, no vuelve a aparecer.
+const SABORES_NUEVOS = [
+  {clave:'bondiola-2026-09', nombre:'BONDIOLA ALLA BIRRA', curcuma:false, tipoEmp:'speciale', orden:15}
+];
+async function altaSaboresNuevos(){
+  try{
+    const ref=doc(db,'config','settings');
+    const snap=await getDoc(ref);
+    const hechas=(snap.exists() && snap.data().saboresAltaHechas) || [];
+    const pendientes=SABORES_NUEVOS.filter(s=>!hechas.includes(s.clave));
+    if(!pendientes.length) return;
+    for(const s of pendientes){
+      const slug=s.nombre.replace(/[^a-zA-Z0-9]/g,'_');
+      const refS=doc(db,'sabores',slug);
+      const ex=await getDoc(refS);
+      if(!ex.exists()){
+        await setDoc(refS,{nombre:s.nombre,curcuma:s.curcuma,tipoEmp:s.tipoEmp,orden:s.orden});
+      }
+    }
+    await setDoc(ref,{saboresAltaHechas:[...hechas,...pendientes.map(s=>s.clave)]},{merge:true});
+  }catch(e){ console.error('altaSaboresNuevos error',e); }
 }
 // Migración: los sabores cargados antes de la separación Classiche/Speciali
 // no tienen tipoEmp. Se lo asigna una sola vez según la lista oficial.
