@@ -508,7 +508,21 @@ window.confirmarPedido = async function() {
   let nombre = document.getElementById('nombre-input').value.trim().toUpperCase();
   let isAutoNumber = false;
 
-  const empItems = EMPANADAS.filter(e => qtys[e.id]  > 0).map(e => ({ nombre: e.nombre, cantidad: qtys[e.id],  curcuma: e.curcuma, tipo: 'empanada' }));
+  // Las empanadas se guardan con el prefijo (C) / (S) y ordenadas: primero las
+  // classiche y después las speciali. Así la comanda sale marcada, igual que
+  // los pedidos cargados desde el mostrador. El prefijo va DENTRO del nombre
+  // porque es lo único que imprime la app de la impresora.
+  // OJO: el stock y el menú usan el nombre limpio, sin prefijo.
+  const PREFIJO_TIPO = { classica: '(C) ', speciale: '(S) ' };
+  const empSel = EMPANADAS.filter(e => qtys[e.id] > 0);
+  const empOrdenadas = [
+    ...empSel.filter(e => (e.tipoEmp || 'classica') !== 'speciale'),
+    ...empSel.filter(e => (e.tipoEmp || 'classica') === 'speciale')
+  ];
+  const empItems = empOrdenadas.map(e => {
+    const t = (e.tipoEmp || 'classica') === 'speciale' ? 'speciale' : 'classica';
+    return { nombre: PREFIJO_TIPO[t] + e.nombre, cantidad: qtys[e.id], curcuma: e.curcuma === true, tipo: 'empanada', tipoEmp: t };
+  });
   const bebItems = isWebOrder ? [] : BEBIDAS.filter(b => bQtys[b.id] > 0).map(b => ({ nombre: b.emoji + ' ' + b.nombre, cantidad: bQtys[b.id], curcuma: false, tipo: 'bebida' }));
   const items = [...empItems, ...bebItems];
 
