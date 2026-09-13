@@ -486,6 +486,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .modal-card.t-speciale.selected{background:#991b1b;}
 .modal-card.agotado.t-classica,
 .modal-card.agotado.t-speciale{background:#e5e7eb;}
+/* Aviso por color cuando el pedido deja el stock sin margen */
+.modal-card.sin-stock-cero,
+.modal-card.sin-stock-cero.selected{background:#ea580c;}
+.modal-card.sin-stock-neg,
+.modal-card.sin-stock-neg.selected{background:#9a3412;}
+.modal-card-stock.cero{background:rgba(0,0,0,0.3);padding:1px 7px;border-radius:8px;font-weight:700;opacity:1;}
+.modal-card-stock.neg{background:#fff;color:#9a3412;padding:1px 7px;border-radius:8px;font-weight:700;opacity:1;}
 .modal-section-label.sec-classica{color:#2563eb;}
 .modal-section-label.sec-speciale{color:#b91c1c;}
 /* Desglose classiche/speciali bajo el contador del modal */
@@ -1932,20 +1939,20 @@ function renderList() {
       h = `<div class="modal-section-label">Empanadas</div><div style="text-align:center;color:#bbb;padding:20px;">Cargando sabores...</div>`;
     } else {
       const stockCalc = stockAllData.length > 0 ? stockCalcBySabor(stockDataHastaHoy()) : null;
+      // Se guarda el stock de cada sabor para poder recalcular el restante
+      // en cada toque, sin volver a dibujar toda la grilla.
+      stockPorSabor = {};
       const cardEmp = e => {
         const qty = eQ[e.id] || 0;
-        const stock = stockCalc ? Math.max(0, stockCalc[e.nombre]?.stock || 0) : null;
-        const agotado = stock !== null && stock === 0;
+        const stock = stockCalc ? (stockCalc[e.nombre]?.stock ?? 0) : null;
+        if(stock!==null) stockPorSabor[e.id] = stock;
         const tipo = tipoDe(e);
-        const cardClass = (agotado ? 'modal-card agotado' : qty > 0 ? 'modal-card selected' : 'modal-card')
-                        + ' t-' + tipo;
-        const clickFn = agotado ? '' : `onclick="chgE('${e.id}',1)"`;
-        const stockLabel = stock !== null ? `<span class="modal-card-stock">${stock}</span>` : `<span></span>`;
+        const cardClass = claseTarjetaEmp(e.id, tipo, qty, stock);
         const badge = e.curcuma ? '<span style="font-size:9px;opacity:0.85;"> ✦</span>' : '';
-        return `<div class="${cardClass}" id="mcard-${e.id}" ${clickFn}>
+        return `<div class="${cardClass}" id="mcard-${e.id}" onclick="chgE('${e.id}',1)">
           <button class="modal-card-minus" onclick="event.stopPropagation();chgE('${e.id}',-1)">−</button>
           <div class="modal-card-name">${e.nombre}${badge}</div>
-          <div class="modal-card-footer">${stockLabel}<span class="modal-card-qty${qty>0?' has-qty':''}" id="eq${e.id}">${qty}</span></div>
+          <div class="modal-card-footer">${etiquetaStockEmp(e.id, qty, stock)}<span class="modal-card-qty${qty>0?' has-qty':''}" id="eq${e.id}">${qty}</span></div>
         </div>`;
       };
       const clas = EMP.filter(e=>tipoDe(e)==='classica');
@@ -1977,15 +1984,45 @@ function renderList() {
   document.getElementById('modal-emp-list').innerHTML = h;
 }
 
+// Stock de cada sabor al abrir el modal, para calcular el restante en vivo
+let stockPorSabor = {};
+
+// Color de la tarjeta según cuánto quedaría si se confirma el pedido.
+// Normal (azul/rojo) mientras sobra · NARANJA al llegar a 0 · naranja oscuro si pasa de ahí.
+function claseTarjetaEmp(id, tipo, qty, stock){
+  let c = 'modal-card t-' + tipo;
+  if(qty > 0) c += ' selected';
+  if(stock === null) return c;
+  const restante = stock - qty;
+  if(restante < 0)       c += ' sin-stock-neg';
+  else if(restante === 0) c += ' sin-stock-cero';
+  return c;
+}
+// Número de la izquierda: lo que va a quedar en stock si se confirma
+function etiquetaStockEmp(id, qty, stock){
+  if(stock === null) return '<span></span>';
+  const restante = stock - qty;
+  const cls = restante < 0 ? 'modal-card-stock neg' : restante === 0 ? 'modal-card-stock cero' : 'modal-card-stock';
+  return `<span class="${cls}" id="est${id}">${restante}</span>`;
+}
+
 window.chgE=function(id,d){
   eQ[id]=Math.max(0,eQ[id]+d);
+  const qty=eQ[id];
   const el=document.getElementById('eq'+id);
-  if(el){el.textContent=eQ[id];el.className='modal-card-qty'+(eQ[id]>0?' has-qty':'');}
-  // Conserva la clase de tipo (t-classica / t-speciale) al cambiar el estado
+  if(el){el.textContent=qty;el.className='modal-card-qty'+(qty>0?' has-qty':'');}
   const card=document.getElementById('mcard-'+id);
-  if(card&&!card.classList.contains('agotado')){
-    const tipoCls = card.classList.contains('t-speciale') ? ' t-speciale' : ' t-classica';
-    card.className=(eQ[id]>0?'modal-card selected':'modal-card')+tipoCls;
+  if(card){
+    const tipo = card.classList.contains('t-speciale') ? 'speciale' : 'classica';
+    const stock = (id in stockPorSabor) ? stockPorSabor[id] : null;
+    card.className = claseTarjetaEmp(id, tipo, qty, stock);
+    // Actualizar el contador de stock restante
+    const est=document.getElementById('est'+id);
+    if(est && stock!==null){
+      const restante = stock - qty;
+      est.textContent = restante;
+      est.className = restante < 0 ? 'modal-card-stock neg' : restante === 0 ? 'modal-card-stock cero' : 'modal-card-stock';
+    }
   }
   actualizarContadorModal();
 };
