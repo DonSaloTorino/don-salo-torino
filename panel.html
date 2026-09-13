@@ -324,6 +324,14 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .ddt-sub{font-size:11px;opacity:0.6;margin-top:5px;line-height:1.5;}
 .ddt-vacio{background:#fff;border:1px dashed #ddd;border-radius:12px;padding:20px;text-align:center;color:#bbb;font-size:13px;}
 .ddt-lista-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid #f0f0f0;font-size:13px;}
+.inv-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:0.5px solid #f0f0f0;}
+.inv-nom{font-size:13px;font-weight:500;color:#111;flex:1;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.inv-actual{font-size:10px;letter-spacing:0.5px;}
+.inv-input{width:88px;border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:16px;text-align:center;outline:none;flex-shrink:0;}
+.inv-input:focus{border-color:#111;}
+.tipo-punto{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.tipo-punto.classica{background:#2563eb;}
+.tipo-punto.speciale{background:#b91c1c;}
 .stock-ddt-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:12px;}
 .stock-ddt-falta{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.5;}
 .stock-total-box{background:#111;color:#fff;border-radius:12px;padding:16px 28px;}
@@ -728,6 +736,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </div>
     <button class="stock-add-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="openSaborModal()">+ Agregar Sabor</button>
     <button class="stock-add-btn" onclick="openStockModal()">+ Cargar Stock</button>
+    <button class="stock-add-btn" style="background:#7e22ce;" onclick="openInventarioModal()">📋 Inventario</button>
     <button class="stock-add-btn" style="background:#0369a1;" onclick="openDdtModal()">🚚 Consegna</button>
   </div>
   <!-- Renglón 3: control del DDT -->
@@ -816,6 +825,32 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     </table>
   </div>
   <div class="coc-nota" id="coc-nota"></div>
+</div>
+
+<!-- MODAL: INVENTARIO (ajuste masivo) -->
+<div class="modal-overlay no-print" id="inv-modal-overlay">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-top">
+      <div class="modal-top-row">
+        <div class="modal-title">📋 Inventario</div>
+        <div class="modal-counter-box">
+          <div class="modal-counter-label">Total</div>
+          <div class="modal-counter-num" id="inv-total">0</div>
+        </div>
+        <button class="modal-cancel" onclick="closeInventarioModal()">Cancelar</button>
+        <button class="modal-confirm" id="inv-save-btn" onclick="guardarInventario()">Ajustar todo →</button>
+      </div>
+      <label class="modal-label">Fecha del inventario</label>
+      <input class="modal-input" id="inv-fecha" type="date" style="margin-bottom:10px;"/>
+      <div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:9px 14px;font-size:12px;line-height:1.6;">
+        Escribí lo que contaste de cada sabor. Se registra un <strong>AJUSTE</strong> por cada uno,
+        que fija el stock en ese número exacto. Los que dejes vacíos no se tocan.
+      </div>
+    </div>
+    <div class="modal-scroll">
+      <div id="inv-lista"></div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: CONSEGNA (DDT) -->
@@ -3386,6 +3421,102 @@ window.stockAvisoDdt=function(){
     ? `<div class="stock-ddt-ok">🚚 Se vincula a <strong>DDT ${d.numero}</strong>${d.interno?' (interno)':''}</div>`
     : `<div class="stock-ddt-falta">⚠️ No hay consegna con esta fecha. Al guardar te va a ofrecer crear un DDT interno.</div>`;
 };
+
+// ═══════════════════════════════════════════════════════
+//  INVENTARIO — ajuste masivo
+//  Para el conteo físico: se escriben todas las cantidades de una vez y el
+//  sistema registra un AJUSTE por sabor. Evita cargar uno por uno y, sobre
+//  todo, evita equivocarse de sabor al hacerlo dieciséis veces seguidas.
+// ═══════════════════════════════════════════════════════
+window.openInventarioModal=function(){
+  document.getElementById('inv-fecha').value=new Date().toISOString().split('T')[0];
+  invRender();
+  document.getElementById('inv-modal-overlay').classList.add('show');
+};
+window.closeInventarioModal=function(){ document.getElementById('inv-modal-overlay').classList.remove('show'); };
+
+function invRender(){
+  const cont=document.getElementById('inv-lista');
+  if(!cont) return;
+  if(!EMP.length){ cont.innerHTML='<div style="padding:20px;text-align:center;color:#bbb;">Cargando sabores...</div>'; return; }
+  const calc=stockAllData.length ? stockCalcBySabor(stockDataHastaHoy()) : null;
+  const fila=e=>{
+    const actual = calc ? (calc[e.nombre]?.stock ?? 0) : null;
+    const tipo=tipoDe(e);
+    const colorActual = actual===null ? '#bbb' : actual<0 ? '#991b1b' : '#888';
+    return `<div class="inv-row">
+      <div class="inv-nom">
+        <span class="tipo-punto ${tipo}"></span>${e.nombre}
+        <span class="inv-actual" style="color:${colorActual};">ahora: ${actual===null?'—':actual}</span>
+      </div>
+      <input class="inv-input" type="number" min="0" inputmode="numeric"
+             id="inv-${e.id}" placeholder="—" oninput="invTotal()"/>
+    </div>`;
+  };
+  const clas=EMP.filter(e=>tipoDe(e)==='classica');
+  const spec=EMP.filter(e=>tipoDe(e)==='speciale');
+  let h='';
+  if(clas.length) h+=`<div class="modal-section-label sec-classica">Le Classiche</div>${clas.map(fila).join('')}`;
+  if(spec.length) h+=`<div class="modal-section-label sec-speciale">Le Speciali</div>${spec.map(fila).join('')}`;
+  cont.innerHTML=h;
+  invTotal();
+}
+
+window.invTotal=function(){
+  let t=0, n=0;
+  EMP.forEach(e=>{
+    const v=document.getElementById('inv-'+e.id);
+    if(!v || v.value==='') return;
+    const q=parseInt(v.value);
+    if(isNaN(q)||q<0) return;
+    t+=q; n++;
+  });
+  const box=document.getElementById('inv-total');
+  if(box) box.textContent=t;
+};
+
+window.guardarInventario=async function(){
+  const fecha=document.getElementById('inv-fecha').value;
+  if(!fecha){ alert('Elegí la fecha del inventario.'); return; }
+  const items=[];
+  let invalido=null;
+  EMP.forEach(e=>{
+    const inp=document.getElementById('inv-'+e.id);
+    if(!inp || inp.value==='') return;          // vacío = no se toca
+    const q=parseInt(inp.value);
+    if(isNaN(q)||q<0){ invalido=e.nombre; return; }
+    items.push({sabor:e.nombre, cantidad:q});
+  });
+  if(invalido){ alert('El valor de '+invalido+' no es válido.'); return; }
+  if(!items.length){ alert('No escribiste ninguna cantidad.'); return; }
+  const total=items.reduce((a,x)=>a+x.cantidad,0);
+  const sinTocar=EMP.length-items.length;
+  if(!confirm(
+    `Se van a registrar ${items.length} ajustes con fecha ${fecha}.\n\n`+
+    `Total: ${total} empanadas.\n`+
+    (sinTocar>0 ? `${sinTocar} sabor(es) quedan sin tocar.\n` : '')+
+    `\nCada ajuste FIJA el stock en el número que escribiste y borra lo anterior de ese sabor. ¿Confirmás?`
+  )) return;
+
+  const btn=document.getElementById('inv-save-btn');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    for(const it of items){
+      await addDoc(collection(db,'stock'),{
+        sabor:it.sabor, cantidad:it.cantidad, fecha, tipo:'ajuste',
+        inventario:true, timestamp:serverTimestamp()
+      });
+    }
+    closeInventarioModal();
+    await stockLoadAll();
+    alert(`✅ Inventario registrado: ${items.length} sabores, ${total} empanadas.`);
+  }catch(err){ alert('Error: '+err.message); }
+  finally{ btn.disabled=false; btn.textContent='Ajustar todo →'; }
+};
+
+document.getElementById('inv-modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('inv-modal-overlay')) closeInventarioModal();
+});
 
 // ¿Hay un DDT para esta fecha?
 function ddtDeFecha(fecha){ return ddtAll.find(d=>String(d.fecha)===String(fecha)) || null; }
