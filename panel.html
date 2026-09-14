@@ -4410,10 +4410,15 @@ function cocRender(){
       const dias=cocDiasEntre(c.fecha,hoy);
       const esPerdida=c.tipo===TIPO_PERDIDA;
       const esDesc=c.tipo==='descarte'||esPerdida||c.tipo==='ajuste';
+      const esConteo = c.origen==='conteo';
       const badge=esPerdida
         ? `<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ ${LABEL_PERDIDA}</span>`
+        : (esConteo && c.tipo==='ajuste')
+        ? '<span style="color:#6b21a8;background:#f3e8ff;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">📋 CONTEO VITRINA <b>▼</b></span>'
+        : esConteo
+        ? '<span style="color:#6b21a8;background:#f3e8ff;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">📋 CONTEO VITRINA</span>'
         : c.tipo==='ajuste'
-        ? '<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE CONTEO</span>'
+        ? '<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
         : c.tipo==='descarte'
         ? '<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🗑 DESCARTE</span>'
         : (c.auto && c.origen==='deficit')
@@ -4865,7 +4870,13 @@ window.exportCoccion=function(){
   // Hoja 3: registro crudo de cocciones, descartes y pérdidas
   const mov=[['Fecha','Sabor','Cantidad','Tipo','Fecha cocción','Días desde cocción','Automático']];
   [...cocDataAll].sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).forEach(c=>{
-    const et = c.tipo===TIPO_PERDIDA ? LABEL_PERDIDA : c.tipo==='descarte' ? 'DESCARTE' : 'COCCIÓN';
+    const et = c.tipo===TIPO_PERDIDA ? LABEL_PERDIDA
+             : (c.origen==='conteo' && c.tipo==='ajuste') ? 'CONTEO VITRINA (RESTA)'
+             : c.origen==='conteo' ? 'CONTEO VITRINA'
+             : c.tipo==='ajuste' ? 'AJUSTE'
+             : c.tipo==='descarte' ? 'DESCARTE'
+             : (c.auto && c.origen==='deficit') ? 'COCCIÓN AUTO'
+             : 'COCCIÓN';
     mov.push([c.fecha,c.sabor,parseInt(c.cantidad)||0, et, c.fechaCoccion||'',
       c.tipo==='coccion'?cocDiasEntre(c.fecha,hoy):'', c.auto?'SÍ':'']);
   });
