@@ -806,6 +806,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="coc-total-label">Empanadas cocinadas disponibles</div>
       <div class="coc-total-num" id="coc-total-num">—</div>
       <div class="coc-total-sub" id="coc-total-sub"></div>
+      <div class="coc-total-sub" id="coc-horarios" style="margin-top:6px;opacity:0.35;"></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 20px;flex-wrap:wrap;">
       <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">⏱️ Días máximos</span>
@@ -813,6 +814,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <button onclick="cocGuardarLimite()" style="padding:6px 14px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Guardar</button>
     </div>
     <button class="xls-btn" onclick="exportCoccion()">📊 Excel</button>
+    <button class="coc-add-btn" style="background:#7e22ce;" onclick="openCocInvModal()">📋 Contar vitrina</button>
     <button class="coc-add-btn" onclick="openCocModal()">🍳 Registrar cocción</button>
   </div>
 
@@ -918,6 +920,32 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 </div>
 
 <!-- COCCIÓN MODAL -->
+<!-- MODAL: CONTAR VITRINA (inventario de cocinadas) -->
+<div class="modal-overlay no-print" id="cocinv-modal-overlay">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-top">
+      <div class="modal-top-row">
+        <div class="modal-title">📋 Contar vitrina</div>
+        <div class="modal-counter-box">
+          <div class="modal-counter-label">Contadas</div>
+          <div class="modal-counter-num" id="cocinv-total">0</div>
+          <div class="modal-counter-det" id="cocinv-det"></div>
+        </div>
+        <button class="modal-cancel" onclick="closeCocInvModal()">Cancelar</button>
+        <button class="modal-confirm" id="cocinv-save-btn" onclick="guardarCocInventario()">Guardar conteo →</button>
+      </div>
+      <div class="inv-nota aviso">
+        Contá lo que tenés <strong>cocinado en la vitrina ahora</strong> y escribilo tal cual.
+        El sistema calcula solo la diferencia: si sobra, la registra como cocción de hoy;
+        si falta, corrige el conteo. <strong>No toca el stock.</strong> Los vacíos no se tocan.
+      </div>
+    </div>
+    <div class="modal-scroll">
+      <div id="cocinv-lista"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay no-print" id="coc-modal-overlay">
   <div class="modal">
     <div class="modal-top">
@@ -4029,17 +4057,40 @@ async function cocRecargarSilencioso(){
 //
 // La página solo corre cuando está abierta, así que al abrir el mostrador se
 // revisa si quedó pendiente algún control y se ejecuta ahí mismo (recuperación).
-const COC_CONTROLES=[
-  {turno:'t1', hora:15, minuto:0,  label:'15:00'},
-  {turno:'t2', hora:22, minuto:0,  label:'22:00'}
-];
+// Horarios de cierre del local, por día de la semana (0 = domingo).
+// El control automático corre SIEMPRE media hora antes del cierre, para que
+// después quede tiempo de contar la vitrina a mano.
+const CIERRE_NOCHE={
+  0:{hora:22,minuto:0},   // domingo cerrado — se deja tarde por si hubo alguna venta
+  1:{hora:20,minuto:0},   // lunes
+  2:{hora:20,minuto:0},   // martes
+  3:{hora:21,minuto:0},   // miércoles
+  4:{hora:21,minuto:0},   // jueves
+  5:{hora:22,minuto:0},   // viernes
+  6:{hora:22,minuto:0}    // sábado
+};
+const CIERRE_MEDIODIA={hora:14,minuto:30};   // igual todos los días
+const COC_TURNOS=['t1','t2'];
+
+function menosMediaHora(h){
+  let m=h.hora*60+h.minuto-30;
+  if(m<0) m=0;
+  return {hora:Math.floor(m/60), minuto:m%60, label:String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+}
+// Los dos controles del día de hoy
+function cocControlesDelDia(){
+  const dia=new Date().getDay();
+  const t1=menosMediaHora(CIERRE_MEDIODIA);
+  const t2=menosMediaHora(CIERRE_NOCHE[dia]||CIERRE_NOCHE[6]);
+  return [{turno:'t1',...t1},{turno:'t2',...t2}];
+}
 const cocControlesHechos=new Set();   // turnos ya corridos en esta sesión
 
 // Qué controles ya deberían haber pasado hoy según la hora actual
 function cocControlesPasados(){
   const n=new Date();
   const minutosAhora=n.getHours()*60+n.getMinutes();
-  return COC_CONTROLES.filter(c=>minutosAhora >= c.hora*60+c.minuto);
+  return cocControlesDelDia().filter(c=>minutosAhora >= c.hora*60+c.minuto);
 }
 
 // Convierte el faltante en cocciones reales.
@@ -4223,7 +4274,11 @@ function cocCalcularFIFO(){
   cocDataAll.forEach(c=>{
     const cant=parseInt(c.cantidad)||0;
     // El descarte y la pérdida por vencimiento sacan unidades del control de cocinadas
-    if(c.tipo==='descarte'||c.tipo===TIPO_PERDIDA) agregar(c.sabor,c.fecha,'out',cant);
+    // El descarte, la pérdida por vencimiento y el ajuste del conteo sacan
+    // unidades. El ajuste es una corrección del conteo de la vitrina: NO toca
+    // el stock, porque esas empanadas ya se descontaron al venderse o nunca
+    // existieron para el sistema.
+    if(c.tipo==='descarte'||c.tipo===TIPO_PERDIDA||c.tipo==='ajuste') agregar(c.sabor,c.fecha,'out',cant);
     else agregar(c.sabor,c.fecha,'in',cant);
   });
   Object.entries(cocVentasPorDia).forEach(([sabor,porDia])=>{
@@ -4330,6 +4385,14 @@ function cocRender(){
   });
   alertsDiv.innerHTML=ah;
 
+  const hz=document.getElementById('coc-horarios');
+  if(hz){
+    const dia=new Date().getDay();
+    const cn=CIERRE_NOCHE[dia]||CIERRE_NOCHE[6];
+    const cierre=String(cn.hora).padStart(2,'0')+':'+String(cn.minuto).padStart(2,'0');
+    hz.textContent='controles automáticos hoy: '+cocControlesDelDia().map(c=>c.label).join(' y ')
+      +' · cierre '+cierre;
+  }
   document.getElementById('coc-total-num').textContent=totalVivas;
   document.getElementById('coc-total-sub').textContent=
     totalVencidas>0 ? `${totalVencidas} vencidas · ${totalUltimoDia} en último día`
@@ -4346,9 +4409,11 @@ function cocRender(){
     tb.innerHTML=orden.map(c=>{
       const dias=cocDiasEntre(c.fecha,hoy);
       const esPerdida=c.tipo===TIPO_PERDIDA;
-      const esDesc=c.tipo==='descarte'||esPerdida;
+      const esDesc=c.tipo==='descarte'||esPerdida||c.tipo==='ajuste';
       const badge=esPerdida
         ? `<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ ${LABEL_PERDIDA}</span>`
+        : c.tipo==='ajuste'
+        ? '<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE CONTEO</span>'
         : c.tipo==='descarte'
         ? '<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🗑 DESCARTE</span>'
         : (c.auto && c.origen==='deficit')
@@ -4371,9 +4436,132 @@ function cocRender(){
   }
 
   document.getElementById('coc-nota').textContent = totalAsumidas>0
-    ? `Nota: hoy se vendieron ${totalAsumidas} empanadas sin tener cocción registrada. El control de las 15:00 o de las 22:00 las va a dar de alta. Si cargás la cocción real antes, este número baja solo.`
+    ? `Nota: hoy se vendieron ${totalAsumidas} empanadas sin tener cocción registrada. El control de las ${cocControlesDelDia().map(c=>c.label).join(' o de las ')} las va a dar de alta. Si cargás la cocción real antes, este número baja solo.`
     : '';
 }
+
+// ═══════════════════════════════════════════════════════
+//  CONTAR VITRINA — inventario de cocinadas
+//
+//  El sistema solo puede deducir cocciones a partir de las ventas: si cocinaste
+//  56 y vendiste 28, solo "ve" las 28 que salieron. Las que quedaron en la
+//  vitrina son invisibles para él porque nadie se las contó.
+//
+//  Acá se carga el conteo real. El sistema calcula la diferencia:
+//   · Si hay MÁS de lo que creía → registra una cocción de hoy por el sobrante.
+//   · Si hay MENOS → registra un ajuste que baja el conteo (NO toca el stock,
+//     porque esas empanadas ya se descontaron al venderse).
+// ═══════════════════════════════════════════════════════
+let cocInvActual={};
+
+window.openCocInvModal=function(){
+  cocInvRender();
+  document.getElementById('cocinv-modal-overlay').classList.add('show');
+};
+window.closeCocInvModal=function(){ document.getElementById('cocinv-modal-overlay').classList.remove('show'); };
+
+function cocInvRender(){
+  const cont=document.getElementById('cocinv-lista');
+  if(!cont) return;
+  if(!EMP.length){ cont.innerHTML='<div style="padding:20px;text-align:center;color:#bbb;">Cargando sabores...</div>'; return; }
+  cocInvActual={};
+  const fila=e=>{
+    const actual=(cocCalculado[e.nombre]||{}).total||0;
+    cocInvActual[e.id]=actual;
+    const tipo=tipoDe(e);
+    return `<div class="inv-row">
+      <div class="inv-nom">
+        <span class="tipo-punto ${tipo}"></span>${e.nombre}
+        <span class="inv-actual">sistema: ${actual}</span>
+      </div>
+      <span class="inv-queda" id="cocinvq-${e.id}"></span>
+      <input class="inv-input" type="number" min="0" inputmode="numeric"
+             id="cocinv-${e.id}" placeholder="—" oninput="cocInvTotal()"/>
+    </div>`;
+  };
+  const clas=EMP.filter(e=>tipoDe(e)==='classica');
+  const spec=EMP.filter(e=>tipoDe(e)==='speciale');
+  let h='';
+  if(clas.length) h+=`<div class="modal-section-label sec-classica">Le Classiche</div>${clas.map(fila).join('')}`;
+  if(spec.length) h+=`<div class="modal-section-label sec-speciale">Le Speciali</div>${spec.map(fila).join('')}`;
+  cont.innerHTML=h;
+  cocInvTotal();
+}
+
+window.cocInvTotal=function(){
+  let total=0, dif=0;
+  EMP.forEach(e=>{
+    const inp=document.getElementById('cocinv-'+e.id);
+    const out=document.getElementById('cocinvq-'+e.id);
+    if(!inp) return;
+    const q=inp.value===''?NaN:parseInt(inp.value);
+    const actual=cocInvActual[e.id]||0;
+    if(isNaN(q)||q<0){ if(out){out.textContent='';out.className='inv-queda';} return; }
+    total+=q;
+    const d=q-actual;
+    dif+=d;
+    if(out){
+      out.textContent = d===0 ? '=' : (d>0?'+'+d:String(d));
+      out.className='inv-queda'+(d<0?' neg':'')+(d===0?' cero':'');
+    }
+  });
+  const box=document.getElementById('cocinv-total');
+  if(box) box.textContent=total;
+  const det=document.getElementById('cocinv-det');
+  if(det) det.textContent = dif===0 ? 'sin cambios' : (dif>0?'+'+dif+' a registrar':dif+' a corregir');
+};
+
+window.guardarCocInventario=async function(){
+  const hoy=cocHoy();
+  const altas=[], bajas=[];
+  let invalido=null;
+  EMP.forEach(e=>{
+    const inp=document.getElementById('cocinv-'+e.id);
+    if(!inp || inp.value==='') return;         // vacío = no se toca
+    const q=parseInt(inp.value);
+    if(isNaN(q)||q<0){ invalido=e.nombre; return; }
+    const actual=cocInvActual[e.id]||0;
+    const d=q-actual;
+    if(d>0) altas.push({sabor:e.nombre, cantidad:d});
+    else if(d<0) bajas.push({sabor:e.nombre, cantidad:-d});
+  });
+  if(invalido){ alert('El valor de '+invalido+' no es válido.'); return; }
+  if(!altas.length && !bajas.length){ alert('El conteo coincide con el sistema. No hay nada que corregir.'); return; }
+
+  const sumaA=altas.reduce((a,x)=>a+x.cantidad,0);
+  const sumaB=bajas.reduce((a,x)=>a+x.cantidad,0);
+  if(!confirm(
+    `Conteo de vitrina del ${hoy}:\n\n`+
+    (altas.length ? `· ${sumaA} empanadas de más → se registran como cocción de hoy\n` : '')+
+    (bajas.length ? `· ${sumaB} empanadas de menos → se corrige el conteo\n` : '')+
+    `\nEsto NO modifica el stock. ¿Confirmás?`
+  )) return;
+
+  const btn=document.getElementById('cocinv-save-btn');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    for(const a of altas){
+      await addDoc(collection(db,'cocciones'),{
+        sabor:a.sabor, cantidad:a.cantidad, fecha:hoy,
+        tipo:'coccion', origen:'conteo', timestamp:serverTimestamp()
+      });
+    }
+    for(const b of bajas){
+      await addDoc(collection(db,'cocciones'),{
+        sabor:b.sabor, cantidad:b.cantidad, fecha:hoy,
+        tipo:'ajuste', origen:'conteo', timestamp:serverTimestamp()
+      });
+    }
+    closeCocInvModal();
+    await cocLoadAll();
+    alert('✅ Conteo guardado.');
+  }catch(err){ alert('Error: '+err.message); }
+  finally{ btn.disabled=false; btn.textContent='Guardar conteo →'; }
+};
+
+document.getElementById('cocinv-modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('cocinv-modal-overlay')) closeCocInvModal();
+});
 
 // ── Registrar una cocción ──
 let cocQ={};
@@ -4487,8 +4675,8 @@ window.guardarCoccion=async function(){
     //    anotar con el número correcto. Sin esto se sumaban las dos y quedaban
     //    empanadas cocinadas fantasma.
     await Promise.all(sel.flatMap(([sabor])=>
-      COC_CONTROLES.map(ctrl=>{
-        const idAuto='auto_'+(sabor+'_'+fecha).replace(/[^a-zA-Z0-9]/g,'_')+'_'+ctrl.turno;
+      COC_TURNOS.map(turnoId=>{
+        const idAuto='auto_'+(sabor+'_'+fecha).replace(/[^a-zA-Z0-9]/g,'_')+'_'+turnoId;
         return deleteDoc(doc(db,'cocciones',idAuto)).catch(()=>{});
       })
     ));
