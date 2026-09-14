@@ -2122,11 +2122,8 @@ window.openModal = function() {
   document.getElementById('modal-overlay').classList.add('show');
   document.getElementById('modal-nombre').focus();
   // Si el stock no está cargado aún (panel STOCK no fue abierto), lo carga antes de renderizar
-  if(stockAllData.length === 0){
-    getDocs(query(collection(db,'stock'))).then(snap=>{
-      stockAllData = snap.docs.map(d=>({id:d.id,...d.data()}));
-      renderList();
-    }).catch(()=>renderList());
+  if(!stockCargado){
+    asegurarStockCargado().then(renderList).catch(()=>renderList());
   } else {
     renderList();
   }
@@ -3077,8 +3074,13 @@ window.sSetPeriod=function(p){sP=p;document.querySelectorAll('.s-tab-btn').forEa
 window.sApplyRange=function(){const f=document.getElementById('s-date-from').value,t=document.getElementById('s-date-to').value;if(!f||!t){alert('Seleccioná ambas fechas');return;}sP='custom';document.querySelectorAll('.s-tab-btn').forEach(b=>b.classList.remove('active'));window._sCR={from:new Date(f+'T00:00:00'),to:new Date(t+'T23:59:59'),label:'Rango: '+f+' → '+t};sLoadData();};
 
 // ── CONTADORES FIJOS: mes anterior + mejor día ──
+// Los récords históricos se calculan UNA vez por sesión.
+// Antes se releía todo el historial de pedidos cada vez que se abría STATS.
+let sRecordsCache=null;
+
 async function sLoadFixed(){
   try{
+    if(sRecordsCache){ sPintarRecords(sRecordsCache); return; }
     const now=new Date();
     // Mes anterior
     const prevMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1);
@@ -3110,31 +3112,38 @@ async function sLoadFixed(){
       byMonth[claveMes].pedidos++;
     });
 
-    // Mejor mes
+    // Se guarda el resultado para no volver a leer todo el historial
     const mesesOrden=Object.entries(byMonth).sort((a,b)=>b[1].emp-a[1].emp);
-    if(mesesOrden.length>0){
-      const [clave,val]=mesesOrden[0];
-      const [y,m]=clave.split('-');
-      const nombreMes=new Date(parseInt(y),parseInt(m)-1,1)
-        .toLocaleString('it-IT',{month:'long',year:'numeric'});
-      document.getElementById('s-best-month-num').textContent=val.emp;
-      document.getElementById('s-best-month-sub').textContent=
-        'empanadas · '+nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)+' · '+val.pedidos+' pedidos';
-    }else{
-      document.getElementById('s-best-month-num').textContent='—';
-      document.getElementById('s-best-month-sub').textContent='sin datos';
-    }
-
-    const entries=Object.entries(byDay);
-    if(entries.length>0){
-      const best=entries.sort((a,b)=>b[1]-a[1])[0];
-      document.getElementById('s-best-day-num').textContent=best[1];
-      document.getElementById('s-best-day-sub').textContent='empanadas · '+best[0];
-    } else {
-      document.getElementById('s-best-day-num').textContent='—';
-      document.getElementById('s-best-day-sub').textContent='sin datos';
-    }
+    const diasOrden=Object.entries(byDay).sort((a,b)=>b[1]-a[1]);
+    sRecordsCache={
+      mejorMes: mesesOrden.length ? mesesOrden[0] : null,
+      mejorDia: diasOrden.length ? diasOrden[0] : null
+    };
+    sPintarRecords(sRecordsCache);
   }catch(e){console.error('sLoadFixed error',e);}
+}
+
+// Dibuja las dos tarjetas de récords
+function sPintarRecords(r){
+  if(r.mejorMes){
+    const [clave,val]=r.mejorMes;
+    const [y,m]=clave.split('-');
+    const nombreMes=new Date(parseInt(y),parseInt(m)-1,1)
+      .toLocaleString('it-IT',{month:'long',year:'numeric'});
+    document.getElementById('s-best-month-num').textContent=val.emp;
+    document.getElementById('s-best-month-sub').textContent=
+      'empanadas · '+nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)+' · '+val.pedidos+' pedidos';
+  }else{
+    document.getElementById('s-best-month-num').textContent='—';
+    document.getElementById('s-best-month-sub').textContent='sin datos';
+  }
+  if(r.mejorDia){
+    document.getElementById('s-best-day-num').textContent=r.mejorDia[1];
+    document.getElementById('s-best-day-sub').textContent='empanadas · '+r.mejorDia[0];
+  }else{
+    document.getElementById('s-best-day-num').textContent='—';
+    document.getElementById('s-best-day-sub').textContent='sin datos';
+  }
 }
 const td=new Date().toISOString().split('T')[0];
 document.getElementById('s-date-from').value=td;document.getElementById('s-date-to').value=td;
@@ -3225,6 +3234,22 @@ document.getElementById('hist-from').value=td;document.getElementById('hist-to')
 
 // ── STOCK ──
 let stockAllData=[];
+let stockCargado=false;   // la colección 'stock' ya se leyó en esta sesión
+
+// Lee la colección 'stock' UNA sola vez por sesión y la deja en memoria.
+// Todo lo que necesite el stock pasa por acá en vez de volver a leer la base.
+async function asegurarStockCargado(){
+  if(stockCargado) return;
+  const snap=await getDocs(query(collection(db,'stock')));
+  stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
+  stockCargado=true;
+}
+// Agrega en memoria un movimiento recién escrito, sin releer nada
+function stockAgregarEnMemoria(doc){
+  if(!stockCargado) return;
+  const i=stockAllData.findIndex(x=>x.id===doc.id);
+  if(i>=0) stockAllData[i]=doc; else stockAllData.push(doc);
+}
 let stockSortCol='fecha', stockSortDir='desc';
 let stockCurrentTableData=[];
 
@@ -3247,6 +3272,7 @@ async function stockLoadAll(){
   try{
     const snap=await getDocs(query(collection(db,'stock')));
     stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
+    stockCargado=true;
     stockAllData.sort((a,b)=>{
       if(a.fecha&&b.fecha)return b.fecha.localeCompare(a.fecha);
       return 0;
@@ -4053,11 +4079,14 @@ async function autoRegisterVentas(order){
     // El stock se guarda SIEMPRE con el nombre limpio, sin el prefijo (C)/(S)
     const sabor=nombreLimpio(item.nombre);
     const docId=order.id+'_'+sabor.replace(/[^a-zA-Z0-9]/g,'_');
+    const datos={
+      fecha,sabor,cantidad:item.cantidad,
+      tipo:tipoMovimientoStock(order),orderId:order.id,timestamp:serverTimestamp()
+    };
     try{
-      await setDoc(doc(db,'stock',docId),{
-        fecha,sabor,cantidad:item.cantidad,
-        tipo:tipoMovimientoStock(order),orderId:order.id,timestamp:serverTimestamp()
-      },{merge:false});
+      await setDoc(doc(db,'stock',docId),datos,{merge:false});
+      // Se agrega en memoria: así no hace falta releer toda la colección
+      stockAgregarEnMemoria({id:docId,...datos,timestamp:{seconds:Math.floor(Date.now()/1000)}});
     }catch(e){console.error('autoRegisterVentas error',e);}
   }
   // Refrescar stock si la pestaña está abierta
@@ -4869,12 +4898,9 @@ window.openCocModal=function(){
   document.getElementById('coc-modal-detalle').textContent='';
   document.getElementById('coc-modal-overlay').classList.add('show');
   // El límite para cocinar sale del stock, así que hay que tenerlo cargado
-  if(stockAllData.length===0){
+  if(!stockCargado){
     cocRenderModal();
-    getDocs(query(collection(db,'stock'))).then(snap=>{
-      stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
-      cocRenderModal();
-    }).catch(()=>cocRenderModal());
+    asegurarStockCargado().then(cocRenderModal).catch(()=>cocRenderModal());
   }else{
     cocRenderModal();
   }
@@ -5220,12 +5246,15 @@ async function syncDisponibilidad(){
   }catch(e){console.error('syncDisponibilidad error',e);}
 }
 
-// Versión que lee el stock de Firebase en tiempo real (cuando panel stock está cerrado)
+// Versión que usa el stock en memoria.
+// ANTES releía la colección 'stock' ENTERA en cada venta. Con diez meses de
+// operación eso son decenas de miles de documentos por pedido: era el 95% del
+// consumo de lecturas de Firebase y lo que hacía lento el panel.
+// Ahora se lee una sola vez por sesión y se mantiene al día en memoria.
 async function syncDisponibilidadFromDB(){
   try{
-    const snap=await getDocs(query(collection(db,'stock')));
-    const tempData=snap.docs.map(d=>({id:d.id,...d.data()}));
-    const bySabor=stockCalcBySabor(stockDataHastaHoy(tempData));
+    await asegurarStockCargado();
+    const bySabor=stockCalcBySabor(stockDataHastaHoy());
     const data={};
     EMP.forEach(e=>{
       data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
