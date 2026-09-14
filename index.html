@@ -232,7 +232,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, Timestamp, onSnapshot, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, Timestamp, onSnapshot, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
@@ -547,9 +547,11 @@ window.confirmarPedido = async function() {
 
   try {
     if (!nombre) {
-      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-      const snap = await getDocs(query(collection(db, 'pedidos'), where('timestamp', '>=', Timestamp.fromDate(startOfDay))));
-      nombre = 'A' + (snap.size + 1);
+      // El número A1, A2... sale de un contador propio.
+      // Antes se contaban los pedidos del día, lo que obligaba a que esta página
+      // pudiera LEER todos los pedidos. Con el contador alcanza con un documento
+      // que solo tiene una fecha y un número, sin ningún dato de nadie.
+      nombre = 'A' + (await siguienteNumeroQR());
       isAutoNumber = true;
     }
 
@@ -699,6 +701,28 @@ if (isWebOrder && (urlParams.get('nome') || urlParams.get('data'))) {
 }
 
 // ── DISPONIBILIDAD EN TIEMPO REAL ──
+// Contador de pedidos del QR. Es un único documento con la fecha y un número.
+// Se usa una transacción para que dos clientes que piden al mismo tiempo no
+// se lleven el mismo número. Si algo falla, cae a un número por hora y minuto,
+// que nunca choca con los A1, A2 del día.
+async function siguienteNumeroQR() {
+  const ref = doc(db, 'config', 'contadorQR');
+  const hoy = new Date().toISOString().split('T')[0];
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists() ? snap.data() : null;
+      const n = (data && data.fecha === hoy) ? (parseInt(data.n) || 0) + 1 : 1;
+      tx.set(ref, { fecha: hoy, n });
+      return n;
+    });
+  } catch (e) {
+    console.error('contadorQR', e);
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
+  }
+}
+
 onSnapshot(doc(db, 'config', 'disponibilidad'), (snap) => {
   if (snap.exists()) {
     stockDisponibilidad = snap.data();
