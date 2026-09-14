@@ -559,6 +559,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .coc-table tr:hover td{background:#fafafa;}
 .coc-empty{text-align:center;padding:36px;color:#bbb;font-size:14px;}
 .coc-nota{font-size:12px;color:#bbb;margin-top:10px;line-height:1.6;}
+.coc-filtro-info{font-size:11px;color:#aaa;letter-spacing:0.5px;margin-left:4px;}
 /* Modal de cocción */
 .coc-modal-card{
   background:#2563eb;color:#fff;border-radius:8px;padding:10px 8px 8px;cursor:pointer;
@@ -827,18 +828,64 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
   <!-- Historial de cocciones -->
   <div class="s-section-title">📋 Cocciones registradas</div>
+  <div class="stock-filters">
+    <select class="stock-select" id="coc-f-sabor" onchange="cocTablaRender()"><option value="">Todos los sabores</option></select>
+    <input type="date" class="stock-date-input" id="coc-f-desde" onchange="cocTablaRender()"/>
+    <span style="color:#aaa;font-size:11px;">→</span>
+    <input type="date" class="stock-date-input" id="coc-f-hasta" onchange="cocTablaRender()"/>
+    <select class="stock-select" id="coc-f-tipo" onchange="cocTablaRender()">
+      <option value="">Todos los tipos</option>
+      <option value="coccion">🍳 Cocción (cargada a mano)</option>
+      <option value="auto">🍳 Cocción AUTO</option>
+      <option value="conteo">📋 Conteo vitrina</option>
+      <option value="cotta_non_venduta">⚫ Cotta non venduta</option>
+      <option value="descarte">🗑 Descarte</option>
+    </select>
+    <button class="stock-btn stock-btn-sec" onclick="cocResetFiltros()">Reset</button>
+    <span class="coc-filtro-info" id="coc-filtro-info"></span>
+  </div>
   <div class="coc-table-wrap">
     <table class="coc-table">
       <thead><tr>
-        <th>Fecha</th><th>Sabor</th>
-        <th style="text-align:center;">Cantidad</th>
+        <th style="cursor:pointer;user-select:none;" onclick="cocOrdenar('fecha')">Fecha <span id="cocsort-fecha"></span></th>
+        <th style="cursor:pointer;user-select:none;" onclick="cocOrdenar('sabor')">Sabor <span id="cocsort-sabor"></span></th>
+        <th style="text-align:center;cursor:pointer;user-select:none;" onclick="cocOrdenar('cantidad')">Cantidad <span id="cocsort-cantidad"></span></th>
         <th style="text-align:center;">Días</th>
-        <th>Tipo</th><th>Acciones</th>
+        <th style="cursor:pointer;user-select:none;" onclick="cocOrdenar('tipo')">Tipo <span id="cocsort-tipo"></span></th>
+        <th>Acciones</th>
       </tr></thead>
       <tbody id="coc-tbody"><tr><td colspan="6" class="coc-empty">Cargando...</td></tr></tbody>
     </table>
   </div>
   <div class="coc-nota" id="coc-nota"></div>
+</div>
+
+<!-- MODAL: EDITAR UN REGISTRO DE COCCIÓN -->
+<div class="modal-overlay no-print" id="cocedit-modal-overlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-top">
+      <div class="modal-top-row">
+        <div class="modal-title">✏️ Modificar registro</div>
+        <button class="modal-cancel" onclick="closeCocEdit()">Cancelar</button>
+        <button class="modal-confirm" id="cocedit-save-btn" onclick="guardarCocEdit()">Guardar →</button>
+      </div>
+    </div>
+    <div class="modal-scroll" style="padding:20px 24px;">
+      <div class="inv-nota" id="cocedit-info" style="margin-bottom:16px;"></div>
+      <label class="modal-label">Sabor</label>
+      <select class="modal-input" id="cocedit-sabor" style="cursor:pointer;margin-bottom:16px;"></select>
+      <label class="modal-label">Cantidad</label>
+      <input class="modal-input" id="cocedit-cantidad" type="number" min="1" style="margin-bottom:16px;"/>
+      <label class="modal-label">Fecha de cocción</label>
+      <input class="modal-input" id="cocedit-fecha" type="date" style="margin-bottom:16px;"/>
+      <label class="modal-label">Tipo</label>
+      <select class="modal-input" id="cocedit-tipo" style="cursor:pointer;">
+        <option value="coccion">🍳 Cocción</option>
+        <option value="ajuste">📋 Conteo vitrina (resta)</option>
+        <option value="descarte">🗑 Descarte</option>
+      </select>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: INVENTARIO (ajuste masivo) -->
@@ -4398,52 +4445,182 @@ function cocRender(){
     totalVencidas>0 ? `${totalVencidas} vencidas · ${totalUltimoDia} en último día`
                     : (totalUltimoDia>0 ? `${totalUltimoDia} en su último día` : 'todo dentro de fecha');
 
-  // ── Historial de cocciones ──
-  const tb=document.getElementById('coc-tbody');
-  const orden=[...cocDataAll].sort((a,b)=>
-    a.fecha===b.fecha ? String(a.sabor).localeCompare(String(b.sabor)) : String(b.fecha).localeCompare(String(a.fecha))
-  );
-  if(!orden.length){
-    tb.innerHTML='<tr><td colspan="6" class="coc-empty">Todavía no registraste ninguna cocción</td></tr>';
-  }else{
-    tb.innerHTML=orden.map(c=>{
-      const dias=cocDiasEntre(c.fecha,hoy);
-      const esPerdida=c.tipo===TIPO_PERDIDA;
-      const esDesc=c.tipo==='descarte'||esPerdida||c.tipo==='ajuste';
-      const esConteo = c.origen==='conteo';
-      const badge=esPerdida
-        ? `<span style="color:#7f1d1d;background:#fecaca;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:700;">⚫ ${LABEL_PERDIDA}</span>`
-        : (esConteo && c.tipo==='ajuste')
-        ? '<span style="color:#6b21a8;background:#f3e8ff;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">📋 CONTEO VITRINA <b>▼</b></span>'
-        : esConteo
-        ? '<span style="color:#6b21a8;background:#f3e8ff;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">📋 CONTEO VITRINA</span>'
-        : c.tipo==='ajuste'
-        ? '<span style="color:#374151;background:#f3f4f6;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">⚪ AJUSTE</span>'
-        : c.tipo==='descarte'
-        ? '<span style="color:#991b1b;background:#fee2e2;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🗑 DESCARTE</span>'
-        : (c.auto && c.origen==='deficit')
-        ? '<span style="color:#9a3412;background:#ffedd5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🍳 COCCIÓN <b>AUTO</b></span>'
-        : '<span style="color:#9a3412;background:#ffedd5;padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;">🍳 COCCIÓN</span>';
-      const detalleFecha = esPerdida && c.fechaCoccion
-        ? `<div style="font-size:10px;color:#bbb;">cocinada ${c.fechaCoccion}</div>` : '';
-      return `<tr>
-        <td style="color:#888;white-space:nowrap;">${c.fecha}${detalleFecha}</td>
-        <td style="font-weight:500;">${c.sabor}</td>
-        <td style="text-align:center;font-weight:700;">${c.cantidad}</td>
-        <td style="text-align:center;">${esDesc?'—':`<span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span>`}</td>
-        <td>${badge}</td>
-        <td style="white-space:nowrap;">
-          ${esDesc?'':`<button onclick="cocReimprimir('${c.id}')" title="Reimprimir por el navegador" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:4px;">🖨</button>`}
-          <button onclick="cocBorrar('${c.id}')" style="padding:4px 10px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>
-        </td>
-      </tr>`;
-    }).join('');
-  }
+  // ── Historial de cocciones (se dibuja aparte, con filtros y orden) ──
+  cocLlenarFiltroSabores();
+  cocTablaRender();
 
   document.getElementById('coc-nota').textContent = totalAsumidas>0
     ? `Nota: hoy se vendieron ${totalAsumidas} empanadas sin tener cocción registrada. El control de las ${cocControlesDelDia().map(c=>c.label).join(' o de las ')} las va a dar de alta. Si cargás la cocción real antes, este número baja solo.`
     : '';
 }
+
+// ═══════════════════════════════════════════════════════
+//  TABLA DE COCCIONES — filtros, orden y edición
+// ═══════════════════════════════════════════════════════
+let cocSortCol='fecha', cocSortDir='desc';
+
+// Clasifica un registro en una de las categorías del filtro
+function cocCategoria(c){
+  if(c.tipo===TIPO_PERDIDA)              return 'cotta_non_venduta';
+  if(c.origen==='conteo')                return 'conteo';
+  if(c.tipo==='descarte')                return 'descarte';
+  if(c.auto && c.origen==='deficit')     return 'auto';
+  if(c.tipo==='ajuste')                  return 'conteo';
+  return 'coccion';
+}
+const COC_ETIQUETAS={
+  cotta_non_venduta:{txt:'⚫ '+LABEL_PERDIDA, color:'#7f1d1d', bg:'#fecaca', bold:true},
+  conteo:           {txt:'📋 CONTEO VITRINA', color:'#6b21a8', bg:'#f3e8ff'},
+  descarte:         {txt:'🗑 DESCARTE',       color:'#991b1b', bg:'#fee2e2'},
+  auto:             {txt:'🍳 COCCIÓN AUTO',   color:'#9a3412', bg:'#ffedd5'},
+  coccion:          {txt:'🍳 COCCIÓN',        color:'#9a3412', bg:'#ffedd5'}
+};
+function cocBadge(c){
+  const cat=cocCategoria(c);
+  const e=COC_ETIQUETAS[cat];
+  const resta = (cat==='conteo' && c.tipo==='ajuste') ? ' <b>▼</b>' : '';
+  return `<span style="color:${e.color};background:${e.bg};padding:2px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;${e.bold?'font-weight:700;':''}">${e.txt}${resta}</span>`;
+}
+
+function cocLlenarFiltroSabores(){
+  const sel=document.getElementById('coc-f-sabor');
+  if(!sel) return;
+  const previo=sel.value;
+  const nombres=[...new Set([...EMP.map(e=>e.nombre), ...cocDataAll.map(c=>c.sabor)])].filter(Boolean).sort();
+  sel.innerHTML='<option value="">Todos los sabores</option>'+nombres.map(n=>`<option value="${n}">${n}</option>`).join('');
+  if(previo && nombres.includes(previo)) sel.value=previo;
+}
+
+window.cocOrdenar=function(col){
+  if(cocSortCol===col) cocSortDir = cocSortDir==='asc' ? 'desc' : 'asc';
+  else { cocSortCol=col; cocSortDir = col==='cantidad' ? 'desc' : (col==='fecha' ? 'desc' : 'asc'); }
+  cocTablaRender();
+};
+
+window.cocResetFiltros=function(){
+  ['coc-f-sabor','coc-f-desde','coc-f-hasta','coc-f-tipo'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  cocTablaRender();
+};
+
+window.cocTablaRender=function(){
+  const tb=document.getElementById('coc-tbody');
+  if(!tb) return;
+  const hoy=cocHoy();
+  const fSabor=document.getElementById('coc-f-sabor')?.value||'';
+  const fDesde=document.getElementById('coc-f-desde')?.value||'';
+  const fHasta=document.getElementById('coc-f-hasta')?.value||'';
+  const fTipo =document.getElementById('coc-f-tipo')?.value||'';
+
+  let datos=[...cocDataAll];
+  if(fSabor) datos=datos.filter(c=>c.sabor===fSabor);
+  if(fDesde) datos=datos.filter(c=>String(c.fecha)>=fDesde);
+  if(fHasta) datos=datos.filter(c=>String(c.fecha)<=fHasta);
+  if(fTipo)  datos=datos.filter(c=>cocCategoria(c)===fTipo);
+
+  // Orden por la columna elegida
+  datos.sort((a,b)=>{
+    let va,vb;
+    if(cocSortCol==='cantidad'){ va=parseInt(a.cantidad)||0; vb=parseInt(b.cantidad)||0; }
+    else if(cocSortCol==='tipo'){ va=cocCategoria(a); vb=cocCategoria(b); }
+    else { va=String(a[cocSortCol]||''); vb=String(b[cocSortCol]||''); }
+    let cmp = typeof va==='number' ? va-vb : va.localeCompare(vb);
+    if(cmp===0) cmp=String(a.sabor).localeCompare(String(b.sabor));
+    return cocSortDir==='asc' ? cmp : -cmp;
+  });
+
+  // Indicadores de orden en los encabezados
+  ['fecha','sabor','cantidad','tipo'].forEach(col=>{
+    const el=document.getElementById('cocsort-'+col);
+    if(el) el.textContent = col===cocSortCol ? (cocSortDir==='asc'?' ▲':' ▼') : '';
+  });
+
+  const info=document.getElementById('coc-filtro-info');
+  if(info){
+    const total=datos.reduce((a,c)=>a+(parseInt(c.cantidad)||0),0);
+    info.textContent = `${datos.length} registros · ${total} empanadas`
+      + (datos.length!==cocDataAll.length ? ` (de ${cocDataAll.length})` : '');
+  }
+
+  if(!datos.length){
+    tb.innerHTML='<tr><td colspan="6" class="coc-empty">'
+      +(cocDataAll.length?'Ningún registro con estos filtros':'Todavía no registraste ninguna cocción')+'</td></tr>';
+    return;
+  }
+  tb.innerHTML=datos.map(c=>{
+    const dias=cocDiasEntre(c.fecha,hoy);
+    const cat=cocCategoria(c);
+    const esSalida = cat!=='coccion' && cat!=='auto';
+    const detalleFecha = cat==='cotta_non_venduta' && c.fechaCoccion
+      ? `<div style="font-size:10px;color:#bbb;">cocinada ${c.fechaCoccion}</div>` : '';
+    return `<tr>
+      <td style="color:#888;white-space:nowrap;">${c.fecha}${detalleFecha}</td>
+      <td style="font-weight:500;">${c.sabor}</td>
+      <td style="text-align:center;font-weight:700;">${c.cantidad}</td>
+      <td style="text-align:center;">${esSalida?'—':`<span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span>`}</td>
+      <td>${cocBadge(c)}</td>
+      <td style="white-space:nowrap;">
+        ${esSalida?'':`<button onclick="cocReimprimir('${c.id}')" title="Reimprimir por el navegador" style="padding:4px 9px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:3px;">🖨</button>`}
+        <button onclick="cocEditar('${c.id}')" title="Modificar" style="padding:4px 9px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;margin-right:3px;">✏️</button>
+        <button onclick="cocBorrar('${c.id}')" title="Borrar" style="padding:4px 9px;border:1px solid #fcc;border-radius:6px;background:#fff;color:#e00;font-size:11px;cursor:pointer;">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+};
+
+// ── Modificar un registro ──
+let cocEditId=null;
+window.cocEditar=function(id){
+  const c=cocDataAll.find(x=>x.id===id);
+  if(!c) return;
+  cocEditId=id;
+  const sel=document.getElementById('cocedit-sabor');
+  const nombres=[...new Set([...EMP.map(e=>e.nombre), c.sabor])].filter(Boolean).sort();
+  sel.innerHTML=nombres.map(n=>`<option value="${n}">${n}</option>`).join('');
+  sel.value=c.sabor;
+  document.getElementById('cocedit-cantidad').value=c.cantidad;
+  document.getElementById('cocedit-fecha').value=c.fecha;
+  const tipoSel=document.getElementById('cocedit-tipo');
+  // Las pérdidas por vencimiento no se reclasifican a mano
+  const cat=cocCategoria(c);
+  tipoSel.value = (c.tipo==='ajuste') ? 'ajuste' : (c.tipo==='descarte' ? 'descarte' : 'coccion');
+  tipoSel.disabled = (cat==='cotta_non_venduta');
+  const info=document.getElementById('cocedit-info');
+  info.className='inv-nota'+(cat==='cotta_non_venduta'?' aviso':'');
+  info.innerHTML = cat==='cotta_non_venduta'
+    ? 'Este registro es una <strong>COTTA NON VENDUTA</strong>: lo generó el sistema al vencer la tanda y también descontó del stock. Si lo modificás, el stock <strong>no</strong> se recalcula solo.'
+    : 'Cambiar la fecha mueve la tanda en el conteo de días. Cambiar la cantidad corrige lo cocinado.';
+  document.getElementById('cocedit-modal-overlay').classList.add('show');
+};
+window.closeCocEdit=function(){ document.getElementById('cocedit-modal-overlay').classList.remove('show'); cocEditId=null; };
+
+window.guardarCocEdit=async function(){
+  if(!cocEditId) return;
+  const sabor=document.getElementById('cocedit-sabor').value;
+  const cantidad=parseInt(document.getElementById('cocedit-cantidad').value);
+  const fecha=document.getElementById('cocedit-fecha').value;
+  const tipo=document.getElementById('cocedit-tipo').value;
+  if(!sabor){ alert('Elegí un sabor.'); return; }
+  if(isNaN(cantidad)||cantidad<1){ alert('La cantidad tiene que ser 1 o más.'); return; }
+  if(!fecha){ alert('Elegí la fecha.'); return; }
+  const btn=document.getElementById('cocedit-save-btn');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    const orig=cocDataAll.find(x=>x.id===cocEditId);
+    const datos={sabor,cantidad,fecha};
+    // El tipo solo se cambia si no es una pérdida por vencimiento
+    if(orig && orig.tipo!==TIPO_PERDIDA) datos.tipo=tipo;
+    await updateDoc(doc(db,'cocciones',cocEditId),datos);
+    closeCocEdit();
+    await cocLoadAll();
+  }catch(err){ alert('Error: '+err.message); }
+  finally{ btn.disabled=false; btn.textContent='Guardar →'; }
+};
+
+document.getElementById('cocedit-modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('cocedit-modal-overlay')) closeCocEdit();
+});
 
 // ═══════════════════════════════════════════════════════
 //  CONTAR VITRINA — inventario de cocinadas
