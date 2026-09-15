@@ -1703,7 +1703,9 @@ function renderOrders(){
   grid.innerHTML=disp.map(o=>{
     const emp=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
     const items=(o.items||[]).map(i=>`<div class="card-item"><span class="item-name">${i.nombre}${i.curcuma?'<span class="item-curcuma">✦ CURCUMA</span>':''}</span><span class="item-qty">${i.cantidad}</span></div>`).join('');
-    const canEdit=o.estado==='nuevo'||o.estado==='en-preparacion';
+    // Cualquier pedido se puede modificar, incluso completado: en el apuro del
+    // servicio se marca algo mal y se corrige después, con tiempo.
+    const canEdit=true;
     let btn='';if(o.estado==='nuevo')btn=`<button class="action-btn btn-preparar" onclick="cambiarEstado('${o.id}','en-preparacion')">En preparación</button>`;else if(o.estado==='en-preparacion')btn=`<button class="action-btn btn-completar" onclick="cambiarEstado('${o.id}','completado')">✓ Completado</button>`;
 
     // ── PEDIDO WEB: cartel rojo grande + fecha/hora de retiro en negrita ──
@@ -2366,7 +2368,20 @@ window.confirmarManual=async function(){
   const consumo = esDelivery ? 'delivery' : consumoActivo;
   const btn=document.getElementById('modal-confirm-btn');btn.disabled=true;btn.textContent='...';
   try{
-    if(editId)await updateDoc(doc(db,'pedidos',editId),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',modificado:true,canalVenta:canalActivo,promos:promosSel,consumo});
+    if(editId){
+      // Se conserva el estado: si el pedido ya estaba completado, sigue completado.
+      const orig=orders.find(o=>o.id===editId);
+      const estadoPrevio=(orig && orig.estado) ? orig.estado : 'nuevo';
+      await updateDoc(doc(db,'pedidos',editId),{
+        cliente:nombre, items, total:items.reduce((a,i)=>a+i.cantidad,0),
+        estado:estadoPrevio, modificado:true,
+        canalVenta:canalActivo, promos:promosSel, consumo
+      });
+      // El stock se rehace de cero para este pedido. Sin esto, cambiar las
+      // cantidades dejaba el stock con los números viejos y aparecía un desvío
+      // silencioso que solo se descubría contando a mano semanas después.
+      await rehacerStockDePedido(editId, items, canalActivo);
+    }
     else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,timestamp:serverTimestamp()});
     closeModal();
   }catch(err){alert('Error: '+err.message);}
@@ -4071,6 +4086,47 @@ async function stockSyncToday(){
     await Promise.all(promises);
   }catch(e){console.error('stockSyncToday error',e);}
 }
+// Rehace los movimientos de stock de un pedido que se modificó.
+// Borra TODOS los que había generado ese pedido y escribe los nuevos, así
+// nunca queda un sabor con la cantidad vieja ni uno que se sacó del pedido.
+async function rehacerStockDePedido(orderId, items, canal){
+  try{
+    // 1) Borrar lo que ese pedido había dejado en el stock
+    const viejos=await getDocs(query(collection(db,'stock'),where('orderId','==',orderId)));
+    await Promise.all(viejos.docs.map(d=>deleteDoc(doc(db,'stock',d.id)).catch(()=>{})));
+    viejos.docs.forEach(d=>{
+      const i=stockAllData.findIndex(x=>x.id===d.id);
+      if(i>=0) stockAllData.splice(i,1);
+    });
+
+    // 2) Escribir los movimientos nuevos, con el tipo que corresponda al canal
+    const tipo = canal==='interno' ? 'interno' : canal==='devolucion' ? 'devolucion' : 'venta';
+    const orig=orders.find(o=>o.id===orderId);
+    const fecha = (orig && orig.timestamp && orig.timestamp.toDate)
+      ? cocFechaStr(orig.timestamp.toDate())
+      : new Date().toISOString().split('T')[0];
+
+    const empItems=(items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
+    for(const item of empItems){
+      const sabor=nombreLimpio(item.nombre);
+      const docId=orderId+'_'+sabor.replace(/[^a-zA-Z0-9]/g,'_');
+      const datos={fecha,sabor,cantidad:item.cantidad,tipo,orderId,timestamp:serverTimestamp()};
+      await setDoc(doc(db,'stock',docId),datos,{merge:false});
+      stockAgregarEnMemoria({id:docId,...datos,timestamp:{seconds:Math.floor(Date.now()/1000)}});
+    }
+
+    // 3) Actualizar lo que ve el cliente en el menú QR
+    if(document.getElementById('stock-panel').style.display==='block') await stockLoadAll();
+    else await syncDisponibilidadFromDB();
+    // 4) Y el conteo de cocinadas, que se calcula desde los pedidos
+    if(document.getElementById('coc-panel').style.display==='block') await cocLoadAll();
+  }catch(e){
+    console.error('rehacerStockDePedido error',e);
+    alert('El pedido se guardó, pero hubo un problema al recalcular el stock:\n\n'+e.message+
+          '\n\nRevisá la solapa STOCK antes de seguir.');
+  }
+}
+
 async function autoRegisterVentas(order){
   if(esDocCoccion(order)) return;   // protección: un ticket de cocina no es una venta
   const fecha=new Date().toISOString().split('T')[0];
