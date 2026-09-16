@@ -2526,7 +2526,7 @@ window.switchTab=function(tab){
   document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas'}[tab];
-  if(tab==='stats'){sLoadFixed();sLoadData();sCargarMes();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
+  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -3018,19 +3018,39 @@ function promedioDiario(pedidos, desdePeriodo, hastaPeriodo){
 //  Por eso este bloque arranca en una fecha fija y no se mueve.
 // ═══════════════════════════════════════════════════════
 const S_MES_DESDE='2026-09-01';
-let sMesCache=null, sMesCacheHora=0;
+let sMesCache=null, sMesCacheHora=0, sMesCacheClave='';
 
-async function sCargarMes(){
+async function sCargarMes(desdePeriodo, hastaPeriodo){
   const cont=document.getElementById('s-mes-bloques');
+  const tit=document.getElementById('s-mes-titulo');
   if(!cont) return;
-  // Se relee como mucho cada 5 minutos, para no gastar lecturas de más
+
+  // El bloque sigue el período elegido arriba, pero nunca arranca antes del
+  // 1 de septiembre: los pedidos anteriores no tienen los campos nuevos
+  // (takeaway, promos, canal) y darían números falsos.
+  const limite=new Date(S_MES_DESDE+'T00:00:00');
+  const desde = (desdePeriodo && desdePeriodo>limite) ? desdePeriodo : limite;
+  const hasta = hastaPeriodo || new Date();
+  const fmt=d=>d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
+
+  if(hasta<limite){
+    if(tit) tit.textContent='📊 Estadísticas del período';
+    cont.innerHTML='<div class="s-loading">Este período es anterior al 1 de septiembre. Estos datos empezaron a registrarse recién ahí.</div>';
+    return;
+  }
+  const recortado = desdePeriodo && desdePeriodo<limite;
+  if(tit) tit.textContent='📊 '+fmt(desde)+' → '+fmt(hasta)+(recortado?'  (desde que existen estos datos)':'');
+
+  // Se relee como mucho cada 5 minutos por rango, para no gastar lecturas de más
+  const clave=desde.getTime()+'|'+hasta.getTime();
   const ahora=Date.now();
-  if(sMesCache && (ahora-sMesCacheHora)<5*60*1000){ sMesPintar(sMesCache); return; }
+  if(sMesCache && sMesCacheClave===clave && (ahora-sMesCacheHora)<5*60*1000){ sMesPintar(sMesCache); return; }
   cont.innerHTML='<div class="s-loading"><div class="s-spinner"></div>Cargando...</div>';
   try{
-    const desde=new Date(S_MES_DESDE+'T00:00:00');
     const snap=await getDocs(query(collection(db,'pedidos'),
-      where('timestamp','>=',Timestamp.fromDate(desde)),orderBy('timestamp','asc')));
+      where('timestamp','>=',Timestamp.fromDate(desde)),
+      where('timestamp','<=',Timestamp.fromDate(hasta)),
+      orderBy('timestamp','asc')));
     const todos=soloPedidos(snap.docs.map(d=>({id:d.id,...d.data()})));
 
     const r={
@@ -3064,7 +3084,7 @@ async function sCargarMes(){
       // Plata
       r.venta+=ventaPedido(o); r.costo+=costoPedido(o);
     });
-    sMesCache=r; sMesCacheHora=ahora;
+    sMesCache=r; sMesCacheHora=ahora; sMesCacheClave=clave;
     sMesPintar(r);
   }catch(e){
     console.error('sCargarMes error',e);
@@ -3137,6 +3157,7 @@ async function sLoadData(){
   const r=sP==='custom'?window._sCR:sRng(sP);if(!r)return;
   document.getElementById('s-period-label').textContent=r.label;
   const os=await sFt(r.from,r.to),emp=cE(os),beb=cB(os);
+  sCargarMes(r.from, r.to);   // el bloque de abajo sigue el mismo período
   const[tO,wO,mO]=await Promise.all([sP==='today'?os:sFt(sRng('today').from,sRng('today').to),sP==='week'?os:sFt(sRng('week').from,sRng('week').to),sP==='month'?os:sFt(sRng('month').from,sRng('month').to)]);
   // Promedio diario del período (lunes a sábado, sin feriados italianos)
   // El promedio solo tiene sentido en un período acotado: hoy, ayer, semana,
