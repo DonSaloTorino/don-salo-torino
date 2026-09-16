@@ -267,6 +267,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .s-mini{background:#fff;border:1px solid #eee;border-radius:10px;padding:13px 16px;}
 .s-mini-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin-bottom:3px;line-height:1.4;}
 .s-mini-num{font-size:26px;font-weight:700;color:#111;line-height:1;}
+.s-mini-pct{font-size:13px;font-weight:600;opacity:0.5;margin-left:5px;letter-spacing:0;}
 .s-mini-sub{font-size:10px;color:#bbb;margin-top:4px;line-height:1.4;min-height:13px;}
 .s-mini.take{background:#fff7ed;border-color:#fed7aa;}
 .s-mini.take .s-mini-num{color:#9a3412;}
@@ -3074,10 +3075,11 @@ async function sCargarMes(){
 function sMesPintar(r){
   const cont=document.getElementById('s-mes-bloques');
   if(!cont) return;
-  const pct=(n,t)=>t>0?Math.round(n/t*100)+'%':'—';
-  const caja=(label,num,sub,cls)=>`<div class="s-mini ${cls||''}">
+  const pct=(n,t)=>t>0?Math.round(n/t*100)+'%':null;
+  // El porcentaje va al lado del número, entre paréntesis y más chico
+  const caja=(label,num,sub,cls,porc)=>`<div class="s-mini ${cls||''}">
       <div class="s-mini-label">${label}</div>
-      <div class="s-mini-num">${num}</div>
+      <div class="s-mini-num">${num}${porc?'<span class="s-mini-pct">('+porc+')</span>':''}</div>
       <div class="s-mini-sub">${sub||''}</div>
     </div>`;
 
@@ -3095,36 +3097,36 @@ function sMesPintar(r){
 
   // ── Dónde consume ──
   h+='<div class="s-mini-grid">';
-  h+=caja('🍽️ Mangia qui', r.consumo.mangia.p, r.consumo.mangia.e+' emp · '+pct(r.consumo.mangia.p,totLocal)+' del local');
-  h+=caja('🥡 Takeaway', r.consumo.take.p, r.consumo.take.e+' emp · '+pct(r.consumo.take.p,totLocal)+' del local','take');
-  h+=caja('🛵 Delivery', r.consumo.delivery.p, r.consumo.delivery.e+' empanadas','deliv');
+  h+=caja('🍽️ Mangia qui', r.consumo.mangia.p, r.consumo.mangia.e+' empanadas · sobre el local','',pct(r.consumo.mangia.p,totLocal));
+  h+=caja('🥡 Takeaway', r.consumo.take.p, r.consumo.take.e+' empanadas · sobre el local','take',pct(r.consumo.take.p,totLocal));
+  h+=caja('🛵 Delivery', r.consumo.delivery.p, r.consumo.delivery.e+' empanadas · sobre el total','deliv',pct(r.consumo.delivery.p,r.pedidos));
   h+='</div>';
 
   // ── Promos ──
   h+='<div class="s-mini-sub-title">Promos aplicadas</div><div class="s-mini-grid">';
   ['duoAgua','duoBebida','pranzo'].forEach(k=>{
     const n=r.promos[k]||0;
-    h+=caja(nombrePromo(k), n, n>0?pct(n,totPromos)+' de las promos':'ninguna','promo');
+    h+=caja(nombrePromo(k), n, n>0?'sobre el total de promos':'ninguna','promo',pct(n,totPromos));
   });
-  h+=caja('Sin promo', r.sinPromo.p, r.sinPromo.e+' empanadas');
+  h+=caja('Sin promo', r.sinPromo.p, r.sinPromo.e+' empanadas · sobre el local','',pct(r.sinPromo.p,totLocal));
   h+='</div>';
 
   // ── Canales ──
   h+='<div class="s-mini-sub-title">Por canal</div><div class="s-mini-grid">';
   ['mostrador','qr','web','glovo','justeat','deliveroo'].forEach(k=>{
     const v=r.canales[k]; if(!v) return;
-    h+=caja(CANALES[k].label, v.p, v.e+' emp · '+pct(v.p,r.pedidos)+' del total');
+    h+=caja(CANALES[k].label, v.p, v.e+' empanadas · sobre el total','',pct(v.p,r.pedidos));
   });
   h+='</div>';
 
   // ── Lo que no factura y la mezcla ──
   h+='<div class="s-mini-sub-title">Otros</div><div class="s-mini-grid">';
-  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+eur(r.interno.e*COSTO_EMPANADA)+' de costo','interno');
-  h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol');
-  h+=caja('🔵 Classiche', r.tipos.classicas, pct(r.tipos.classicas,r.empanadas)+' del total');
-  h+=caja('🔴 Speciali', r.tipos.especiales, pct(r.tipos.especiales,r.empanadas)+' del total');
-  h+=caja('Ticket promedio', r.pedidos?eur(r.venta/r.pedidos):'—', r.pedidos?(r.empanadas/r.pedidos).toFixed(1)+' emp por pedido':'');
-  h+=caja('Ganancia', eur(r.venta-r.costo), r.empanadas?eur((r.venta-r.costo)/r.empanadas)+' por empanada':'','gan');
+  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+eur(r.interno.e*COSTO_EMPANADA)+' de costo','interno',pct(r.interno.e,r.empanadas));
+  h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.empanadas));
+  h+=caja('🔵 Classiche', r.tipos.classicas, 'empanadas · sobre el total','',pct(r.tipos.classicas,r.empanadas));
+  h+=caja('🔴 Speciali', r.tipos.especiales, 'empanadas · sobre el total','',pct(r.tipos.especiales,r.empanadas));
+  h+=caja('Ticket promedio', r.pedidos?eur(r.venta/r.pedidos):'—', r.pedidos?(r.empanadas/r.pedidos).toFixed(1)+' empanadas por pedido':'');
+  h+=caja('Ganancia', eur(r.venta-r.costo), r.empanadas?eur((r.venta-r.costo)/r.empanadas)+' por empanada':'','gan',pct(r.venta-r.costo,r.venta));
   h+='</div>';
 
   cont.innerHTML=h;
