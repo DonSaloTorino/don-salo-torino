@@ -348,6 +348,25 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 
 /* ── STOCK ── */
 .stock-panel{display:none;padding:24px;max-width:1200px;margin:0 auto;}
+/* Bloques plegables */
+.plegable{background:#fff;border:1px solid #eee;border-radius:10px;margin-bottom:16px;overflow:hidden;}
+.plegable-cab{display:flex;align-items:center;gap:10px;padding:13px 18px;cursor:pointer;user-select:none;}
+.plegable-cab:hover{background:#fafafa;}
+.plegable-tit{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#888;font-weight:600;}
+.plegable-info{font-size:11px;color:#bbb;letter-spacing:0.5px;flex:1;}
+.plegable-flecha{font-size:11px;color:#bbb;transition:transform 0.2s;}
+.plegable.abierto .plegable-flecha{transform:rotate(180deg);}
+.plegable-cuerpo{display:none;border-top:1px solid #f0f0f0;}
+.plegable.abierto .plegable-cuerpo{display:block;}
+/* Tabla Almuerzo / Cena / Total */
+.tt-tabla{width:100%;border-collapse:collapse;}
+.tt-tabla th{background:#f5f5f3;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#aaa;padding:10px 16px;text-align:right;font-weight:500;}
+.tt-tabla th:first-child{text-align:left;}
+.tt-tabla td{padding:9px 16px;border-top:0.5px solid #f0f0f0;font-size:13px;text-align:right;}
+.tt-tabla td:first-child{text-align:left;color:#666;}
+.tt-tabla td.tt-total{font-weight:700;color:#111;background:#fafafa;}
+.tt-tabla tr.tt-plata td{font-weight:600;color:#065f46;}
+.tt-tabla tr.tt-plata td:first-child{color:#666;font-weight:400;}
 .stock-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
 /* Renglón 1: total centrado */
 .stock-fila-total{display:flex;justify-content:center;margin-bottom:16px;}
@@ -698,6 +717,14 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="stat-label">Empanadas hoy</div><div class="stat-num" id="stat-total">0</div><div class="filter-hint">VER TODOS</div>
     </div>
   </div>
+  <div class="plegable" id="pleg-turnos-hoy" data-abierto="1">
+    <div class="plegable-cab" onclick="togglePlegable('pleg-turnos-hoy')">
+      <span class="plegable-tit">🌞🌙 Almuerzo y cena</span>
+      <span class="plegable-info" id="info-turnos-hoy"></span>
+      <span class="plegable-flecha">▼</span>
+    </div>
+    <div class="plegable-cuerpo" id="cuerpo-turnos-hoy"></div>
+  </div>
   <div class="export-bar">
     <button class="xls-btn" onclick="exportPedidos()">📊 Descargar Excel</button>
     <span class="export-hint" id="export-hint-pedidos"></span>
@@ -775,6 +802,14 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <button class="hist-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="histReset()">Reset</button>
     <button class="xls-btn" onclick="exportHistorial()">📊 Excel</button>
   </div>
+  <div class="plegable" id="pleg-turnos-hist" data-abierto="1">
+    <div class="plegable-cab" onclick="togglePlegable('pleg-turnos-hist')">
+      <span class="plegable-tit">🌞🌙 Almuerzo y cena</span>
+      <span class="plegable-info" id="info-turnos-hist"></span>
+      <span class="plegable-flecha">▼</span>
+    </div>
+    <div class="plegable-cuerpo" id="cuerpo-turnos-hist"></div>
+  </div>
   <div class="hist-total-row">
     <div class="s-section-title" style="margin:0;">Historial de pedidos</div>
     <div class="hist-count" id="hist-count"></div>
@@ -828,9 +863,17 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <!-- Alertas stock bajo -->
   <div id="stock-alerts"></div>
   <!-- Gráfico barras por sabor -->
-  <div class="stock-chart-wrap">
-    <div class="stock-chart-title" id="stock-chart-title">📊 Stock actual por sabor</div>
-    <div id="stock-chart"><div style="color:#bbb;text-align:center;padding:20px;">Cargando...</div></div>
+  <div class="plegable" id="pleg-stock-chart" data-abierto="1">
+    <div class="plegable-cab" onclick="togglePlegable('pleg-stock-chart')">
+      <span class="plegable-tit" id="stock-chart-title">📊 Stock actual por sabor</span>
+      <span class="plegable-info" id="stock-chart-info"></span>
+      <span class="plegable-flecha">▼</span>
+    </div>
+    <div class="plegable-cuerpo">
+      <div class="stock-chart-wrap" style="border:none;margin:0;">
+        <div id="stock-chart"><div style="color:#bbb;text-align:center;padding:20px;">Cargando...</div></div>
+      </div>
+    </div>
   </div>
   <!-- Filtros tabla -->
   <div class="stock-filters">
@@ -852,7 +895,14 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <button class="xls-btn small" onclick="exportStock()">📊 Excel</button>
   </div>
   <!-- Tabla movimientos -->
-  <div class="stock-table-wrap">
+  <div class="plegable" id="pleg-stock-tabla" data-abierto="0">
+    <div class="plegable-cab" onclick="togglePlegable('pleg-stock-tabla')">
+      <span class="plegable-tit">📋 Detalle de movimientos</span>
+      <span class="plegable-info" id="stock-tabla-info"></span>
+      <span class="plegable-flecha">▼</span>
+    </div>
+    <div class="plegable-cuerpo">
+  <div class="stock-table-wrap" style="border:none;border-radius:0;">
     <table class="stock-table">
       <thead><tr>
         <th style="cursor:pointer;user-select:none;" onclick="stockSortBy('fecha')">Fecha <span id="sort-ind-fecha"></span></th>
@@ -862,6 +912,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       </tr></thead>
       <tbody id="stock-tbody"><tr><td colspan="4" class="stock-empty">Abrí el stock para cargar datos</td></tr></tbody>
     </table>
+  </div>
+    </div>
   </div>
 </div>
 
@@ -888,11 +940,25 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <div id="coc-alerts"></div>
 
   <!-- Tarjetas por sabor -->
-  <div class="s-section-title">🍳 Cocinadas disponibles por sabor</div>
-  <div class="coc-grid" id="coc-grid"></div>
+  <div class="plegable" id="pleg-coc-grid" data-abierto="1">
+    <div class="plegable-cab" onclick="togglePlegable('pleg-coc-grid')">
+      <span class="plegable-tit">🍳 Cocinadas disponibles por sabor</span>
+      <span class="plegable-info" id="coc-grid-info"></span>
+      <span class="plegable-flecha">▼</span>
+    </div>
+    <div class="plegable-cuerpo" style="padding:14px;">
+      <div class="coc-grid" id="coc-grid"></div>
+    </div>
+  </div>
 
   <!-- Historial de cocciones -->
-  <div class="s-section-title">📋 Cocciones registradas</div>
+  <div class="plegable" id="pleg-coc-tabla" data-abierto="0">
+    <div class="plegable-cab" onclick="togglePlegable('pleg-coc-tabla')">
+      <span class="plegable-tit">📋 Cocciones registradas</span>
+      <span class="plegable-info" id="coc-tabla-info"></span>
+      <span class="plegable-flecha">▼</span>
+    </div>
+    <div class="plegable-cuerpo" style="padding:14px;">
   <div class="stock-filters">
     <select class="stock-select" id="coc-f-sabor" onchange="cocTablaRender()"><option value="">Todos los sabores</option></select>
     <input type="date" class="stock-date-input" id="coc-f-desde" onchange="cocTablaRender()"/>
@@ -921,6 +987,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       </tr></thead>
       <tbody id="coc-tbody"><tr><td colspan="6" class="coc-empty">Cargando...</td></tr></tbody>
     </table>
+  </div>
+    </div>
   </div>
   <div class="coc-nota" id="coc-nota"></div>
 </div>
@@ -1338,6 +1406,7 @@ onAuthStateChanged(auth, user=>{
 
 // Todo lo que toca la base arranca acá, nunca antes del login
 function arrancarApp(){
+  restaurarPlegables();
   iniciarListenerPedidos();
   initSabores();
   iniciarRelojControles();
@@ -1398,6 +1467,18 @@ window.confirm = m => _confirmOriginal(MAY(m));
 // en "pedidos", porque es lo único que la app imprime sola.
 // Ese documento NO es una venta: lleva tipoDoc:'coccion' y se descarta en TODOS
 // los lugares que leen ventas (pantalla, stats, historial, stock y cocción).
+// ── TURNO: ALMUERZO O CENA ──
+// El local cierra al mediodía a las 14:30 y abre a la noche a las 18:15.
+// El corte se pone a las 15:30 para dejar margen: si un cliente se demora y
+// entra otro pedido a las 15:00, sigue contando como almuerzo.
+// La cena no necesita corte por abajo: al día siguiente ya no se muestra.
+const CORTE_PRANZO = 15*60 + 30;   // 15:30 en minutos
+function turnoDePedido(o){
+  const ts = (o && o.timestamp && o.timestamp.toDate) ? o.timestamp.toDate() : null;
+  if(!ts) return 'pranzo';
+  return (ts.getHours()*60 + ts.getMinutes()) < CORTE_PRANZO ? 'pranzo' : 'cena';
+}
+
 function esDocCoccion(o){ return !!(o && o.tipoDoc==='coccion'); }
 // Pedidos de verdad: todo lo que hay que preparar, incluido el consumo interno.
 // Se usa en el panel PEDIDOS y en el HISTORIAL.
@@ -1712,6 +1793,77 @@ function eur(n){
 // Redondeo a 2 decimales para exportar a Excel como número real
 function r2(n){ return Math.round((Number(n)||0)*100)/100; }
 
+// ── BLOQUES PLEGABLES ──
+// Las tablas largas se esconden por defecto para que la página no sea un scroll
+// interminable. El estado abierto/cerrado se recuerda en este dispositivo.
+window.togglePlegable=function(id){
+  const b=document.getElementById(id);
+  if(!b) return;
+  const abierto=b.classList.toggle('abierto');
+  try{ localStorage.setItem('pleg_'+id, abierto?'1':'0'); }catch(e){}
+};
+function restaurarPlegables(){
+  document.querySelectorAll('.plegable').forEach(b=>{
+    let v=null;
+    try{ v=localStorage.getItem('pleg_'+b.id); }catch(e){}
+    // Si nunca se tocó, manda el valor por defecto del propio bloque
+    if(v===null) v = b.dataset.abierto==='1' ? '1' : '0';
+    b.classList.toggle('abierto', v==='1');
+  });
+}
+
+// Calcula el resumen de un conjunto de pedidos, separado por turno
+function resumenPorTurno(lista){
+  const vacio=()=>({pedidos:0,emp:0,mangia:0,take:0,deliv:0,interno:0,devol:0,venta:0,costo:0});
+  const r={pranzo:vacio(), cena:vacio(), total:vacio()};
+  soloPedidos(lista).forEach(o=>{
+    const t=turnoDePedido(o);
+    const k=canalKey(o);
+    const n=contarPorTipo(o).total;
+    [r[t], r.total].forEach(x=>{
+      x.pedidos++;
+      if(k==='interno') x.interno+=n;
+      else if(k==='devolucion') x.devol+=n;
+      else {
+        x.emp+=n;
+        if(CANALES[k].delivery) x.deliv++;
+        else if(esTakeaway(o)) x.take++;
+        else x.mangia++;
+      }
+      x.venta+=ventaPedido(o);
+      x.costo+=costoPedido(o);
+    });
+  });
+  return r;
+}
+
+// Dibuja la tabla Almuerzo / Cena / Total
+function tablaTurnos(r){
+  const fila=(et,fn,cls)=>`<tr class="${cls||''}">
+      <td>${et}</td>
+      <td>${fn(r.pranzo)}</td>
+      <td>${fn(r.cena)}</td>
+      <td class="tt-total">${fn(r.total)}</td>
+    </tr>`;
+  const hayOtros = r.total.interno>0 || r.total.devol>0;
+  let filas='';
+  filas+=fila('Pedidos',            x=>x.pedidos);
+  filas+=fila('Empanadas vendidas', x=>x.emp);
+  filas+=fila('🍽️ Mangia qui',      x=>x.mangia);
+  filas+=fila('🥡 Takeaway',         x=>x.take);
+  filas+=fila('🛵 Delivery',         x=>x.deliv);
+  if(hayOtros){
+    filas+=fila('🏠 Interno',      x=>x.interno);
+    filas+=fila('↩️ Devoluciones', x=>x.devol);
+  }
+  filas+=fila('Venta',    x=>eur(x.venta),         'tt-plata');
+  filas+=fila('Ganancia', x=>eur(x.venta-x.costo), 'tt-plata');
+  return `<table class="tt-tabla">
+    <thead><tr><th></th><th>🌞 Almuerzo</th><th>🌙 Cena</th><th>Total del día</th></tr></thead>
+    <tbody>${filas}</tbody>
+  </table>`;
+}
+
 function renderOrders(){
   const grid=document.getElementById('orders-grid'),empty=document.getElementById('empty-state');
   const disp=activeFilter?orders.filter(o=>o.estado===activeFilter):orders;
@@ -1766,6 +1918,13 @@ function renderOrders(){
 
     return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${MAY(o.cliente||'ANONIMO')}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
   }).join('');
+  // Resumen Almuerzo / Cena / Total del día
+  const rT=resumenPorTurno(orders);
+  const cuerpoT=document.getElementById('cuerpo-turnos-hoy');
+  if(cuerpoT) cuerpoT.innerHTML=tablaTurnos(rT);
+  const infoT=document.getElementById('info-turnos-hoy');
+  if(infoT) infoT.textContent=`almuerzo ${rT.pranzo.emp} · cena ${rT.cena.emp} · total ${rT.total.emp} empanadas`;
+
   const act=orders.filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
 }
@@ -3353,6 +3512,12 @@ window.histReset=function(){document.getElementById('hist-search').value='';docu
 let hCurrentList=[];
 function hRender(list){
   hCurrentList=list||[];
+  // Resumen Almuerzo / Cena / Total del rango
+  const rTh=resumenPorTurno(hCurrentList);
+  const cuerpoTh=document.getElementById('cuerpo-turnos-hist');
+  if(cuerpoTh) cuerpoTh.innerHTML=tablaTurnos(rTh);
+  const infoTh=document.getElementById('info-turnos-hist');
+  if(infoTh) infoTh.textContent=`almuerzo ${rTh.pranzo.emp} · cena ${rTh.cena.emp} · total ${rTh.total.emp} empanadas`;
   document.getElementById('hist-count').textContent=list.length+' pedidos';
   if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="9" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
 
@@ -3476,6 +3641,13 @@ async function stockLoadAll(){
     stockRenderChart(dataHoy);
     stockRenderTable(stockAllData);
     ddtRender();                // las cajas del DDT dependen del stock
+  const infoG=document.getElementById('stock-chart-info');
+  if(infoG){
+    const by=stockCalcBySabor(stockDataHastaHoy());
+    const neg=Object.values(by).filter(v=>v.stock<0).length;
+    const tot=Object.values(by).reduce((a,v)=>a+Math.max(0,v.stock),0);
+    infoG.textContent=`${tot} empanadas`+(neg?` · ${neg} en negativo`:'');
+  }
     await syncDisponibilidad(); // Sincroniza disponibilidad con menú cliente
   }catch(e){console.error('stock load error',e);}
 }
@@ -4081,6 +4253,8 @@ window.stockResetFilter=function(){  document.getElementById('stock-filter-sabor
 let stockGroupMap={};
 function stockRenderTable(data){
   stockCurrentTableData=data||[];
+  const infoTb=document.getElementById('stock-tabla-info');
+  if(infoTb) infoTb.textContent=(data||[]).length+' movimientos';
   if(!data||!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="5" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
   // Agrupar por fecha + sabor + tipo
   const groups={};
@@ -4818,6 +4992,8 @@ function cocRender(){
     hz.textContent='controles automáticos hoy: '+cocControlesDelDia().map(c=>c.label).join(' y ')
       +' · cierre '+cierre;
   }
+  const infoGr=document.getElementById('coc-grid-info');
+  if(infoGr) infoGr.textContent=totalVivas+' cocinadas'+(totalVencidas?` · ${totalVencidas} vencidas`:'');
   document.getElementById('coc-total-num').textContent=totalVivas;
   document.getElementById('coc-total-sub').textContent=
     totalVencidas>0 ? `${totalVencidas} vencidas · ${totalUltimoDia} en último día`
@@ -4914,6 +5090,8 @@ window.cocTablaRender=function(){
     if(el) el.textContent = col===cocSortCol ? (cocSortDir==='asc'?' ▲':' ▼') : '';
   });
 
+  const infoCab=document.getElementById('coc-tabla-info');
+  if(infoCab) infoCab.textContent=datos.length+' registros';
   const info=document.getElementById('coc-filtro-info');
   if(info){
     const total=datos.reduce((a,c)=>a+(parseInt(c.cantidad)||0),0);
