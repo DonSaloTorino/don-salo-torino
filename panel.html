@@ -349,6 +349,18 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 /* ── STOCK ── */
 .stock-panel{display:none;padding:24px;max-width:1200px;margin:0 auto;}
 /* Bloques plegables */
+.stat-turnos{font-size:11px;color:#bbb;letter-spacing:0.5px;margin-top:3px;min-height:14px;}
+.turno-cab{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;user-select:none;
+  border-radius:10px;margin:18px 0 12px;border:1px solid #eee;background:#fff;}
+.turno-cab:hover{background:#fafafa;}
+.turno-cab.pranzo{border-left:4px solid #f59e0b;}
+.turno-cab.cena{border-left:4px solid #6366f1;}
+.turno-tit{font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:#444;}
+.turno-info{font-size:11px;color:#bbb;letter-spacing:0.5px;flex:1;}
+.turno-flecha{font-size:11px;color:#bbb;transition:transform 0.2s;}
+.turno-bloque.abierto .turno-flecha{transform:rotate(180deg);}
+.turno-cuerpo{display:none;}
+.turno-bloque.abierto .turno-cuerpo{display:block;}
 .plegable{background:#fff;border:1px solid #eee;border-radius:10px;margin-bottom:16px;overflow:hidden;}
 .plegable-cab{display:flex;align-items:center;gap:10px;padding:13px 18px;cursor:pointer;user-select:none;}
 .plegable-cab:hover{background:#fafafa;}
@@ -532,6 +544,9 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .hist-subtotal td{background:#eeeeec;color:#333;font-weight:600;border-top:1px solid #d8d8d4;font-size:13px;}
 .hist-subtotal td.money{color:#333;}
 .hist-subtotal td:first-child{letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#666;}
+.hist-turno td{background:#faf9f6;color:#555;font-weight:600;border-top:1px solid #eee;font-size:12px;}
+.hist-turno td.money{color:#555;}
+.hist-turno td:first-child{letter-spacing:1.5px;text-transform:uppercase;font-size:11px;color:#8a6d3b;}
 /* Promos del modal */
 .promo-btns{display:flex;gap:8px;flex-wrap:wrap;}
 .promo-item{border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:8px 12px;min-width:118px;}
@@ -705,25 +720,17 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 <div class="main" id="main">
   <div class="stats-bar" id="stats-bar">
     <div class="stat-card filter-nuevo" id="filter-nuevo" onclick="setFilter('nuevo')">
-      <div class="stat-label">Nuevos</div><div class="stat-num" id="stat-nuevo">0</div><div class="filter-hint">CLICK PARA FILTRAR</div>
+      <div class="stat-label">Nuevos</div><div class="stat-num" id="stat-nuevo">0</div><div class="stat-turnos" id="turnos-nuevo"></div><div class="filter-hint">CLICK PARA FILTRAR</div>
     </div>
     <div class="stat-card filter-prep" id="filter-prep" onclick="setFilter('en-preparacion')">
-      <div class="stat-label">En preparación</div><div class="stat-num" id="stat-prep">0</div><div class="filter-hint">CLICK PARA FILTRAR</div>
+      <div class="stat-label">En preparación</div><div class="stat-num" id="stat-prep">0</div><div class="stat-turnos" id="turnos-prep"></div><div class="filter-hint">CLICK PARA FILTRAR</div>
     </div>
     <div class="stat-card filter-comp" id="filter-comp" onclick="setFilter('completado')">
-      <div class="stat-label">Completados</div><div class="stat-num" id="stat-comp">0</div><div class="filter-hint">CLICK PARA FILTRAR</div>
+      <div class="stat-label">Completados</div><div class="stat-num" id="stat-comp">0</div><div class="stat-turnos" id="turnos-comp"></div><div class="filter-hint">CLICK PARA FILTRAR</div>
     </div>
     <div class="stat-card" onclick="setFilter(null)">
-      <div class="stat-label">Empanadas hoy</div><div class="stat-num" id="stat-total">0</div><div class="filter-hint">VER TODOS</div>
+      <div class="stat-label">Empanadas hoy</div><div class="stat-num" id="stat-total">0</div><div class="stat-turnos" id="turnos-total"></div><div class="filter-hint">VER TODOS</div>
     </div>
-  </div>
-  <div class="plegable" id="pleg-turnos-hoy" data-abierto="1">
-    <div class="plegable-cab" onclick="togglePlegable('pleg-turnos-hoy')">
-      <span class="plegable-tit">🌞🌙 Almuerzo y cena</span>
-      <span class="plegable-info" id="info-turnos-hoy"></span>
-      <span class="plegable-flecha">▼</span>
-    </div>
-    <div class="plegable-cuerpo" id="cuerpo-turnos-hoy"></div>
   </div>
   <div class="export-bar">
     <button class="xls-btn" onclick="exportPedidos()">📊 Descargar Excel</button>
@@ -735,7 +742,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
       <div class="empty-title">Esperando pedidos...</div>
       <div class="empty-sub">Los pedidos aparecerán aquí en tiempo real</div>
     </div>
-    <div class="orders-grid" id="orders-grid"></div>
+    <div id="orders-turnos"></div>
   </div>
 </div>
 
@@ -779,6 +786,8 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   <div class="s-loading" id="s-loading"><div class="s-spinner"></div>Cargando...</div>
   <div id="s-content" style="display:none;">
     <div class="s-counters" id="s-counters"></div>
+    <div class="s-section-title">🌞🌙 Almuerzo y cena del período</div>
+    <div class="s-mini-grid" id="s-turnos"></div>
     <!-- Estadísticas desde septiembre: solo miran los datos nuevos -->
     <div class="s-section-title" id="s-mes-titulo">📊 Desde el 1 de septiembre</div>
     <div id="s-mes-bloques"></div>
@@ -801,14 +810,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
     <button class="hist-btn" onclick="histLoad()">Buscar</button>
     <button class="hist-btn" style="background:#fff;color:#111;border:1px solid #ddd;" onclick="histReset()">Reset</button>
     <button class="xls-btn" onclick="exportHistorial()">📊 Excel</button>
-  </div>
-  <div class="plegable" id="pleg-turnos-hist" data-abierto="1">
-    <div class="plegable-cab" onclick="togglePlegable('pleg-turnos-hist')">
-      <span class="plegable-tit">🌞🌙 Almuerzo y cena</span>
-      <span class="plegable-info" id="info-turnos-hist"></span>
-      <span class="plegable-flecha">▼</span>
-    </div>
-    <div class="plegable-cuerpo" id="cuerpo-turnos-hist"></div>
   </div>
   <div class="hist-total-row">
     <div class="s-section-title" style="margin:0;">Historial de pedidos</div>
@@ -1837,35 +1838,8 @@ function resumenPorTurno(lista){
   return r;
 }
 
-// Dibuja la tabla Almuerzo / Cena / Total
-function tablaTurnos(r){
-  const fila=(et,fn,cls)=>`<tr class="${cls||''}">
-      <td>${et}</td>
-      <td>${fn(r.pranzo)}</td>
-      <td>${fn(r.cena)}</td>
-      <td class="tt-total">${fn(r.total)}</td>
-    </tr>`;
-  const hayOtros = r.total.interno>0 || r.total.devol>0;
-  let filas='';
-  filas+=fila('Pedidos',            x=>x.pedidos);
-  filas+=fila('Empanadas vendidas', x=>x.emp);
-  filas+=fila('🍽️ Mangia qui',      x=>x.mangia);
-  filas+=fila('🥡 Takeaway',         x=>x.take);
-  filas+=fila('🛵 Delivery',         x=>x.deliv);
-  if(hayOtros){
-    filas+=fila('🏠 Interno',      x=>x.interno);
-    filas+=fila('↩️ Devoluciones', x=>x.devol);
-  }
-  filas+=fila('Venta',    x=>eur(x.venta),         'tt-plata');
-  filas+=fila('Ganancia', x=>eur(x.venta-x.costo), 'tt-plata');
-  return `<table class="tt-tabla">
-    <thead><tr><th></th><th>🌞 Almuerzo</th><th>🌙 Cena</th><th>Total del día</th></tr></thead>
-    <tbody>${filas}</tbody>
-  </table>`;
-}
-
 function renderOrders(){
-  const grid=document.getElementById('orders-grid'),empty=document.getElementById('empty-state');
+  const empty=document.getElementById('empty-state');
   const disp=activeFilter?orders.filter(o=>o.estado===activeFilter):orders;
   // Aviso de qué se va a exportar (refleja el filtro activo)
   const hint=document.getElementById('export-hint-pedidos');
@@ -1877,10 +1851,11 @@ function renderOrders(){
       ? `${disp.length} pedidos (${filtroTxt}) — quitá el filtro para exportar todos`
       : `${disp.length} pedidos de hoy`;
   }
-  if(!disp.length){empty.style.display='block';empty.querySelector('.empty-title').textContent=activeFilter?'No hay pedidos en este estado':'Esperando pedidos...';grid.innerHTML='';return;}
+  const cont=document.getElementById('orders-turnos');
+  if(!disp.length){empty.style.display='block';empty.querySelector('.empty-title').textContent=activeFilter?'No hay pedidos en este estado':'Esperando pedidos...';cont.innerHTML='';return;}
   empty.style.display='none';
   const today=new Date().toISOString().split('T')[0];
-  grid.innerHTML=disp.map(o=>{
+  const tarjeta=o=>{
     const emp=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
     const items=(o.items||[]).map(i=>`<div class="card-item"><span class="item-name">${i.nombre}${i.curcuma?'<span class="item-curcuma">✦ CURCUMA</span>':''}</span><span class="item-qty">${i.cantidad}</span></div>`).join('');
     // Cualquier pedido se puede modificar, incluso completado: en el apuro del
@@ -1917,28 +1892,64 @@ function renderOrders(){
       + (promosLabel(o)?'<span class="promo-tag">'+promosLabel(o)+'</span>':'');
 
     return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${MAY(o.cliente||'ANONIMO')}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
-  }).join('');
-  // Resumen Almuerzo / Cena / Total del día
-  const rT=resumenPorTurno(orders);
-  const cuerpoT=document.getElementById('cuerpo-turnos-hoy');
-  if(cuerpoT) cuerpoT.innerHTML=tablaTurnos(rT);
-  const infoT=document.getElementById('info-turnos-hoy');
-  if(infoT) infoT.textContent=`almuerzo ${rT.pranzo.emp} · cena ${rT.cena.emp} · total ${rT.total.emp} empanadas`;
+  };
+
+  // Los pedidos se muestran separados en ALMUERZO y CENA. Cada bloque se puede
+  // plegar: lo que se esconde son los renglones, no los números de arriba.
+  const porTurno={pranzo:[], cena:[]};
+  disp.forEach(o=>porTurno[turnoDePedido(o)].push(o));
+  const emps=arr=>arr.reduce((a,o)=>a+contarPorTipo(o).total,0);
+  const bloque=(clave,titulo,lista)=>{
+    if(!lista.length) return '';
+    const id='pleg-ped-'+clave;
+    return `<div class="turno-bloque plegable" id="${id}" data-abierto="1">
+      <div class="turno-cab ${clave}" onclick="togglePlegable('${id}')">
+        <span class="turno-tit">${titulo}</span>
+        <span class="turno-info">${lista.length} ${lista.length===1?'pedido':'pedidos'} · ${emps(lista)} empanadas</span>
+        <span class="turno-flecha">▼</span>
+      </div>
+      <div class="turno-cuerpo"><div class="orders-grid">${lista.map(tarjeta).join('')}</div></div>
+    </div>`;
+  };
+  cont.innerHTML = bloque('pranzo','🌞 Almuerzo',porTurno.pranzo)
+                 + bloque('cena','🌙 Cena',porTurno.cena);
+  restaurarPlegables();
 
   const act=orders.filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
 }
 
 function updateStats(){
-  document.getElementById('stat-nuevo').textContent=orders.filter(o=>o.estado==='nuevo').length;
-  document.getElementById('stat-prep').textContent=orders.filter(o=>o.estado==='en-preparacion').length;
-  document.getElementById('stat-comp').textContent=orders.filter(o=>o.estado==='completado').length;
+  // Cada cuadrado muestra su número y, debajo, cómo se reparte entre almuerzo y cena
+  const split=(id,lista)=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const p=lista.filter(o=>turnoDePedido(o)==='pranzo').length;
+    const cn=lista.length-p;
+    el.textContent = lista.length ? `🌞 ${p} · 🌙 ${cn}` : '';
+  };
+  const nuevos=orders.filter(o=>o.estado==='nuevo');
+  const prep  =orders.filter(o=>o.estado==='en-preparacion');
+  const comp  =orders.filter(o=>o.estado==='completado');
+  document.getElementById('stat-nuevo').textContent=nuevos.length;
+  document.getElementById('stat-prep').textContent=prep.length;
+  document.getElementById('stat-comp').textContent=comp.length;
+  split('turnos-nuevo',nuevos);
+  split('turnos-prep',prep);
+  split('turnos-comp',comp);
   // "Empanadas hoy" es un contador de VENTAS: el consumo interno no suma acá.
   // Los contadores de estado (nuevos / en preparación / completados) sí lo incluyen,
   // porque esos pedidos hay que prepararlos igual.
-  let t=0;
-  soloVentas(orders).forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));
+  let t=0, tp=0, tc=0;
+  soloVentas(orders).forEach(o=>{
+    let n=0;
+    (o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')n+=i.cantidad||0;});
+    t+=n;
+    if(turnoDePedido(o)==='pranzo') tp+=n; else tc+=n;
+  });
   document.getElementById('stat-total').textContent=t;
+  const elT=document.getElementById('turnos-total');
+  if(elT) elT.textContent = t ? `🌞 ${tp} · 🌙 ${tc}` : '';
 }
 
 window.cambiarEstado=async(id,e)=>await updateDoc(doc(db,'pedidos',id),{estado:e});
@@ -3333,6 +3344,24 @@ async function sLoadData(){
       ? `${prom.dias} ${prom.dias===1?'día trabajado':'días trabajados'}`
       : 'sin días trabajados';
   document.getElementById('s-counters').innerHTML=`<div class="s-counter promedio"><div class="s-c-label">📈 Promedio diario</div><div class="s-c-num">${promTxt}</div><div class="s-c-sub">${promSub}</div></div><div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${os.length} pedidos</div></div>`;
+  // Almuerzo y cena del período. Acá sí va la plata: es la solapa de ventas.
+  const rTur=resumenPorTurno(os);
+  const pctT=(n,t)=>t>0?Math.round(n/t*100)+'%':null;
+  const cajaT=(tit,v,cls)=>`<div class="s-mini ${cls}">
+      <div class="s-mini-label">${tit}</div>
+      <div class="s-mini-num">${v.emp}${pctT(v.emp,rTur.total.emp)?'<span class="s-mini-pct">('+pctT(v.emp,rTur.total.emp)+')</span>':''}</div>
+      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${eur(v.venta)} · ganancia ${eur(v.venta-v.costo)}</div>
+    </div>`;
+  const contT=document.getElementById('s-turnos');
+  if(contT) contT.innerHTML =
+      cajaT('🌞 Almuerzo', rTur.pranzo, 'promo')
+    + cajaT('🌙 Cena',     rTur.cena,   'deliv')
+    + `<div class="s-mini gan">
+        <div class="s-mini-label">Total del período</div>
+        <div class="s-mini-num">${rTur.total.emp}</div>
+        <div class="s-mini-sub">${rTur.total.pedidos} pedidos · ${eur(rTur.total.venta)} · ganancia ${eur(rTur.total.venta-rTur.total.costo)}</div>
+      </div>`;
+
   const pR=sPrv(sP);
   let prevEmpExport=null, prevPedidosExport=null;
   if(pR){const pO=await sFt(pR.from,pR.to),pE=cE(pO),mx1=Math.max(emp,pE)||1,mx2=Math.max(os.length,pO.length)||1;
@@ -3512,12 +3541,6 @@ window.histReset=function(){document.getElementById('hist-search').value='';docu
 let hCurrentList=[];
 function hRender(list){
   hCurrentList=list||[];
-  // Resumen Almuerzo / Cena / Total del rango
-  const rTh=resumenPorTurno(hCurrentList);
-  const cuerpoTh=document.getElementById('cuerpo-turnos-hist');
-  if(cuerpoTh) cuerpoTh.innerHTML=tablaTurnos(rTh);
-  const infoTh=document.getElementById('info-turnos-hist');
-  if(infoTh) infoTh.textContent=`almuerzo ${rTh.pranzo.emp} · cena ${rTh.cena.emp} · total ${rTh.total.emp} empanadas`;
   document.getElementById('hist-count').textContent=list.length+' pedidos';
   if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="9" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
 
@@ -3529,6 +3552,8 @@ function hRender(list){
 
   let tEmp=0,tCosto=0,tVenta=0;                       // acumuladores del total general
   let dEmp=0,dCosto=0,dVenta=0,dPed=0,diaActual=null; // acumuladores del día en curso
+  // Acumuladores del turno en curso: los renglones se agrupan en almuerzo y cena
+  let uEmp=0,uCosto=0,uVenta=0,uPed=0,turnoActual=null;
 
   const filaSubtotal=dia=>`<tr class="hist-subtotal">
       <td colspan="4">Total ${dia} · ${dPed} ${dPed===1?'pedido':'pedidos'}</td>
@@ -3538,16 +3563,40 @@ function hRender(list){
       <td class="money">${eur(dVenta-dCosto)}</td>
       <td></td>
     </tr>`;
+  const TURNO_TXT={pranzo:'🌞 Almuerzo', cena:'🌙 Cena'};
+  const filaTurno=t=>`<tr class="hist-turno">
+      <td colspan="4">${TURNO_TXT[t]} · ${uPed} ${uPed===1?'pedido':'pedidos'}</td>
+      <td style="text-align:center;">${uEmp}</td>
+      <td class="money">${eur(uCosto)}</td>
+      <td class="money">${eur(uVenta)}</td>
+      <td class="money">${eur(uVenta-uCosto)}</td>
+      <td></td>
+    </tr>`;
+  const cerrarTurno=()=>{
+    if(turnoActual===null||uPed===0) return '';
+    const f=filaTurno(turnoActual);
+    uEmp=0;uCosto=0;uVenta=0;uPed=0;
+    return f;
+  };
 
   let html='';
   list.forEach(o=>{
     const dia=diaDe(o);
-    // Cambió el día → cierro el anterior con su subtotal y reinicio contadores
-    if(variosDias && diaActual!==null && dia!==diaActual){
-      html+=filaSubtotal(diaActual);
-      dEmp=0;dCosto=0;dVenta=0;dPed=0;
+    const tur=turnoDePedido(o);
+    // Cambió el día → cierro el turno abierto, después el día
+    if(diaActual!==null && dia!==diaActual){
+      html+=cerrarTurno();
+      if(variosDias){
+        html+=filaSubtotal(diaActual);
+        dEmp=0;dCosto=0;dVenta=0;dPed=0;
+      }
+      turnoActual=null;
     }
-    diaActual=dia;
+    // Cambió el turno dentro del mismo día → cierro el anterior
+    else if(turnoActual!==null && tur!==turnoActual){
+      html+=cerrarTurno();
+    }
+    diaActual=dia; turnoActual=tur;
 
     const ts=o.timestamp?o.timestamp.toDate():null;
     const hora=ts?ts.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
@@ -3557,6 +3606,7 @@ function hRender(list){
     const costo=costoPedido(o), venta=ventaPedido(o), gan=venta-costo;
     tEmp+=ec; tCosto+=costo; tVenta+=venta;
     dEmp+=ec; dCosto+=costo; dVenta+=venta; dPed++;
+    uEmp+=ec; uCosto+=costo; uVenta+=venta; uPed++;
     const takeTag = esTakeaway(o) ? '<span class="canal-badge cb-takeaway">🥡</span>' : '';
     const desglose = (n.classicas&&n.especiales)
       ? `<span class="mini-tipos">${n.classicas} cl · ${n.especiales} sp</span>`
@@ -3574,7 +3624,8 @@ function hRender(list){
       <td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td>
     </tr>`;
   });
-  // Cierro el último día
+  // Cierro el último turno y el último día
+  html+=cerrarTurno();
   if(variosDias && diaActual!==null) html+=filaSubtotal(diaActual);
 
   const tGan=tVenta-tCosto;
