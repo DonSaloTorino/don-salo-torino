@@ -7,7 +7,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; overscroll-behavior: none; }
+/* TODO EL MENÚ EN MAYÚSCULAS.
+   Se hace por CSS, igual que en el mostrador: alcanza a cada texto de la
+   pantalla sin tocar ni un dato. Lo que se guarda en Firestore no cambia. */
+body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; overscroll-behavior: none; text-transform: uppercase; }
 .header-meta{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.55);margin-top:8px;text-transform:uppercase;}
 .header-meta b{color:#fff;font-weight:600;}
 .nombre-error{color:#b91c1c;font-size:12px;margin-top:5px;min-height:15px;}
