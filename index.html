@@ -364,7 +364,7 @@ let stockDisponibilidad = {};
 const PROMOS = [
   { clave:'duoAgua',   nom:'2 Empanadas + Acqua',    corto:'2+A',    emp:2, precio:9.50,  bebida:'acqua'   },
   { clave:'duoBebida', nom:'2 Empanadas + Bibita',   corto:'2+B',    emp:2, precio:9.99,  bebida:'gassata' },
-  { clave:'pranzo',    nom:'Promo Pranzo — 3 Empanadas', corto:'PRANZO', emp:3, precio:11.49, bebida:null }
+  { clave:'pranzo',    nom:'Promo Pranzo — 3 Empanadas', corto:'PRANZO', emp:3, precio:11.50, bebida:null }
 ];
 let promoQtys = {};              // {clave: cantidad}
 let extrasAbiertos = false;      // el cliente dijo que quiere agregar algo más
@@ -403,14 +403,22 @@ function bebElegidas(cat){
   return t;
 }
 
+// Pone todos los contadores en cero
+function vaciarCarrito(){
+  EMPANADAS.forEach(e => qtys[e.id] = 0);
+  BEBIDAS.forEach(b => bQtys[b.id] = 0);
+}
+
 window.chgPromo = function(clave, d){
   const q = Math.max(0, (promoQtys[clave]||0) + d);
   if(q > 6) return;                        // tope, para que nadie mande cincuenta
   promoQtys[clave] = q;
   if(q === 0) delete promoQtys[clave];
-  // Al cambiar la promo se vuelve a empezar: el carrito anterior ya no sirve
+  // Al cambiar la promo se vuelve a empezar: el carrito anterior ya no sirve.
+  // Los contadores se ponen en CERO, no se vacían: si quedan sin valor,
+  // las tarjetas muestran NaN en vez de 0 y no se puede sumar.
   extrasAbiertos = false;
-  qtys = {}; bQtys = {};
+  vaciarCarrito();
   renderPromos(); renderMenu(); updateUI();
 };
 
