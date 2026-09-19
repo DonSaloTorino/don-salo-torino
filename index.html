@@ -8,6 +8,38 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; overscroll-behavior: none; }
+.header-meta{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.55);margin-top:8px;text-transform:uppercase;}
+.header-meta b{color:#fff;font-weight:600;}
+.nombre-error{color:#b91c1c;font-size:12px;margin-top:5px;min-height:15px;}
+/* Promos del mediodía */
+.promo-section{padding:14px 18px 4px;}
+.promo-titulo{font-size:15px;font-weight:600;font-family:'Playfair Display',serif;}
+.promo-sub{font-size:11px;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:2px 0 12px;}
+.promo-card{display:flex;align-items:center;gap:12px;border:1px solid #fde68a;background:#fffbeb;
+  border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.promo-card.on{border-color:#f59e0b;background:#fef3c7;box-shadow:0 0 0 2px rgba(245,158,11,0.18);}
+.promo-card-info{flex:1;min-width:0;}
+.promo-card-nom{font-size:14px;font-weight:600;color:#92400e;}
+.promo-card-det{font-size:11px;color:#b45309;margin-top:2px;line-height:1.4;}
+.promo-card-precio{font-size:16px;font-weight:700;color:#92400e;white-space:nowrap;}
+.promo-ctrl{display:flex;align-items:center;gap:8px;}
+.promo-ctrl button{width:32px;height:32px;border-radius:8px;border:1px solid #fcd34d;background:#fff;
+  color:#92400e;font-size:19px;line-height:1;cursor:pointer;padding:0;}
+.promo-ctrl button:active{background:#fde68a;}
+.promo-num{font-size:17px;font-weight:700;color:#92400e;min-width:20px;text-align:center;}
+.promo-requisitos{background:#111;color:#fff;border-radius:12px;padding:12px 16px;margin:12px 0 4px;}
+.promo-req-tit{font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:0.5;margin-bottom:8px;}
+.promo-req-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:14px;}
+.promo-req-ok{color:#4ade80;font-weight:700;}
+.promo-req-falta{color:#fca5a5;font-weight:700;}
+/* ¿Algo más? */
+.extra-section{padding:16px 18px;border-top:1px solid #f0f0f0;margin-top:8px;}
+.extra-pregunta{font-size:15px;font-weight:600;margin-bottom:10px;text-align:center;}
+.extra-btns{display:flex;gap:10px;}
+.extra-btn{flex:1;padding:13px;border-radius:10px;border:1px solid #ddd;background:#fff;
+  font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;color:#555;}
+.extra-btn.active{background:#111;color:#fff;border-color:#111;font-weight:600;}
+.modo-prueba{background:#7e22ce;color:#fff;text-align:center;padding:7px;font-size:11px;letter-spacing:2px;}
 .screen { display: none; }
 .screen.active { display: block; }
 .menu-header { background: #111; color: #fff; text-align: center; padding: 28px 20px 20px; position: sticky; top: 0; z-index: 10; }
@@ -151,6 +183,7 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     <div class="brand">EMPANADAS</div>
     <div class="brand-sub">DON SALO</div>
     <div class="sub">Torino</div>
+    <div class="header-meta" id="header-meta"></div>
     <div class="header-counter">
       <span class="header-counter-label">Totale empanadas</span>
       <span class="header-counter-num" id="header-emp-count">0</span>
@@ -171,17 +204,20 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   <div class="qty-status-bar neutral" id="qty-status-bar" style="display:none;"></div>
 
   <div class="nombre-section">
-    <label>Il tuo nome (opzionale)</label>
-    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco... (puoi lasciare vuoto)" autocomplete="off" style="text-transform:uppercase;"/>
+    <label id="nombre-label">Il tuo nome</label>
+    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco" autocomplete="off" style="text-transform:uppercase;"/>
+    <div class="nombre-error" id="nombre-error"></div>
   </div>
 
-  <div class="date-section">
-    <label>Data del ritiro</label>
-    <div class="date-display" onclick="document.getElementById('fecha-input').showPicker()">
-      <span class="date-text" id="fecha-display"></span>
-      <span id="fecha-badge" class="date-today-badge">Oggi</span>
-    </div>
-    <input class="date-input-hidden" id="fecha-input" type="date" onchange="onFechaChange()"/>
+  <!-- La fecha ya no la elige el cliente: va bloqueada arriba, en la barra negra -->
+  <input type="hidden" id="fecha-input"/>
+
+  <!-- PROMOS DEL MEDIODÍA — solo lunes a viernes de 12:00 a 14:00 -->
+  <div class="promo-section" id="promo-section" style="display:none;">
+    <div class="promo-titulo">🕛 Promozioni di mezzogiorno</div>
+    <div class="promo-sub">Solo a pranzo, dal lunedì al venerdì</div>
+    <div id="promo-cards"></div>
+    <div class="promo-requisitos" id="promo-requisitos" style="display:none;"></div>
   </div>
 
   <!-- Hora de retiro — solo visible si viene de la web con orario -->
@@ -194,6 +230,15 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   </div>
 
   <div id="empanada-list" class="empanada-list"></div>
+
+  <!-- ¿Algo más? — aparece cuando hay promo y ya está completa -->
+  <div class="extra-section" id="extra-section" style="display:none;">
+    <div class="extra-pregunta">Vuoi aggiungere altro?</div>
+    <div class="extra-btns">
+      <button class="extra-btn" id="extra-no" onclick="setExtras(false)">No, così va bene</button>
+      <button class="extra-btn" id="extra-si" onclick="setExtras(true)">Sì, aggiungo</button>
+    </div>
+  </div>
 
   <div class="allergen-section">
     <div class="allergen-text">
@@ -252,13 +297,18 @@ const isWebOrder  = urlParams.get('web') === '1';
 const qtyParam    = urlParams.get('qty');
 const qtyPagada   = qtyParam ? parseInt(qtyParam) : null;
 const tieneControlQty = isWebOrder && qtyPagada !== null && qtyPagada > 0;
+// Mesa: cada NFC lleva su número → ...?mesa=1
+const mesaParam   = urlParams.get('mesa');
+const MESA        = mesaParam && /^[0-9]{1,2}$/.test(mesaParam) ? mesaParam : null;
+// Modo de prueba: fuerza las promos visibles fuera de horario → ...?test=1
+const MODO_PRUEBA = urlParams.get('test') === '1';
 
 // Cada empanada lleva su tipoEmp: 'classica' o 'speciale'.
 // Tiene que coincidir EXACTAMENTE con lo que está cargado en el panel (colección "sabores"),
 // porque el nombre es lo que enlaza el menú con el stock y con el cálculo de precios.
 const EMPANADAS = [
-  { id:15, nombre:'ENTRECOTE + CHIMICHURRI', desc:'Entrecotte Black Angus 🇦🇷, Cipolla, Peperoni, Vino Bianco, Spezie, Sale, Pepe, Aglio, Prezzemolo', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
-  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Sale, Pepe',                        curcuma:false, tipoEmp:'classica', emoji:'🥩' },
+  { oculto:true, id:15, nombre:'ENTRECOTE + CHIMICHURRI', desc:'Entrecotte Black Angus 🇦🇷, Cipolla, Peperoni, Vino Bianco, Spezie, Sale, Pepe, Aglio, Prezzemolo', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
+  { id:1,  nombre:'CARNE',                  desc:'Carne 100% ANGUS 🇦🇷🇺🇾, Uova, Cipolla, Peperoni, Olive, Sale, Pepe',                        curcuma:false, tipoEmp:'classica', emoji:'🥩' },
   { id:13, nombre:'MATAMBRE (SOTTOPANCIA)', desc:'Carne Bovina 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Cipolla, Peperoni, Vino Rosso, Formaggio, Sale, Pepe', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
   { id:7,  nombre:'VACIO (BAVETTA)',         desc:'Bavetta di Manzo 100% ANGUS 🇦🇷🇺🇾 Sfilacciata, Provola Affumicata, Cipolla, Carote, Peperoni, Vino Rosso, Sale, Pepe', curcuma:false, tipoEmp:'speciale', emoji:'🥩' },
   { id:9,  nombre:'CHESE BURGER',           desc:'Burger 100% ANGUS 🇦🇷🇺🇾, Formaggio Cheddar, Bacon, Sale, Pepe, Spezie',                      curcuma:false, tipoEmp:'speciale', emoji:'🍔' },
@@ -303,6 +353,119 @@ EMPANADAS.forEach(e => qtys[e.id] = 0);
 let bQtys = {};
 BEBIDAS.forEach(b => bQtys[b.id] = 0);
 let stockDisponibilidad = {};
+
+// ═══════════════════════════════════════════════════════
+//  PROMOS DEL MEDIODÍA
+//  Solo de lunes a viernes, de 12:00 a 14:00. Fuera de esa ventana el menú
+//  funciona libre, como siempre.
+//  Cada promo obliga a una cantidad exacta: si elegís la de 3, no podés mandar
+//  el pedido hasta tener 3 empanadas. Las bebidas de promo también se cuentan.
+// ═══════════════════════════════════════════════════════
+const PROMOS = [
+  { clave:'duoAgua',   nom:'2 Empanadas + Acqua',    corto:'2+A',    emp:2, precio:9.50,  bebida:'acqua'   },
+  { clave:'duoBebida', nom:'2 Empanadas + Bibita',   corto:'2+B',    emp:2, precio:9.99,  bebida:'gassata' },
+  { clave:'pranzo',    nom:'Promo Pranzo — 3 Empanadas', corto:'PRANZO', emp:3, precio:11.49, bebida:null }
+];
+let promoQtys = {};              // {clave: cantidad}
+let extrasAbiertos = false;      // el cliente dijo que quiere agregar algo más
+
+// ¿Estamos dentro de la ventana de promos?
+function ventanaPromo(){
+  if(MODO_PRUEBA) return true;
+  const n = new Date();
+  const dia = n.getDay();                 // 1..5 = lunes a viernes
+  if(dia < 1 || dia > 5) return false;
+  const min = n.getHours()*60 + n.getMinutes();
+  return min >= 12*60 && min < 14*60;
+}
+// ¿Hay alguna promo elegida?
+function hayPromo(){ return Object.values(promoQtys).some(q => q > 0); }
+// Cuántas empanadas exigen las promos elegidas
+function empRequeridas(){
+  return PROMOS.reduce((a,p) => a + (promoQtys[p.clave]||0) * p.emp, 0);
+}
+// Cuántas bebidas de cada categoría exigen las promos
+function bebRequeridas(){
+  const r = { acqua:0, gassata:0 };
+  PROMOS.forEach(p => { if(p.bebida) r[p.bebida] += (promoQtys[p.clave]||0); });
+  return r;
+}
+// Qué categorías de bebida se pueden ver ahora
+function categoriasVisibles(){
+  if(!hayPromo() || extrasAbiertos) return ['acqua','gassata','birra'];
+  const req = bebRequeridas();
+  return ['acqua','gassata'].filter(k => req[k] > 0);
+}
+// Cuántas bebidas hay elegidas de una categoría
+function bebElegidas(cat){
+  let t = 0;
+  BEBIDAS.filter(b => b.cat === cat).forEach(b => { t += (bQtys[b.id]||0); });
+  return t;
+}
+
+window.chgPromo = function(clave, d){
+  const q = Math.max(0, (promoQtys[clave]||0) + d);
+  if(q > 6) return;                        // tope, para que nadie mande cincuenta
+  promoQtys[clave] = q;
+  if(q === 0) delete promoQtys[clave];
+  // Al cambiar la promo se vuelve a empezar: el carrito anterior ya no sirve
+  extrasAbiertos = false;
+  qtys = {}; bQtys = {};
+  renderPromos(); renderMenu(); updateUI();
+};
+
+window.setExtras = function(v){
+  extrasAbiertos = !!v;
+  renderMenu(); updateUI();
+  if(v){
+    const lista = document.getElementById('empanada-list');
+    if(lista) lista.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+};
+
+function renderPromos(){
+  const sec = document.getElementById('promo-section');
+  if(!sec) return;
+  if(!ventanaPromo()){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  document.getElementById('promo-cards').innerHTML = PROMOS.map(p => {
+    const q = promoQtys[p.clave]||0;
+    const det = p.bebida==='acqua' ? '2 empanadas a scelta + 1 acqua'
+              : p.bebida==='gassata' ? '2 empanadas a scelta + 1 bibita'
+              : '3 empanadas a scelta';
+    return `<div class="promo-card${q>0?' on':''}">
+      <div class="promo-card-info">
+        <div class="promo-card-nom">${p.nom}</div>
+        <div class="promo-card-det">${det}</div>
+      </div>
+      <div class="promo-card-precio">€ ${p.precio.toFixed(2).replace('.',',')}</div>
+      <div class="promo-ctrl">
+        <button onclick="chgPromo('${p.clave}',-1)">−</button>
+        <span class="promo-num">${q}</span>
+        <button onclick="chgPromo('${p.clave}',1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Estado de los requisitos: qué falta para poder mandar el pedido
+function estadoPromo(){
+  const req = empRequeridas();
+  const bReq = bebRequeridas();
+  const emp = totalEmpanadas();
+  const faltas = [];
+  const filas = [];
+  const fila = (et, hay, nec) => {
+    const ok = extrasAbiertos ? hay >= nec : hay === nec;
+    if(!ok) faltas.push(et);
+    filas.push(`<div class="promo-req-row"><span>${et}</span>
+      <span class="${ok?'promo-req-ok':'promo-req-falta'}">${hay} / ${nec}${ok?' ✓':''}</span></div>`);
+  };
+  fila('Empanadas', emp, req);
+  if(bReq.acqua>0)   fila('Acqua',   bebElegidas('acqua'),   bReq.acqua);
+  if(bReq.gassata>0) fila('Bibita',  bebElegidas('gassata'), bReq.gassata);
+  return { ok: faltas.length===0, filas: filas.join(''), req, emp };
+}
 
 // ─────────────────────────────────────────────
 //  CONTROL DE CANTIDAD PAGADA
@@ -374,8 +537,10 @@ function updateQtyStatus(empTotal) {
 function renderMenu() {
   const list = document.getElementById('empanada-list');
   // Dos únicas secciones, como en el cartel de promociones
-  const classiche = EMPANADAS.filter(e => e.tipoEmp !== 'speciale');
-  const speciali  = EMPANADAS.filter(e => e.tipoEmp === 'speciale');
+  // Los sabores marcados como ocultos no se muestran (entrecote, por ahora)
+  const visibles  = EMPANADAS.filter(e => !e.oculto);
+  const classiche = visibles.filter(e => e.tipoEmp !== 'speciale');
+  const speciali  = visibles.filter(e => e.tipoEmp === 'speciale');
 
   let html = '';
   if (classiche.length) {
@@ -387,14 +552,21 @@ function renderMenu() {
     speciali.forEach(e => { html += cardHTML(e); });
   }
 
+  // Con una promo elegida solo se ven las bebidas que esa promo incluye.
+  // Al abrir "algo más" vuelve a verse todo, incluidas las cervezas.
   if (!isWebOrder && BEBIDAS.length) {
-    html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
-    [{ key:'acqua', label:'Acqua' }, { key:'gassata', label:'Gassate' }, { key:'birra', label:'Birra' }].forEach(cat => {
-      const items = BEBIDAS.filter(b => b.cat === cat.key);
-      if (!items.length) return;
-      html += `<div class="beb-cat-title">${cat.label}</div>`;
-      items.forEach(b => { html += bebCardHTML(b); });
-    });
+    const cats = categoriasVisibles();
+    const defs = [{ key:'acqua', label:'Acqua' }, { key:'gassata', label:'Gassate' }, { key:'birra', label:'Birra' }]
+                   .filter(x => cats.includes(x.key));
+    if (defs.length) {
+      html += '<div class="section-title" style="margin-top:16px; font-size:13px;">🥤 Bevande</div>';
+      defs.forEach(cat => {
+        const items = BEBIDAS.filter(b => b.cat === cat.key);
+        if (!items.length) return;
+        html += `<div class="beb-cat-title">${cat.label}</div>`;
+        items.forEach(b => { html += bebCardHTML(b); });
+      });
+    }
   }
 
   list.innerHTML = html;
@@ -461,9 +633,41 @@ function totalUnidades() {
   return emp + beb;
 }
 
+// Se llama desde chgPromo y setExtras
+function updateUI(){ updateBottomBar(); }
+
 function updateBottomBar() {
   const empTotal = totalEmpanadas();
   const total    = totalUnidades();
+
+  // ── Requisitos de las promos ──
+  const cajaReq = document.getElementById('promo-requisitos');
+  const secExtra = document.getElementById('extra-section');
+  const btn = document.getElementById('confirmar-btn');
+  if(cajaReq){
+    if(hayPromo()){
+      const st = estadoPromo();
+      cajaReq.style.display='block';
+      cajaReq.innerHTML = '<div class="promo-req-tit">Per confermare ti servono</div>'+st.filas;
+      // El "¿algo más?" aparece recién cuando la promo está completa
+      if(secExtra) secExtra.style.display = st.ok || extrasAbiertos ? 'block' : 'none';
+      if(btn){
+        btn.disabled = !st.ok;
+        btn.style.opacity = st.ok ? '1' : '0.45';
+        btn.textContent = st.ok ? 'Conferma Ordine →' : 'Completa la promo';
+      }
+    }else{
+      cajaReq.style.display='none';
+      if(secExtra) secExtra.style.display='none';
+      if(btn){
+        btn.disabled=false; btn.style.opacity='1'; btn.textContent='Conferma Ordine →';
+      }
+    }
+  }
+  // Los botones de "algo más" marcan cuál está elegido
+  const bSi=document.getElementById('extra-si'), bNo=document.getElementById('extra-no');
+  if(bSi) bSi.className='extra-btn'+(extrasAbiertos?' active':'');
+  if(bNo) bNo.className='extra-btn'+(!extrasAbiertos?' active':'');
 
   // Counter en el header siempre
   const counter = document.getElementById('header-emp-count');
@@ -505,8 +709,22 @@ window.confirmarPedido = async function() {
 
   // El nombre se guarda en MAYÚSCULAS: así sale igual en el ticket impreso
   // y en el panel del mostrador, sin importar cómo lo escriba el cliente.
+  // Con promo elegida no se puede mandar hasta completarla
+  if(hayPromo() && !estadoPromo().ok) { updateBottomBar(); return; }
+
   let nombre = document.getElementById('nombre-input').value.trim().toUpperCase();
   let isAutoNumber = false;
+
+  // El nombre ahora es obligatorio: en una misma mesa cada uno pide lo suyo,
+  // y sin nombre no se sabe de quién es cada pedido.
+  const errEl = document.getElementById('nombre-error');
+  if(!nombre){
+    if(errEl) errEl.textContent = '⚠️ Scrivi il tuo nome per confermare';
+    document.getElementById('nombre-input').focus();
+    document.querySelector('.nombre-section').scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(errEl) errEl.textContent='';
 
   // Las empanadas se guardan con el prefijo (C) / (S) y ordenadas: primero las
   // classiche y después las speciali. Así la comanda sale marcada, igual que
@@ -555,14 +773,35 @@ window.confirmarPedido = async function() {
       isAutoNumber = true;
     }
 
+    // ── Cómo sale impreso ──
+    // La app de la Munbyn imprime el campo "cliente" tal cual, así que ahí va
+    // todo lo que tiene que verse arriba del ticket: MESA · NOMBRE · PROMO.
+    const promosSel = {};
+    PROMOS.forEach(p => { if(promoQtys[p.clave] > 0) promosSel[p.clave] = promoQtys[p.clave]; });
+    const promoTxt = PROMOS.filter(p => promoQtys[p.clave] > 0)
+      .map(p => promoQtys[p.clave] > 1 ? `${p.corto} x${promoQtys[p.clave]}` : p.corto)
+      .join(' + ');
+    const partes = [];
+    if (MESA) partes.push('MESA ' + MESA);
+    partes.push(nombre);
+    if (promoTxt) partes.push(promoTxt);
+    const clienteTicket = partes.join(' - ');
+
     await addDoc(collection(db, 'pedidos'), {
-      cliente:    nombre,
+      cliente:    clienteTicket,
+      nombreSolo: nombre,
+      mesa:       MESA ? parseInt(MESA) : null,
       items:      items,
       total:      totalUnidades(),
       estado:     'nuevo',
-      fecha:      document.getElementById('fecha-input').value,
+      // La fecha ya no la elige el cliente: siempre es hoy
+      fecha:      new Date().toISOString().split('T')[0],
       orario:     urlParams.get('orario') || null,
       canale:     isWebOrder ? 'web' : 'locale',
+      canalVenta: isWebOrder ? 'web' : 'qr',
+      // Si pidió desde la mesa, come en el local
+      consumo:    MESA ? 'mostrador' : null,
+      promos:     promosSel,
       qtyPagata:  tieneControlQty ? qtyPagada : null,
       timestamp:  serverTimestamp()
     });
@@ -639,11 +878,17 @@ window.onFechaChange = function() {
   updateFechaDisplay(input.value, input.value === today);
 };
 
-function updateFechaDisplay(dateStr, isToday) {
-  document.getElementById('fecha-display').textContent = formatFechaIT(dateStr);
-  const badge = document.getElementById('fecha-badge');
-  if (isToday) { badge.textContent = 'Oggi'; badge.className = 'date-today-badge'; }
-  else         { badge.textContent = 'Prenotazione'; badge.className = 'date-future-badge'; }
+// La fecha ya no se muestra en el cuerpo: va arriba, en la barra negra
+function updateFechaDisplay(){ /* la cabecera se arma en initCabecera() */ }
+
+// Cabecera: fecha de hoy y mesa, chiquito y en blanco.
+// El cliente no elige la fecha — si hace falta cambiarla, se hace desde el mostrador.
+function initCabecera(){
+  const el = document.getElementById('header-meta');
+  if(!el) return;
+  const hoy = new Date();
+  const fecha = hoy.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'});
+  el.innerHTML = (MESA ? `<b>Tavolo ${MESA}</b> · ` : '') + fecha;
 }
 
 // ─────────────────────────────────────────────
@@ -651,12 +896,23 @@ function updateFechaDisplay(dateStr, isToday) {
 // ─────────────────────────────────────────────
 
 initFecha();
+initCabecera();
+renderPromos();
 renderMenu();
 initQtyBanner();
+updateBottomBar();
+
+// Aviso visible cuando se entra en modo de prueba, para no confundirlo con el real
+if(MODO_PRUEBA){
+  const d=document.createElement('div');
+  d.className='modo-prueba';
+  d.textContent='⚠️ MODO PRUEBA — PROMOS FORZADAS';
+  document.getElementById('screen-menu').prepend(d);
+}
 
 // Pre-compila nome e data da URL
 if (urlParams.get('nome')) document.getElementById('nombre-input').value = urlParams.get('nome');
-if (urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); onFechaChange(); }
+if (urlParams.get('data')) { document.getElementById('fecha-input').value = urlParams.get('data'); }
 
 // ── Ocultar "+ Nuovo ordine" en pedidos web ──
 // El cliente ya pagó y eligió; ese botón es solo para el mostrador.
