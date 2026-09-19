@@ -33,12 +33,16 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
 .promo-req-ok{color:#4ade80;font-weight:700;}
 .promo-req-falta{color:#fca5a5;font-weight:700;}
 /* ¿Algo más? */
-.extra-section{padding:16px 18px;border-top:1px solid #f0f0f0;margin-top:8px;}
-.extra-pregunta{font-size:15px;font-weight:600;margin-bottom:10px;text-align:center;}
+.extra-section{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;
+  padding:14px 16px;margin:12px 0 4px;animation:aparece 0.3s ease;}
+@keyframes aparece{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.extra-pregunta{font-size:13px;font-weight:700;margin-bottom:10px;text-align:center;
+  color:#065f46;letter-spacing:0.5px;}
 .extra-btns{display:flex;gap:10px;}
-.extra-btn{flex:1;padding:13px;border-radius:10px;border:1px solid #ddd;background:#fff;
-  font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;color:#555;}
-.extra-btn.active{background:#111;color:#fff;border-color:#111;font-weight:600;}
+.extra-btn{flex:1;padding:13px;border-radius:10px;border:1px solid #bbf7d0;background:#fff;
+  font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;color:#065f46;
+  letter-spacing:0.5px;font-weight:500;}
+.extra-btn.active{background:#065f46;color:#fff;border-color:#065f46;font-weight:700;}
 .modo-prueba{background:#7e22ce;color:#fff;text-align:center;padding:7px;font-size:11px;letter-spacing:2px;}
 .screen { display: none; }
 .screen.active { display: block; }
@@ -204,9 +208,8 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   <div class="qty-status-bar neutral" id="qty-status-bar" style="display:none;"></div>
 
   <div class="nombre-section">
-    <label id="nombre-label">Il tuo nome</label>
-    <input class="nombre-input" id="nombre-input" type="text" placeholder="Es: Marco" autocomplete="off" style="text-transform:uppercase;"/>
-    <div class="nombre-error" id="nombre-error"></div>
+    <label id="nombre-label">Il tuo nome (opzionale)</label>
+    <input class="nombre-input" id="nombre-input" type="text" placeholder="ES: MARCO" autocomplete="off" style="text-transform:uppercase;"/>
   </div>
 
   <!-- La fecha ya no la elige el cliente: va bloqueada arriba, en la barra negra -->
@@ -218,6 +221,15 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
     <div class="promo-sub">Solo a pranzo, dal lunedì al venerdì</div>
     <div id="promo-cards"></div>
     <div class="promo-requisitos" id="promo-requisitos" style="display:none;"></div>
+    <!-- ¿Algo más? — aparece acá arriba, apenas se completa la promo.
+         Antes estaba al final de la página y el cliente no llegaba a verla. -->
+    <div class="extra-section" id="extra-section" style="display:none;">
+      <div class="extra-pregunta">✅ PROMO COMPLETA — VUOI AGGIUNGERE ALTRO?</div>
+      <div class="extra-btns">
+        <button class="extra-btn" id="extra-no" onclick="setExtras(false)">NO, COSÌ VA BENE</button>
+        <button class="extra-btn" id="extra-si" onclick="setExtras(true)">SÌ, AGGIUNGO</button>
+      </div>
+    </div>
   </div>
 
   <!-- Hora de retiro — solo visible si viene de la web con orario -->
@@ -230,15 +242,6 @@ body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; oversc
   </div>
 
   <div id="empanada-list" class="empanada-list"></div>
-
-  <!-- ¿Algo más? — aparece cuando hay promo y ya está completa -->
-  <div class="extra-section" id="extra-section" style="display:none;">
-    <div class="extra-pregunta">Vuoi aggiungere altro?</div>
-    <div class="extra-btns">
-      <button class="extra-btn" id="extra-no" onclick="setExtras(false)">No, così va bene</button>
-      <button class="extra-btn" id="extra-si" onclick="setExtras(true)">Sì, aggiungo</button>
-    </div>
-  </div>
 
   <div class="allergen-section">
     <div class="allergen-text">
@@ -364,7 +367,7 @@ let stockDisponibilidad = {};
 const PROMOS = [
   { clave:'duoAgua',   nom:'2 Empanadas + Acqua',    corto:'2+A',    emp:2, precio:9.50,  bebida:'acqua'   },
   { clave:'duoBebida', nom:'2 Empanadas + Bibita',   corto:'2+B',    emp:2, precio:9.99,  bebida:'gassata' },
-  { clave:'pranzo',    nom:'Promo Pranzo — 3 Empanadas', corto:'PRANZO', emp:3, precio:11.50, bebida:null }
+  { clave:'pranzo',    nom:'Promo 3 Empanadas', corto:'PROMOX3', emp:3, precio:11.50, bebida:null }
 ];
 let promoQtys = {};              // {clave: cantidad}
 let extrasAbiertos = false;      // el cliente dijo que quiere agregar algo más
@@ -723,16 +726,7 @@ window.confirmarPedido = async function() {
   let nombre = document.getElementById('nombre-input').value.trim().toUpperCase();
   let isAutoNumber = false;
 
-  // El nombre ahora es obligatorio: en una misma mesa cada uno pide lo suyo,
-  // y sin nombre no se sabe de quién es cada pedido.
-  const errEl = document.getElementById('nombre-error');
-  if(!nombre){
-    if(errEl) errEl.textContent = '⚠️ Scrivi il tuo nome per confermare';
-    document.getElementById('nombre-input').focus();
-    document.querySelector('.nombre-section').scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
-  if(errEl) errEl.textContent='';
+  // El nombre es opcional: si no lo escribe, se numera solo (A1, A2...)
 
   // Las empanadas se guardan con el prefijo (C) / (S) y ordenadas: primero las
   // classiche y después las speciali. Así la comanda sale marcada, igual que
@@ -800,7 +794,10 @@ window.confirmarPedido = async function() {
       nombreSolo: nombre,
       mesa:       MESA ? parseInt(MESA) : null,
       items:      items,
-      total:      totalUnidades(),
+      // SOLO empanadas. La app imprime este número como "TOTALE: X empanadas",
+      // así que si acá van también las bebidas, el ticket cuenta una Coca como
+      // si fuera una empanada.
+      total:      totalEmpanadas(),
       estado:     'nuevo',
       // La fecha ya no la elige el cliente: siempre es hoy
       fecha:      new Date().toISOString().split('T')[0],
