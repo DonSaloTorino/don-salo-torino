@@ -268,6 +268,9 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .s-mini-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin-bottom:3px;line-height:1.4;}
 .s-mini-num{font-size:26px;font-weight:700;color:#111;line-height:1;}
 .s-mini-pct{font-size:13px;font-weight:600;opacity:0.5;margin-left:5px;letter-spacing:0;}
+.s-mini-turnos{font-size:11px;color:#bbb;letter-spacing:0.5px;margin-top:3px;}
+.s-mini.gan .s-mini-turnos{color:rgba(255,255,255,0.4);}
+.oculto{letter-spacing:2px;opacity:0.35;}
 .s-mini-sub{font-size:10px;color:#bbb;margin-top:4px;line-height:1.4;min-height:13px;}
 .s-mini.take{background:#fff7ed;border-color:#fed7aa;}
 .s-mini.take .s-mini-num{color:#9a3412;}
@@ -780,6 +783,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
   </div>
   <div class="export-bar">
     <button class="xls-btn" onclick="exportStats()">📊 Descargar Excel</button>
+    <button class="stock-btn stock-btn-sec" id="btn-dinero" onclick="toggleDinero()">👁 Ver importes</button>
     <span class="export-hint">Exporta el período que estás viendo</span>
   </div>
   <div class="s-period-label" id="s-period-label"></div>
@@ -2696,7 +2700,7 @@ window.switchTab=function(tab){
   document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas'}[tab];
-  if(tab==='stats'){sLoadFixed();sLoadData();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
+  if(tab==='stats'){sLoadFixed();sLoadData();pintarDinero();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -3188,6 +3192,37 @@ function promedioDiario(pedidos, desdePeriodo, hastaPeriodo){
 //  Por eso este bloque arranca en una fecha fija y no se mueve.
 // ═══════════════════════════════════════════════════════
 const S_MES_DESDE='2026-09-01';
+
+// ═══════════════════════════════════════════════════════
+//  IMPORTES OCULTOS
+//  La ganancia y el ticket promedio no se muestran solos. El riesgo real no es
+//  que alguien entre al panel —para eso está la contraseña— sino que un cliente
+//  del otro lado del mostrador lea la pantalla. Por eso alcanza con taparlos y
+//  un toque para verlos, sin otra clave que sumaría fricción sin protegerte más.
+//  Se vuelven a tapar solos a los 2 minutos y en cada recarga.
+// ═══════════════════════════════════════════════════════
+let dineroVisible=false;
+let dineroTimer=null;
+function dinero(txt){
+  if(txt===null||txt===undefined) return txt;
+  return dineroVisible ? txt : '<span class="oculto">•••••</span>';
+}
+window.toggleDinero=function(){
+  dineroVisible=!dineroVisible;
+  if(dineroTimer){ clearTimeout(dineroTimer); dineroTimer=null; }
+  if(dineroVisible){
+    dineroTimer=setTimeout(()=>{ dineroVisible=false; pintarDinero(); }, 2*60*1000);
+  }
+  pintarDinero();
+};
+function pintarDinero(){
+  const b=document.getElementById('btn-dinero');
+  if(b) b.textContent = dineroVisible ? '🙈 Ocultar importes' : '👁 Ver importes';
+  if(sMesCache) sMesPintar(sMesCache);
+  const cont=document.getElementById('s-turnos');
+  if(cont && sTurnosCache) pintarTurnos(sTurnosCache);
+}
+let sTurnosCache=null;
 let sMesCache=null, sMesCacheHora=0, sMesCacheClave='';
 
 async function sCargarMes(desdePeriodo, hastaPeriodo){
@@ -3223,33 +3258,40 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       orderBy('timestamp','asc')));
     const todos=soloPedidos(snap.docs.map(d=>({id:d.id,...d.data()})));
 
+    // Cada contador lleva además cuánto fue al mediodía y cuánto a la cena
+    const par=()=>({p:0,e:0,pz:0,cn:0});
     const r={
-      consumo:{mangia:{p:0,e:0}, take:{p:0,e:0}, delivery:{p:0,e:0}},
-      promos:{}, sinPromo:{p:0,e:0},
-      canales:{}, interno:{p:0,e:0}, devol:{p:0,e:0},
-      tipos:{classicas:0, especiales:0},
+      consumo:{mangia:par(), take:par(), delivery:par()},
+      promos:{}, sinPromo:par(),
+      canales:{}, interno:par(), devol:par(),
+      tipos:{classicas:0, especiales:0, clPz:0, clCn:0, spPz:0, spCn:0},
       pedidos:0, empanadas:0, venta:0, costo:0
     };
     todos.forEach(o=>{
       const n=contarPorTipo(o), emp=n.total, k=canalKey(o);
+      const esPz = turnoDePedido(o)==='pranzo';
+      // Suma un pedido a un contador, anotando también en qué turno cayó
+      const sum=(x)=>{ x.p++; x.e+=emp; if(esPz) x.pz++; else x.cn++; };
       r.pedidos++; r.empanadas+=emp;
       r.tipos.classicas+=n.classicas; r.tipos.especiales+=n.especiales;
+      if(esPz){ r.tipos.clPz+=n.classicas; r.tipos.spPz+=n.especiales; }
+      else    { r.tipos.clCn+=n.classicas; r.tipos.spCn+=n.especiales; }
       // Canal
-      if(!r.canales[k]) r.canales[k]={p:0,e:0};
-      r.canales[k].p++; r.canales[k].e+=emp;
+      if(!r.canales[k]) r.canales[k]=par();
+      sum(r.canales[k]);
       // Dónde consume
-      if(k==='interno'){ r.interno.p++; r.interno.e+=emp; }
-      else if(k==='devolucion'){ r.devol.p++; r.devol.e+=emp; }
-      else if(CANALES[k].delivery){ r.consumo.delivery.p++; r.consumo.delivery.e+=emp; }
-      else if(esTakeaway(o)){ r.consumo.take.p++; r.consumo.take.e+=emp; }
-      else { r.consumo.mangia.p++; r.consumo.mangia.e+=emp; }
+      if(k==='interno')            sum(r.interno);
+      else if(k==='devolucion')    sum(r.devol);
+      else if(CANALES[k].delivery) sum(r.consumo.delivery);
+      else if(esTakeaway(o))       sum(r.consumo.take);
+      else                         sum(r.consumo.mangia);
       // Promos
       const pr=promosDePedido(o);
       const claves=Object.keys(pr);
       if(claves.length){
         claves.forEach(c=>{ r.promos[c]=(r.promos[c]||0)+pr[c]; });
       }else if(!CANALES[k].delivery && k!=='interno' && k!=='devolucion'){
-        r.sinPromo.p++; r.sinPromo.e+=emp;
+        sum(r.sinPromo);
       }
       // Plata
       r.venta+=ventaPedido(o); r.costo+=costoPedido(o);
@@ -3266,12 +3308,17 @@ function sMesPintar(r){
   const cont=document.getElementById('s-mes-bloques');
   if(!cont) return;
   const pct=(n,t)=>t>0?Math.round(n/t*100)+'%':null;
-  // El porcentaje va al lado del número, entre paréntesis y más chico
-  const caja=(label,num,sub,cls,porc)=>`<div class="s-mini ${cls||''}">
+  // El porcentaje va al lado del número, entre paréntesis y más chico.
+  // Debajo, el desglose 🌞 mediodía · 🌙 cena, igual que en PEDIDOS.
+  const caja=(label,num,sub,cls,porc,v)=>{
+    const turnos = v ? `<div class="s-mini-turnos">🌞 ${v.pz} · 🌙 ${v.cn}</div>` : '';
+    return `<div class="s-mini ${cls||''}">
       <div class="s-mini-label">${label}</div>
       <div class="s-mini-num">${num}${porc?'<span class="s-mini-pct">('+porc+')</span>':''}</div>
+      ${turnos}
       <div class="s-mini-sub">${sub||''}</div>
     </div>`;
+  };
 
   // Etiquetas de promo de la lista vigente, con respaldo para las viejas
   const L=listaHoy();
@@ -3287,9 +3334,9 @@ function sMesPintar(r){
 
   // ── Dónde consume ──
   h+='<div class="s-mini-grid">';
-  h+=caja('🍽️ Mangia qui', r.consumo.mangia.p, r.consumo.mangia.e+' empanadas · sobre el local','',pct(r.consumo.mangia.p,totLocal));
-  h+=caja('🥡 Takeaway', r.consumo.take.p, r.consumo.take.e+' empanadas · sobre el local','take',pct(r.consumo.take.p,totLocal));
-  h+=caja('🛵 Delivery', r.consumo.delivery.p, r.consumo.delivery.e+' empanadas · sobre el total','deliv',pct(r.consumo.delivery.p,r.pedidos));
+  h+=caja('🍽️ Mangia qui', r.consumo.mangia.p, r.consumo.mangia.e+' empanadas · sobre el local','',pct(r.consumo.mangia.p,totLocal), r.consumo.mangia);
+  h+=caja('🥡 Takeaway', r.consumo.take.p, r.consumo.take.e+' empanadas · sobre el local','take',pct(r.consumo.take.p,totLocal), r.consumo.take);
+  h+=caja('🛵 Delivery', r.consumo.delivery.p, r.consumo.delivery.e+' empanadas · sobre el total','deliv',pct(r.consumo.delivery.p,r.pedidos), r.consumo.delivery);
   h+='</div>';
 
   // ── Promos ──
@@ -3298,28 +3345,48 @@ function sMesPintar(r){
     const n=r.promos[k]||0;
     h+=caja(nombrePromo(k), n, n>0?'sobre el total de promos':'ninguna','promo',pct(n,totPromos));
   });
-  h+=caja('Sin promo', r.sinPromo.p, r.sinPromo.e+' empanadas · sobre el local','',pct(r.sinPromo.p,totLocal));
+  h+=caja('Sin promo', r.sinPromo.p, r.sinPromo.e+' empanadas · sobre el local','',pct(r.sinPromo.p,totLocal), r.sinPromo);
   h+='</div>';
 
   // ── Canales ──
   h+='<div class="s-mini-sub-title">Por canal</div><div class="s-mini-grid">';
   ['mostrador','qr','web','glovo','justeat','deliveroo'].forEach(k=>{
     const v=r.canales[k]; if(!v) return;
-    h+=caja(CANALES[k].label, v.p, v.e+' empanadas · sobre el total','',pct(v.p,r.pedidos));
+    h+=caja(CANALES[k].label, v.p, v.e+' empanadas · sobre el total','',pct(v.p,r.pedidos), v);
   });
   h+='</div>';
 
   // ── Lo que no factura y la mezcla ──
   h+='<div class="s-mini-sub-title">Otros</div><div class="s-mini-grid">';
-  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+eur(r.interno.e*COSTO_EMPANADA)+' de costo','interno',pct(r.interno.e,r.empanadas));
-  h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.empanadas));
-  h+=caja('🔵 Classiche', r.tipos.classicas, 'empanadas · sobre el total','',pct(r.tipos.classicas,r.empanadas));
-  h+=caja('🔴 Speciali', r.tipos.especiales, 'empanadas · sobre el total','',pct(r.tipos.especiales,r.empanadas));
-  h+=caja('Ticket promedio', r.pedidos?eur(r.venta/r.pedidos):'—', r.pedidos?(r.empanadas/r.pedidos).toFixed(1)+' empanadas por pedido':'');
-  h+=caja('Ganancia', eur(r.venta-r.costo), r.empanadas?eur((r.venta-r.costo)/r.empanadas)+' por empanada':'','gan',pct(r.venta-r.costo,r.venta));
+  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+eur(r.interno.e*COSTO_EMPANADA)+' de costo','interno',pct(r.interno.e,r.empanadas), r.interno);
+  h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.empanadas), r.devol);
+  h+=caja('🔵 Classiche', r.tipos.classicas, 'empanadas · sobre el total','',pct(r.tipos.classicas,r.empanadas), {pz:r.tipos.clPz, cn:r.tipos.clCn});
+  h+=caja('🔴 Speciali', r.tipos.especiales, 'empanadas · sobre el total','',pct(r.tipos.especiales,r.empanadas), {pz:r.tipos.spPz, cn:r.tipos.spCn});
+  // Ticket promedio y Ganancia quedan ocultos hasta que los destapes
+  h+=caja('Ticket promedio', dinero(r.pedidos?eur(r.venta/r.pedidos):'—'), r.pedidos?(r.empanadas/r.pedidos).toFixed(1)+' empanadas por pedido':'');
+  h+=caja('Ganancia', dinero(eur(r.venta-r.costo)), r.empanadas?dinero(eur((r.venta-r.costo)/r.empanadas))+' por empanada':'','gan',dinero(pct(r.venta-r.costo,r.venta)));
   h+='</div>';
 
   cont.innerHTML=h;
+}
+
+// Dibuja las tres tarjetas de Almuerzo / Cena / Total del período
+function pintarTurnos(r){
+  const cont=document.getElementById('s-turnos');
+  if(!cont) return;
+  const pctT=(n,t)=>t>0?Math.round(n/t*100)+'%':null;
+  const cajaT=(tit,v,cls)=>`<div class="s-mini ${cls}">
+      <div class="s-mini-label">${tit}</div>
+      <div class="s-mini-num">${v.emp}${pctT(v.emp,r.total.emp)?'<span class="s-mini-pct">('+pctT(v.emp,r.total.emp)+')</span>':''}</div>
+      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${eur(v.venta)}<br>ganancia ${dinero(eur(v.venta-v.costo))}</div>
+    </div>`;
+  cont.innerHTML = cajaT('🌞 Almuerzo', r.pranzo, 'promo')
+    + cajaT('🌙 Cena', r.cena, 'deliv')
+    + `<div class="s-mini gan">
+        <div class="s-mini-label">Total del período</div>
+        <div class="s-mini-num">${r.total.emp}</div>
+        <div class="s-mini-sub">${r.total.pedidos} pedidos · ${eur(r.total.venta)}<br>ganancia ${dinero(eur(r.total.venta-r.total.costo))}</div>
+      </div>`;
 }
 
 async function sLoadData(){
@@ -3344,23 +3411,9 @@ async function sLoadData(){
       ? `${prom.dias} ${prom.dias===1?'día trabajado':'días trabajados'}`
       : 'sin días trabajados';
   document.getElementById('s-counters').innerHTML=`<div class="s-counter promedio"><div class="s-c-label">📈 Promedio diario</div><div class="s-c-num">${promTxt}</div><div class="s-c-sub">${promSub}</div></div><div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${os.length} pedidos</div></div>`;
-  // Almuerzo y cena del período. Acá sí va la plata: es la solapa de ventas.
-  const rTur=resumenPorTurno(os);
-  const pctT=(n,t)=>t>0?Math.round(n/t*100)+'%':null;
-  const cajaT=(tit,v,cls)=>`<div class="s-mini ${cls}">
-      <div class="s-mini-label">${tit}</div>
-      <div class="s-mini-num">${v.emp}${pctT(v.emp,rTur.total.emp)?'<span class="s-mini-pct">('+pctT(v.emp,rTur.total.emp)+')</span>':''}</div>
-      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${eur(v.venta)} · ganancia ${eur(v.venta-v.costo)}</div>
-    </div>`;
-  const contT=document.getElementById('s-turnos');
-  if(contT) contT.innerHTML =
-      cajaT('🌞 Almuerzo', rTur.pranzo, 'promo')
-    + cajaT('🌙 Cena',     rTur.cena,   'deliv')
-    + `<div class="s-mini gan">
-        <div class="s-mini-label">Total del período</div>
-        <div class="s-mini-num">${rTur.total.emp}</div>
-        <div class="s-mini-sub">${rTur.total.pedidos} pedidos · ${eur(rTur.total.venta)} · ganancia ${eur(rTur.total.venta-rTur.total.costo)}</div>
-      </div>`;
+  // Almuerzo y cena del período. La venta se ve; la ganancia se tapa.
+  sTurnosCache=resumenPorTurno(os);
+  pintarTurnos(sTurnosCache);
 
   const pR=sPrv(sP);
   let prevEmpExport=null, prevPedidosExport=null;
@@ -4602,7 +4655,7 @@ document.getElementById('sabor-modal-overlay').addEventListener('click',e=>{if(e
 //    (congeladas + cocinadas). Cocinar no mueve stock, solo cambia de estado.
 // ═══════════════════════════════════════════════════════
 let cocDataAll=[];        // documentos de la colección "cocciones"
-let cocVentasPorDia={};   // {sabor: {fecha: cantidad}} calculado desde "pedidos"
+let cocVentasPorDia={};   // {sabor: {fecha: {pranzo, cena}}} calculado desde "pedidos"
 let cocCalculado={};      // resultado del FIFO
 let cocLimiteDias=2;      // días máximos permitidos desde la cocción
 const COC_VENTANA_DIAS=30;// cuántos días hacia atrás se leen
@@ -4658,8 +4711,14 @@ async function cocLoadAll(){
         const s=nombreLimpio(i.nombre);
         const q=parseInt(i.cantidad)||0;
         if(!q) return;
+        // Se separa por turno: el control del mediodía cierra solo el mediodía,
+        // y el de la noche cierra la noche. Antes se acumulaba todo el día junto
+        // y el control de las 14:00, si corría a las 18:50, daba de alta como
+        // cocinadas ventas de la cena que todavía no habían pasado.
+        const t=turnoDePedido(o);
         map[s]=map[s]||{};
-        map[s][f]=(map[s][f]||0)+q;
+        map[s][f]=map[s][f]||{pranzo:0, cena:0};
+        map[s][f][t]+=q;
       });
     });
     cocVentasPorDia=map;
@@ -4749,8 +4808,16 @@ async function cocReconciliarDeficit(turno){
   // llenaba el registro de cocciones inventadas cada vez que se abría el panel.
   const hoy=cocHoy();
   const pend=[];
+  // El control del MEDIODÍA (t1) cierra únicamente las ventas del mediodía.
+  // El de la NOCHE (t2) cierra lo que quede, que es la cena y cualquier
+  // faltante del mediodía que no se haya cubierto.
+  // Antes los dos cerraban el día entero: si abrías el panel a las 18:50, el
+  // control de las 14:00 daba de alta como cocinadas las ventas de la cena.
   Object.entries(cocCalculado).forEach(([sabor,d])=>{
-    const cant=(d.deficitPorDia||{})[hoy]||0;
+    const porTurno=(d.deficitPorTurno||{})[hoy];
+    let cant;
+    if(turno==='t1') cant = porTurno ? porTurno.pranzo : 0;
+    else             cant = (d.deficitPorDia||{})[hoy]||0;
     if(cant>0) pend.push({sabor,fecha:hoy,cantidad:cant});
   });
   if(!pend.length) return {total:0,detalle:[]};
@@ -4917,9 +4984,9 @@ window.toggleDetalleAviso=function(id,btn){
 // FIFO por sabor: devuelve los lotes que siguen vivos, con su fecha de cocción
 function cocCalcularFIFO(){
   const eventos={};   // sabor -> [{fecha,tipo:'in'|'out',cant}]
-  const agregar=(sabor,fecha,tipo,cant)=>{
+  const agregar=(sabor,fecha,tipo,cant,turno)=>{
     if(!sabor||!fecha||!cant||cant<=0) return;
-    (eventos[sabor]=eventos[sabor]||[]).push({fecha,tipo,cant});
+    (eventos[sabor]=eventos[sabor]||[]).push({fecha,tipo,cant,turno:turno||'pranzo'});
   };
   cocDataAll.forEach(c=>{
     const cant=parseInt(c.cantidad)||0;
@@ -4932,18 +4999,23 @@ function cocCalcularFIFO(){
     else agregar(c.sabor,c.fecha,'in',cant);
   });
   Object.entries(cocVentasPorDia).forEach(([sabor,porDia])=>{
-    Object.entries(porDia).forEach(([fecha,cant])=>agregar(sabor,fecha,'out',cant));
+    Object.entries(porDia).forEach(([fecha,porTurno])=>{
+      if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo');
+      if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena');
+    });
   });
 
   const res={};
   Object.entries(eventos).forEach(([sabor,evs])=>{
     // Por fecha; dentro del mismo día primero las cocciones (se cocina antes de vender)
+    // Por fecha. Dentro del día: primero lo cocinado, después las ventas del
+    // mediodía y al final las de la cena. Así el FIFO consume en el orden real.
+    const peso=e => e.tipo==='in' ? 0 : (e.turno==='pranzo' ? 1 : 2);
     evs.sort((a,b)=>{
       if(a.fecha!==b.fecha) return a.fecha.localeCompare(b.fecha);
-      if(a.tipo===b.tipo) return 0;
-      return a.tipo==='in' ? -1 : 1;
+      return peso(a)-peso(b);
     });
-    const lotes=[]; let asumidas=0; const deficitPorDia={};
+    const lotes=[]; let asumidas=0; const deficitPorDia={}; const deficitPorTurno={};
     evs.forEach(e=>{
       if(e.tipo==='in'){ lotes.push({fecha:e.fecha, restante:e.cant}); return; }
       let falta=e.cant;
@@ -4955,6 +5027,9 @@ function cocCalcularFIFO(){
           // con la fecha correcta en la reconciliación automática.
           asumidas+=falta;
           deficitPorDia[e.fecha]=(deficitPorDia[e.fecha]||0)+falta;
+          const tt=e.turno||'pranzo';
+          deficitPorTurno[e.fecha]=deficitPorTurno[e.fecha]||{pranzo:0, cena:0};
+          deficitPorTurno[e.fecha][tt]+=falta;
           falta=0;
           break;
         }
@@ -4968,7 +5043,8 @@ function cocCalcularFIFO(){
       lotes:vivos,
       total:vivos.reduce((a,l)=>a+l.restante,0),
       asumidas,
-      deficitPorDia
+      deficitPorDia,
+      deficitPorTurno
     };
   });
   return res;
