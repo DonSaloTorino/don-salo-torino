@@ -1604,6 +1604,25 @@ function nombreConPrefijo(nombre, tipo){ return (PREFIJO_TIPO[tipo]||'') + nombr
 // Quita el prefijo. Los pedidos viejos no lo tienen y se devuelven tal cual.
 function nombreLimpio(n){ return String(n==null?'':n).replace(/^\(\s*[CS]\s*\)\s*/i,''); }
 
+// ── RESUMEN IMPRESO AL PIE DEL TICKET ──
+// Dos renglones con el desglose, para poder marcar en la caja sin contar.
+// No son empanadas: llevan tipo:'resumen' y se descartan en el stock, en las
+// estadísticas y en las tarjetas del panel.
+function itemsResumen(empItems){
+  let cl=0, sp=0;
+  (empItems||[]).forEach(i=>{
+    const q=parseInt(i.cantidad)||0;
+    const t=i.tipoEmp || tipoDeSabor(nombreLimpio(i.nombre));
+    if(t==='speciale') sp+=q; else cl+=q;
+  });
+  if(cl+sp===0) return [];
+  const r=[];
+  if(cl>0) r.push({nombre:'CLASSICHE', cantidad:cl, tipo:'resumen'});
+  if(sp>0) r.push({nombre:'SPECIALI',  cantidad:sp, tipo:'resumen'});
+  return r;
+}
+function esResumen(i){ return i && i.tipo==='resumen'; }
+
 const CANALES = {
   mostrador:{label:'Mostrador', corto:'Mostrador', delivery:false},
   glovo:    {label:'Glovo',     corto:'Glovo',     delivery:true},
@@ -1861,7 +1880,7 @@ function renderOrders(){
   const today=new Date().toISOString().split('T')[0];
   const tarjeta=o=>{
     const emp=(o.items||[]).reduce((a,i)=>(!i.tipo||i.tipo==='empanada')?a+(parseInt(i.cantidad)||0):a,0);
-    const items=(o.items||[]).map(i=>`<div class="card-item"><span class="item-name">${i.nombre}${i.curcuma?'<span class="item-curcuma">✦ CURCUMA</span>':''}</span><span class="item-qty">${i.cantidad}</span></div>`).join('');
+    const items=(o.items||[]).filter(i=>!esResumen(i)).map(i=>`<div class="card-item"><span class="item-name">${i.nombre}${i.curcuma?'<span class="item-curcuma">✦ CURCUMA</span>':''}</span><span class="item-qty">${i.cantidad}</span></div>`).join('');
     // Cualquier pedido se puede modificar, incluso completado: en el apuro del
     // servicio se marca algo mal y se corrige después, con tiempo.
     const canEdit=true;
@@ -2548,7 +2567,10 @@ window.confirmarManual=async function(){
     return {nombre:nombreConPrefijo(e.nombre,t),cantidad:eQ[e.id],curcuma:e.curcuma===true,tipo:'empanada',tipoEmp:t};
   });
   const bi=BEB.filter(b=>bQ[b.id]>0).map(b=>({nombre:b.nombre,cantidad:bQ[b.id],curcuma:false,tipo:'bebida'}));
-  const items=[...ei,...bi];
+  // Resumen al final del ticket: la app de la Munbyn imprime la lista de ítems,
+  // así que el desglose se manda como dos renglones más. Van marcados
+  // tipo:'resumen' para que no cuenten como empanadas en ningún cálculo.
+  const items=[...ei,...bi,...itemsResumen(ei)];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
   // Delivery: solo combos exactos. Una cantidad que no arma combo es un error de carga.
   if(esDelivery){
@@ -2582,7 +2604,7 @@ window.confirmarManual=async function(){
       const orig=orders.find(o=>o.id===editId);
       const estadoPrevio=(orig && orig.estado) ? orig.estado : 'nuevo';
       await updateDoc(doc(db,'pedidos',editId),{
-        cliente:nombre, items, total:items.reduce((a,i)=>a+i.cantidad,0),
+        cliente:nombre, items, total:contarPorTipo({items}).total,
         estado:estadoPrevio, modificado:true,
         canalVenta:canalActivo, promos:promosSel, consumo
       });
@@ -2591,7 +2613,7 @@ window.confirmarManual=async function(){
       // silencioso que solo se descubría contando a mano semanas después.
       await rehacerStockDePedido(editId, items, canalActivo);
     }
-    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:items.reduce((a,i)=>a+i.cantidad,0),estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,timestamp:serverTimestamp()});
+    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:contarPorTipo({items}).total,estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,timestamp:serverTimestamp()});
     closeModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;editId=null;btn.textContent='Confirmar →';document.getElementById('modal-title').textContent='🫔 Pedido Manual';}
@@ -2759,7 +2781,7 @@ function canalPedido(o){ return canalLabel(o); }
 // Cuenta empanadas / bebidas de un pedido
 function contarEmp(o){ return contarPorTipo(o).total; }
 function contarBeb(o){ return (o.items||[]).reduce((a,i)=>i.tipo==='bebida'?a+(parseInt(i.cantidad)||0):a,0); }
-function itemsTexto(o){ return (o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(' · '); }
+function itemsTexto(o){ return (o.items||[]).filter(i=>!esResumen(i)).map(i=>`${i.nombre} x${i.cantidad}`).join(' · '); }
 // Etiqueta de consumo para los reportes
 function consumoLabel(o){
   const k=canalKey(o);
