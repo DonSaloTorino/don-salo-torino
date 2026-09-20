@@ -747,9 +747,19 @@ window.confirmarPedido = async function() {
     return { nombre: PREFIJO_TIPO[t] + e.nombre, cantidad: qtys[e.id], curcuma: e.curcuma === true, tipo: 'empanada', tipoEmp: t };
   });
   const bebItems = isWebOrder ? [] : BEBIDAS.filter(b => bQtys[b.id] > 0).map(b => ({ nombre: b.emoji + ' ' + b.nombre, cantidad: bQtys[b.id], curcuma: false, tipo: 'bebida' }));
-  const items = [...empItems, ...bebItems];
+  // Resumen al pie del ticket: la app de la impresora imprime la lista de
+  // ítems, así que el desglose va como dos renglones más. Llevan tipo:'resumen'
+  // para que no cuenten como empanadas en el stock ni en las estadísticas.
+  const resumenItems = [];
+  {
+    let cl = 0, sp = 0;
+    empItems.forEach(i => { if (i.tipoEmp === 'speciale') sp += i.cantidad; else cl += i.cantidad; });
+    if (cl > 0) resumenItems.push({ nombre: 'CLASSICHE', cantidad: cl, tipo: 'resumen' });
+    if (sp > 0) resumenItems.push({ nombre: 'SPECIALI',  cantidad: sp, tipo: 'resumen' });
+  }
+  const items = [...empItems, ...bebItems, ...resumenItems];
 
-  if (items.length === 0) {
+  if (empItems.length === 0 && bebItems.length === 0) {
     const label = document.getElementById('cart-info-label');
     if (label) {
       label.style.display = 'block';
@@ -814,8 +824,9 @@ window.confirmarPedido = async function() {
       timestamp:  serverTimestamp()
     });
 
+    // El cliente no ve los renglones de resumen: son para el ticket de caja
     let itemsHtml = '';
-    items.forEach(i => {
+    items.filter(i => i.tipo !== 'resumen').forEach(i => {
       itemsHtml += `<div class="success-item"><span class="success-item-name">${i.nombre}${i.curcuma ? ' ✦' : ''}</span><span class="success-item-qty">× ${i.cantidad}</span></div>`;
     });
     document.getElementById('suc-items').innerHTML = itemsHtml;
