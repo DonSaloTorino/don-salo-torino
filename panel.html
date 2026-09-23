@@ -550,6 +550,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .hist-turno td{background:#faf9f6;color:#555;font-weight:600;border-top:1px solid #eee;font-size:12px;}
 .hist-turno td.money{color:#555;}
 .hist-turno td:first-child{letter-spacing:1.5px;text-transform:uppercase;font-size:11px;color:#8a6d3b;}
+.hist-consumo{font-size:10px;letter-spacing:0.5px;margin-top:4px;font-weight:600;}
+.hist-consumo.qui{color:#065f46;}
+.hist-consumo.take{color:#9a3412;}
+.hist-consumo.deliv{color:#1e40af;}
+.hist-consumo.int{color:#6b21a8;}
+.hist-consumo.dev{color:#075985;}
+.hist-promo{font-size:10px;letter-spacing:0.5px;margin-top:3px;color:#92400e;font-weight:700;}
 /* Promos del modal */
 .promo-btns{display:flex;gap:8px;flex-wrap:wrap;}
 .promo-item{border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:8px 12px;min-width:118px;}
@@ -831,6 +838,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
         <th style="text-align:right;">Venta</th>
         <th style="text-align:right;">Ganancia</th>
         <th style="text-align:center;">Estado</th>
+        <th style="text-align:center;">Acciones</th>
       </tr></thead>
       <tbody id="hist-tbody"></tbody>
     </table>
@@ -1488,6 +1496,15 @@ function esDocCoccion(o){ return !!(o && o.tipoDoc==='coccion'); }
 // Pedidos de verdad: todo lo que hay que preparar, incluido el consumo interno.
 // Se usa en el panel PEDIDOS y en el HISTORIAL.
 function soloPedidos(arr){ return (arr||[]).filter(o=>!esDocCoccion(o)); }
+
+// Busca un pedido en los de hoy Y en el historial cargado.
+// Sin esto, el botón de editar solo funcionaba con los pedidos del día:
+// al abrir el historial de ayer no encontraba nada y no hacía nada.
+function buscarPedido(id){
+  return (orders||[]).find(x=>x.id===id)
+      || (typeof hCurrentList!=='undefined' ? (hCurrentList||[]).find(x=>x.id===id) : null)
+      || null;
+}
 // Ventas reales: además saca el consumo interno, que no factura.
 // Se usa en STATS, que es el análisis de ventas.
 function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esConsumoInterno(o) && !esDevolucionProveedor(o)); }
@@ -2482,7 +2499,7 @@ window.chgB=function(id,d){
 
 let editId=null;
 window.editOrder=function(id){
-  const o=orders.find(x=>x.id===id);if(!o)return;
+  const o=buscarPedido(id);if(!o)return;
   editId=id;
   EMP.forEach(e=>eQ[e.id]=0);
   BEB.forEach(b=>bQ[b.id]=0);
@@ -2601,7 +2618,7 @@ window.confirmarManual=async function(){
   try{
     if(editId){
       // Se conserva el estado: si el pedido ya estaba completado, sigue completado.
-      const orig=orders.find(o=>o.id===editId);
+      const orig=buscarPedido(editId);
       const estadoPrevio=(orig && orig.estado) ? orig.estado : 'nuevo';
       await updateDoc(doc(db,'pedidos',editId),{
         cliente:nombre, items, total:contarPorTipo({items}).total,
@@ -2612,6 +2629,9 @@ window.confirmarManual=async function(){
       // cantidades dejaba el stock con los números viejos y aparecía un desvío
       // silencioso que solo se descubría contando a mano semanas después.
       await rehacerStockDePedido(editId, items, canalActivo);
+      // El historial no es en vivo: si está abierto, se vuelve a cargar para
+      // que el cambio se vea al instante.
+      if(document.getElementById('hist-panel').style.display==='block') await histLoad();
     }
     else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:contarPorTipo({items}).total,estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,timestamp:serverTimestamp()});
     closeModal();
@@ -3617,7 +3637,7 @@ let hCurrentList=[];
 function hRender(list){
   hCurrentList=list||[];
   document.getElementById('hist-count').textContent=list.length+' pedidos';
-  if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="9" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
+  if(!list.length){document.getElementById('hist-tbody').innerHTML=`<tr><td colspan="10" class="hist-empty">Sin resultados — usá el buscador o seleccioná un rango de fechas</td></tr>`;return;}
 
   // Día de un pedido (para agrupar). Los pedidos vienen ordenados por fecha desc,
   // así que los de un mismo día quedan contiguos.
@@ -3636,7 +3656,7 @@ function hRender(list){
       <td class="money">${eur(dCosto)}</td>
       <td class="money">${eur(dVenta)}</td>
       <td class="money">${eur(dVenta-dCosto)}</td>
-      <td></td>
+      <td></td><td></td>
     </tr>`;
   const TURNO_TXT={pranzo:'🌞 Almuerzo', cena:'🌙 Cena'};
   const filaTurno=t=>`<tr class="hist-turno">
@@ -3645,7 +3665,7 @@ function hRender(list){
       <td class="money">${eur(uCosto)}</td>
       <td class="money">${eur(uVenta)}</td>
       <td class="money">${eur(uVenta-uCosto)}</td>
-      <td></td>
+      <td></td><td></td>
     </tr>`;
   const cerrarTurno=()=>{
     if(turnoActual===null||uPed===0) return '';
@@ -3682,21 +3702,34 @@ function hRender(list){
     tEmp+=ec; tCosto+=costo; tVenta+=venta;
     dEmp+=ec; dCosto+=costo; dVenta+=venta; dPed++;
     uEmp+=ec; uCosto+=costo; uVenta+=venta; uPed++;
-    const takeTag = esTakeaway(o) ? '<span class="canal-badge cb-takeaway">🥡</span>' : '';
     const desglose = (n.classicas&&n.especiales)
       ? `<span class="mini-tipos">${n.classicas} cl · ${n.especiales} sp</span>`
       : (n.especiales ? '<span class="mini-tipos">todas sp</span>' : '');
 
+    // Dónde consumió y qué promo usó, escrito completo debajo del canal.
+    // Antes era un emoji chiquito al lado y no se entendía de un vistazo.
+    let consumoTag='';
+    if(CANALES[ck].delivery)            consumoTag='<div class="hist-consumo deliv">🛵 Delivery</div>';
+    else if(ck==='interno')             consumoTag='<div class="hist-consumo int">🏠 Interno</div>';
+    else if(ck==='devolucion')          consumoTag='<div class="hist-consumo dev">↩️ Devolución</div>';
+    else if(esTakeaway(o))              consumoTag='<div class="hist-consumo take">🥡 Takeaway</div>';
+    else                                consumoTag='<div class="hist-consumo qui">🍽️ Mangia qui</div>';
+    const promoTag = promosLabel(o) ? `<div class="hist-promo">🏷️ ${promosLabel(o)}</div>` : '';
+
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;">${hora}</td>
-      <td style="font-weight:600;">${MAY(o.cliente||'—')}${promosLabel(o)?'<span class="promo-tag">'+promosLabel(o)+'</span>':''}</td>
-      <td style="white-space:nowrap;"><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>${takeTag}</td>
+      <td style="font-weight:600;">${MAY(o.cliente||'—')}</td>
+      <td style="white-space:nowrap;"><span class="canal-badge cb-${ck}">${CANALES[ck].corto}</span>${consumoTag}${promoTag}</td>
       <td><div class="hist-items">${(o.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</div></td>
       <td style="font-weight:700;text-align:center;">${ec}${desglose}</td>
       <td class="money m-costo">${eur(costo)}</td>
       <td class="money m-venta">${eur(venta)}</td>
       <td class="money m-ganancia">${eur(gan)}</td>
       <td style="text-align:center;">${o.estado==='completado'?'✅':o.estado==='en-preparacion'?'🔵':'🟡'}</td>
+      <td style="text-align:center;white-space:nowrap;">
+        <button onclick="editOrder('${o.id}')" title="Modificar este pedido"
+          style="padding:5px 11px;border:1px solid #fed7aa;border-radius:6px;background:#fff7ed;color:#c2410c;font-size:12px;cursor:pointer;">✏️</button>
+      </td>
     </tr>`;
   });
   // Cierro el último turno y el último día
@@ -3710,7 +3743,7 @@ function hRender(list){
     <td class="money">${eur(tCosto)}</td>
     <td class="money">${eur(tVenta)}</td>
     <td class="money">${eur(tGan)}</td>
-    <td></td>
+    <td></td><td></td>
   </tr>`;
   document.getElementById('hist-tbody').innerHTML=html;
 }
@@ -4579,7 +4612,7 @@ async function rehacerStockDePedido(orderId, items, canal){
 
     // 2) Escribir los movimientos nuevos, con el tipo que corresponda al canal
     const tipo = canal==='interno' ? 'interno' : canal==='devolucion' ? 'devolucion' : 'venta';
-    const orig=orders.find(o=>o.id===orderId);
+    const orig=buscarPedido(orderId);
     const fecha = (orig && orig.timestamp && orig.timestamp.toDate)
       ? cocFechaStr(orig.timestamp.toDate())
       : new Date().toISOString().split('T')[0];
