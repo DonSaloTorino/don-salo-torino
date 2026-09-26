@@ -636,6 +636,16 @@ body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min
 .coc-lote{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:4px 0;border-top:0.5px solid #f0f0f0;}
 .coc-lote-edad{color:#888;}
 .coc-lote-cant{font-weight:700;color:#111;}
+.coc-prorroga-ctrl{display:inline-flex;align-items:center;gap:3px;margin-left:6px;vertical-align:middle;}
+.coc-pr-btn{width:19px;height:19px;border-radius:5px;border:1px solid #ddd;background:#fff;
+  color:#666;font-size:13px;line-height:1;cursor:pointer;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;}
+.coc-pr-btn.mas{border-color:#bbf7d0;color:#065f46;}
+.coc-pr-btn.mas:hover{background:#f0fdf4;}
+.coc-pr-btn.menos{border-color:#fecaca;color:#991b1b;}
+.coc-pr-btn.menos:hover{background:#fef2f2;}
+.coc-prorroga-badge{font-size:9px;font-weight:700;color:#065f46;background:#d1fae5;
+  padding:1px 6px;border-radius:10px;letter-spacing:0.5px;}
 .coc-edad-badge{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px;font-weight:700;}
 .ce-0{background:#f0fdf4;color:#065f46;}
 .ce-1{background:#f3f4f6;color:#374151;}
@@ -4713,6 +4723,23 @@ let cocDataAll=[];        // documentos de la colección "cocciones"
 let cocVentasPorDia={};   // {sabor: {fecha: {pranzo, cena}}} calculado desde "pedidos"
 let cocCalculado={};      // resultado del FIFO
 let cocLimiteDias=2;      // días máximos permitidos desde la cocción
+let cocProrrogas={};      // {SABOR_FECHA: días extra} — prórrogas por lote
+
+// ── PRÓRROGA POR LOTE ──
+// La regla general son 2 días, pero hay sabores que aguantan más. En vez de
+// subir el límite para todos, se alarga SOLO ese lote: mismo sabor, misma
+// fecha de cocción. La fecha de cocción nunca cambia, así que el registro
+// sigue diciendo la verdad — lo que cambia es cuántos días se acepta.
+function cocClaveLote(sabor, fecha){
+  return (String(sabor)+'_'+String(fecha)).replace(/[^a-zA-Z0-9]/g,'_');
+}
+function cocProrrogaDe(sabor, fecha){
+  return parseInt(cocProrrogas[cocClaveLote(sabor,fecha)])||0;
+}
+// Días permitidos para ESE lote: el límite general más su prórroga
+function cocLimiteDe(sabor, fecha){
+  return cocLimiteDias + cocProrrogaDe(sabor, fecha);
+}
 const COC_VENTANA_DIAS=30;// cuántos días hacia atrás se leen
 
 // Fecha local YYYY-MM-DD (no UTC, para no correr un día)
@@ -4732,10 +4759,11 @@ function cocEtiquetaEdad(dias){
   if(dias===1) return '1 día';
   return dias+' días';
 }
-function cocClaseEdad(dias){
+function cocClaseEdad(dias, limite){
+  const lim = (limite===undefined || limite===null) ? cocLimiteDias : limite;
   if(dias<=0) return 'ce-0';
-  if(dias>cocLimiteDias) return 'ce-x';
-  if(dias===cocLimiteDias) return 'ce-2';
+  if(dias>lim) return 'ce-x';
+  if(dias===lim) return 'ce-2';
   return 'ce-1';
 }
 
@@ -4750,8 +4778,15 @@ async function cocLoadAll(){
       getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(desde))))
     ]);
 
-    cocDataAll = snapCoc.docs.map(d=>({id:d.id,...d.data()}))
-                            .filter(c=>c.fecha && c.fecha>=desdeStr);
+    const todosCoc = snapCoc.docs.map(d=>({id:d.id,...d.data()}));
+    // Las prórrogas no son cocciones: son una marca sobre un lote.
+    // Se guardan en la misma colección para no crear otra, pero se separan acá
+    // y nunca entran al cálculo FIFO.
+    cocProrrogas={};
+    todosCoc.filter(x=>x.tipo==='prorroga').forEach(x=>{
+      cocProrrogas[cocClaveLote(x.sabor,x.fecha)] = parseInt(x.dias)||0;
+    });
+    cocDataAll = todosCoc.filter(c=>c.tipo!=='prorroga' && c.fecha && c.fecha>=desdeStr);
 
     // Ventas por sabor y por día (se usa la fecha en que ENTRÓ el pedido)
     const map={};
@@ -4807,7 +4842,12 @@ async function cocRecargarSilencioso(){
   const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
   const desdeStr=cocFechaStr(desde);
   const snap=await getDocs(query(collection(db,'cocciones')));
-  cocDataAll=snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.fecha && c.fecha>=desdeStr);
+  const todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+  cocProrrogas={};
+  todos.filter(x=>x.tipo==='prorroga').forEach(x=>{
+    cocProrrogas[cocClaveLote(x.sabor,x.fecha)] = parseInt(x.dias)||0;
+  });
+  cocDataAll=todos.filter(c=>c.tipo!=='prorroga' && c.fecha && c.fecha>=desdeStr);
   cocCalculado=cocCalcularFIFO();
 }
 
@@ -4950,7 +4990,7 @@ async function cocRegistrarPerdidas(){
   Object.entries(cocCalculado).forEach(([sabor,d])=>{
     d.lotes.forEach(l=>{
       const dias=cocDiasEntre(l.fecha,hoy);
-      if(dias>cocLimiteDias && l.restante>0){
+      if(dias>cocLimiteDe(sabor,l.fecha) && l.restante>0){
         pendientes.push({sabor,fechaCoccion:l.fecha,cantidad:l.restante,dias});
       }
     });
@@ -4963,7 +5003,7 @@ async function cocRegistrarPerdidas(){
     for(const p of pendientes){
       const idDoc='perdida_'+(p.sabor+'_'+p.fechaCoccion).replace(/[^a-zA-Z0-9]/g,'_');
       // El movimiento se fecha el día en que efectivamente venció, no hoy
-      const fechaVenc=cocSumarDias(p.fechaCoccion, cocLimiteDias+1);
+      const fechaVenc=cocSumarDias(p.fechaCoccion, cocLimiteDe(p.sabor,p.fechaCoccion)+1);
       const datos={
         sabor:p.sabor, cantidad:p.cantidad,
         fecha:fechaVenc, fechaCoccion:p.fechaCoccion,
@@ -5125,8 +5165,9 @@ function cocRender(){
     let venc=0, ult=0;
     lotes.forEach(l=>{
       const dias=cocDiasEntre(l.fecha,hoy);
-      if(dias>cocLimiteDias) venc+=l.restante;
-      else if(dias===cocLimiteDias) ult+=l.restante;
+      const lim=cocLimiteDe(sabor,l.fecha);
+      if(dias>lim) venc+=l.restante;
+      else if(dias===lim) ult+=l.restante;
     });
     totalVivas+=d.total; totalVencidas+=venc; totalUltimoDia+=ult;
     if(venc>0) vencidasPorSabor.push({sabor,cantidad:venc});
@@ -5135,8 +5176,17 @@ function cocRender(){
     const clase = venc>0 ? 'coc-card vencida' : ult>0 ? 'coc-card ultimo' : d.total===0 ? 'coc-card cero' : 'coc-card';
     const filas = lotes.length ? lotes.map(l=>{
       const dias=cocDiasEntre(l.fecha,hoy);
+      const pr=cocProrrogaDe(sabor,l.fecha);
+      const lim=cocLimiteDe(sabor,l.fecha);
+      const esc=String(sabor).replace(/'/g,"\\'");
+      // El + alarga este lote un día más. El − lo devuelve.
+      const ctrl=`<span class="coc-prorroga-ctrl">`
+        + (pr>0 ? `<span class="coc-prorroga-badge" title="Este lote tiene ${pr} ${pr===1?'día':'días'} más">+${pr}</span>
+                   <button class="coc-pr-btn menos" title="Quitar un día" onclick="cocProrrogar('${esc}','${l.fecha}',-1)">−</button>` : '')
+        + `<button class="coc-pr-btn mas" title="Dar un día más a este lote" onclick="cocProrrogar('${esc}','${l.fecha}',1)">+</button>`
+        + `</span>`;
       return `<div class="coc-lote">
-        <span class="coc-lote-edad"><span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span> <span style="color:#bbb;">${l.fecha}</span></span>
+        <span class="coc-lote-edad"><span class="coc-edad-badge ${cocClaseEdad(dias,lim)}">${cocEtiquetaEdad(dias)}</span> <span style="color:#bbb;">${l.fecha}</span>${ctrl}</span>
         <span class="coc-lote-cant">${l.restante}</span>
       </div>`;
     }).join('') : '<div class="coc-lote" style="color:#ccc;">Sin cocinadas</div>';
@@ -5155,7 +5205,7 @@ function cocRender(){
   let ah='';
   vencidasPorSabor.forEach(v=>{
     ah+=`<div class="coc-alert">
-      <span>🚨 <strong>${v.sabor}</strong>: ${v.cantidad} ${v.cantidad===1?'unidad tiene':'unidades tienen'} más de ${cocLimiteDias} días — no se pueden vender</span>
+      <span>🚨 <strong>${v.sabor}</strong>: ${v.cantidad} ${v.cantidad===1?'unidad pasó':'unidades pasaron'} su fecha — no se pueden vender</span>
       <button class="coc-tirar-btn" onclick="cocTirar('${String(v.sabor).replace(/'/g,"\\'")}')">🗑 Tirar ${v.cantidad}</button>
     </div>`;
   });
@@ -5690,11 +5740,29 @@ window.cocReimprimir=function(id){
 
 // ── Tirar las vencidas de un sabor ──
 // Las saca del control de cocinadas Y registra la rotura en el stock
+// Alarga o acorta la vida de UN lote. El +1 es lo que más vas a usar.
+window.cocProrrogar=async function(sabor, fecha, delta){
+  const actual=cocProrrogaDe(sabor,fecha);
+  const nueva=Math.max(0, Math.min(10, actual+delta));
+  if(nueva===actual) return;
+  const idDoc='prorroga_'+cocClaveLote(sabor,fecha);
+  try{
+    if(nueva===0){
+      await deleteDoc(doc(db,'cocciones',idDoc)).catch(()=>{});
+    }else{
+      await setDoc(doc(db,'cocciones',idDoc),{
+        tipo:'prorroga', sabor, fecha, dias:nueva, timestamp:serverTimestamp()
+      });
+    }
+    await cocLoadAll();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
 window.cocTirar=async function(sabor){
   const hoy=cocHoy();
   const d=cocCalculado[sabor];
   if(!d) return;
-  const venc=d.lotes.filter(l=>cocDiasEntre(l.fecha,hoy)>cocLimiteDias);
+  const venc=d.lotes.filter(l=>cocDiasEntre(l.fecha,hoy)>cocLimiteDe(sabor,l.fecha));
   const cant=venc.reduce((a,l)=>a+l.restante,0);
   if(cant<=0){ alert('No hay unidades vencidas de '+sabor+'.'); return; }
   if(!confirm(`¿Tirar ${cant} de ${sabor}?\n\nSe registran como ${LABEL_PERDIDA} y se descuentan del stock.`)) return;
@@ -5755,7 +5823,7 @@ window.exportCoccion=function(){
     ['Generado', fechaHoraLegible()],
     ['Días máximos permitidos', cocLimiteDias],
     [],
-    ['Sabor','Fecha cocción','Días','Cantidad','Estado']
+    ['Sabor','Fecha cocción','Días','Cantidad','Estado','Prórroga']
   ];
   let tot=0;
   const nombres=EMP.map(e=>e.nombre);
@@ -5765,7 +5833,9 @@ window.exportCoccion=function(){
     [...d.lotes].sort((a,b)=>a.fecha.localeCompare(b.fecha)).forEach(l=>{
       const dias=cocDiasEntre(l.fecha,hoy);
       tot+=l.restante;
-      disp.push([sabor,l.fecha,dias,l.restante, dias>cocLimiteDias?'VENCIDA':dias===cocLimiteDias?'ÚLTIMO DÍA':'OK']);
+      const lim=cocLimiteDe(sabor,l.fecha);
+      const pr=cocProrrogaDe(sabor,l.fecha);
+      disp.push([sabor,l.fecha,dias,l.restante, dias>lim?'VENCIDA':dias===lim?'ÚLTIMO DÍA':'OK', pr>0?'+'+pr:'']);
     });
   });
   disp.push([]); disp.push(['TOTAL COCINADAS','','',tot]);
@@ -5775,7 +5845,7 @@ window.exportCoccion=function(){
   nombres.forEach(sabor=>{
     const d=cocCalculado[sabor]; if(!d) return;
     let venc=0,ult=0;
-    d.lotes.forEach(l=>{const x=cocDiasEntre(l.fecha,hoy); if(x>cocLimiteDias)venc+=l.restante; else if(x===cocLimiteDias)ult+=l.restante;});
+    d.lotes.forEach(l=>{const x=cocDiasEntre(l.fecha,hoy); const lim=cocLimiteDe(sabor,l.fecha); if(x>lim)venc+=l.restante; else if(x===lim)ult+=l.restante;});
     res.push([sabor,d.total,venc,ult,d.asumidas||0]);
   });
 
