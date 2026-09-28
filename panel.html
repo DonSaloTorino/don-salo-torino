@@ -653,6 +653,9 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .coc-pr-btn.mas:hover{background:#f0fdf4;}
 .coc-pr-btn.menos{border-color:#fecaca;color:#991b1b;}
 .coc-pr-btn.menos:hover{background:#fef2f2;}
+.coc-hasta{display:block;font-size:10px;color:#aaa;letter-spacing:0.5px;margin-top:2px;}
+.coc-hasta.hoy{color:#92400e;font-weight:700;}
+.coc-hasta.venc{color:#991b1b;font-weight:700;}
 .coc-prorroga-badge{font-size:9px;font-weight:700;color:#065f46;background:#d1fae5;
   padding:1px 6px;border-radius:10px;letter-spacing:0.5px;}
 .coc-edad-badge{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px;font-weight:700;}
@@ -5189,13 +5192,24 @@ function cocRender(){
       const lim=cocLimiteDe(sabor,l.fecha);
       const esc=String(sabor).replace(/'/g,"\\'");
       // El + alarga este lote un día más. El − lo devuelve.
+      // Último día en que se puede vender este lote. Sin esto había que hacer
+      // la cuenta de cabeza: fecha de cocción + límite + prórroga.
+      const ultimoDia=cocSumarDias(l.fecha, lim);
+      const dd=ultimoDia.split('-');
+      const hasta = dias>lim
+        ? `<span class="coc-hasta venc">venció el ${dd[2]}/${dd[1]}</span>`
+        : `<span class="coc-hasta${dias===lim?' hoy':''}">hasta el ${dd[2]}/${dd[1]}</span>`;
       const ctrl=`<span class="coc-prorroga-ctrl">`
         + (pr>0 ? `<span class="coc-prorroga-badge" title="Este lote tiene ${pr} ${pr===1?'día':'días'} más">+${pr}</span>
                    <button class="coc-pr-btn menos" title="Quitar un día" onclick="cocProrrogar('${esc}','${l.fecha}',-1)">−</button>` : '')
         + `<button class="coc-pr-btn mas" title="Dar un día más a este lote" onclick="cocProrrogar('${esc}','${l.fecha}',1)">+</button>`
         + `</span>`;
       return `<div class="coc-lote">
-        <span class="coc-lote-edad"><span class="coc-edad-badge ${cocClaseEdad(dias,lim)}">${cocEtiquetaEdad(dias)}</span> <span style="color:#bbb;">${l.fecha}</span>${ctrl}</span>
+        <span class="coc-lote-edad">
+          <span class="coc-edad-badge ${cocClaseEdad(dias,lim)}">${cocEtiquetaEdad(dias)}</span>
+          <span style="color:#bbb;">${l.fecha}</span>${ctrl}
+          ${hasta}
+        </span>
         <span class="coc-lote-cant">${l.restante}</span>
       </div>`;
     }).join('') : '<div class="coc-lote" style="color:#ccc;">Sin cocinadas</div>';
