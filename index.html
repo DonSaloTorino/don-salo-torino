@@ -11,6 +11,9 @@
    Se hace por CSS, igual que en el mostrador: alcanza a cada texto de la
    pantalla sin tocar ni un dato. Lo que se guarda en Firestore no cambia. */
 body { font-family: 'DM Sans', sans-serif; background: #fff; color: #111; overscroll-behavior: none; text-transform: uppercase; }
+/* Los botones no heredan text-transform del body: hay que decírselo aparte */
+button, select, option { text-transform: uppercase; }
+input[type="date"], input[type="number"] { text-transform: none; }
 .header-meta{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.55);margin-top:8px;text-transform:uppercase;}
 .header-meta b{color:#fff;font-weight:600;}
 .nombre-error{color:#b91c1c;font-size:12px;margin-top:5px;min-height:15px;}
