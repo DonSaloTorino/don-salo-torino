@@ -36,6 +36,15 @@
 }
 .btn-salir:hover{color:#fff;border-color:rgba(255,255,255,0.5);}
 body { font-family: 'DM Sans', sans-serif; background: #f5f5f3; color: #111; min-height: 100vh; text-transform: uppercase; }
+/* Los botones y los desplegables NO heredan text-transform del body: hay que
+   decírselo aparte. Sin esto quedaban en minúscula "Hoy", "Descargar Excel",
+   "Ver importes" y todos los botones de la pantalla. */
+button, select, option, .s-tab-btn, .stock-btn, .hist-btn, .xls-btn,
+.modal-cancel, .modal-confirm, .canal-btn, .consumo-btn, .modal-tab-btn,
+.date-apply, .action-btn, .coc-add-btn, .stock-add-btn, .beb-add-btn,
+.aviso-btn, .aviso-x, .login-btn, .btn-salir, .extra-btn { text-transform: uppercase; }
+/* Las fechas y los campos donde se escribe quedan como están */
+input[type="date"], input[type="number"], input[type="email"], input[type="password"] { text-transform: none; }
 
 .header { background:#111;color:#fff;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; }
 .header-left .brand { font-family:'Playfair Display',serif;font-size:22px;letter-spacing:1px; }
@@ -3410,7 +3419,7 @@ function sMesPintar(r){
 
   // ── Lo que no factura y la mezcla ──
   h+='<div class="s-mini-sub-title">Otros</div><div class="s-mini-grid">';
-  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+eur(r.interno.e*COSTO_EMPANADA)+' de costo','interno',pct(r.interno.e,r.empanadas), r.interno);
+  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.interno.e*COSTO_EMPANADA))+' de costo','interno',pct(r.interno.e,r.empanadas), r.interno);
   h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.empanadas), r.devol);
   h+=caja('🔵 Classiche', r.tipos.classicas, 'empanadas · sobre el total','',pct(r.tipos.classicas,r.empanadas), {pz:r.tipos.clPz, cn:r.tipos.clCn});
   h+=caja('🔴 Speciali', r.tipos.especiales, 'empanadas · sobre el total','',pct(r.tipos.especiales,r.empanadas), {pz:r.tipos.spPz, cn:r.tipos.spCn});
@@ -3430,14 +3439,14 @@ function pintarTurnos(r){
   const cajaT=(tit,v,cls)=>`<div class="s-mini ${cls}">
       <div class="s-mini-label">${tit}</div>
       <div class="s-mini-num">${v.emp}${pctT(v.emp,r.total.emp)?'<span class="s-mini-pct">('+pctT(v.emp,r.total.emp)+')</span>':''}</div>
-      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${eur(v.venta)}<br>ganancia ${dinero(eur(v.venta-v.costo))}</div>
+      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${dinero(eur(v.venta))}<br>ganancia ${dinero(eur(v.venta-v.costo))}</div>
     </div>`;
   cont.innerHTML = cajaT('🌞 Almuerzo', r.pranzo, 'promo')
     + cajaT('🌙 Cena', r.cena, 'deliv')
     + `<div class="s-mini gan">
         <div class="s-mini-label">Total del período</div>
         <div class="s-mini-num">${r.total.emp}</div>
-        <div class="s-mini-sub">${r.total.pedidos} pedidos · ${eur(r.total.venta)}<br>ganancia ${dinero(eur(r.total.venta-r.total.costo))}</div>
+        <div class="s-mini-sub">${r.total.pedidos} pedidos · ${dinero(eur(r.total.venta))}<br>ganancia ${dinero(eur(r.total.venta-r.total.costo))}</div>
       </div>`;
 }
 
