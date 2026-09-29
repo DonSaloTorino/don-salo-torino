@@ -296,6 +296,9 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .s-mini.gan .s-mini-num{color:#fff;}
 .s-mini.gan .s-mini-sub{color:rgba(255,255,255,0.45);}
 .s-mini-sub-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#ccc;margin:4px 0 8px;}
+.s-base-aviso{background:#f5f5f3;border-left:3px solid #ddd;border-radius:6px;padding:9px 14px;
+  font-size:11px;color:#777;line-height:1.6;margin-bottom:14px;}
+.s-base-aviso strong{color:#111;}
 .s-compare-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px; }
 .s-compare-card { background:#fff;border-radius:10px;border:1px solid #eee;padding:18px; }
 .s-compare-title { font-size:13px;font-weight:500;margin-bottom:14px; }
@@ -813,6 +816,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   <div class="export-bar">
     <button class="xls-btn" onclick="exportStats()">📊 Descargar Excel</button>
     <button class="stock-btn stock-btn-sec" id="btn-dinero" onclick="toggleDinero()">👁 Ver importes</button>
+    <button class="xls-btn" style="background:#7e22ce;" onclick="exportSerieDiaria()">📈 Serie diaria</button>
     <span class="export-hint">Exporta el período que estás viendo</span>
   </div>
   <div class="s-period-label" id="s-period-label"></div>
@@ -2911,6 +2915,67 @@ window.exportPedidos=function(){
 };
 
 // ── 2) STATS ──
+// ── SERIE DIARIA ──
+// Un renglón por día: empanadas, pedidos, facturación y el reparto entre
+// almuerzo y cena. Es lo que hace falta para ver si un cambio de precios o de
+// stock movió el volumen, que no se ve en un total del mes.
+window.exportSerieDiaria=function(){
+  if(!sMesCache || !sMesCache.dias){ alert('Abrí STATS y esperá a que carguen los datos.'); return; }
+  const dias=sMesCache.dias;
+  const fechas=Object.keys(dias).sort();
+  if(!fechas.length){ alert('No hay días con ventas en este período.'); return; }
+
+  const filas=[
+    ['DON SALO — SERIE DIARIA'],
+    ['Generado', fechaHoraLegible()],
+    ['Período', fechas[0]+' → '+fechas[fechas.length-1]],
+    ['Costo por empanada', COSTO_EMPANADA],
+    [],
+    ['Fecha','Día','Empanadas','Pedidos','Almuerzo','Cena','Facturación','Costo','Ganancia','Ticket medio','Emp. por pedido','Consumo interno']
+  ];
+  const nombreDia=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  let tEmp=0,tPed=0,tVen=0,tCos=0,tPz=0,tCn=0,tInt=0;
+  fechas.forEach(f=>{
+    const d=dias[f];
+    tEmp+=d.emp; tPed+=d.pedidos; tVen+=d.venta; tCos+=d.costo;
+    tPz+=d.pz; tCn+=d.cn; tInt+=d.interno;
+    filas.push([
+      f,
+      nombreDia[new Date(f+'T00:00:00').getDay()],
+      d.emp, d.pedidos, d.pz, d.cn,
+      r2(d.venta), r2(d.costo), r2(d.venta-d.costo),
+      d.pedidos ? r2(d.venta/d.pedidos) : 0,
+      d.pedidos ? r2(d.emp/d.pedidos) : 0,
+      d.interno
+    ]);
+  });
+  filas.push([]);
+  filas.push(['TOTAL','',tEmp,tPed,tPz,tCn,r2(tVen),r2(tCos),r2(tVen-tCos),
+              tPed?r2(tVen/tPed):0, tPed?r2(tEmp/tPed):0, tInt]);
+  filas.push(['PROMEDIO POR DÍA','', r2(tEmp/fechas.length), r2(tPed/fechas.length),
+              r2(tPz/fechas.length), r2(tCn/fechas.length), r2(tVen/fechas.length)]);
+
+  // Hoja 2: el mismo dato agrupado por día de la semana
+  const porDow={};
+  fechas.forEach(f=>{
+    const dow=new Date(f+'T00:00:00').getDay();
+    if(!porDow[dow]) porDow[dow]={dias:0,emp:0,ped:0,ven:0};
+    const d=dias[f];
+    porDow[dow].dias++; porDow[dow].emp+=d.emp; porDow[dow].ped+=d.pedidos; porDow[dow].ven+=d.venta;
+  });
+  const dow=[['Día de la semana','Días contados','Empanadas','Pedidos','Facturación','Empanadas por día','Facturación por día']];
+  [1,2,3,4,5,6,0].forEach(k=>{
+    const v=porDow[k]; if(!v) return;
+    dow.push([nombreDia[k], v.dias, v.emp, v.ped, r2(v.ven),
+              r2(v.emp/v.dias), r2(v.ven/v.dias)]);
+  });
+
+  descargarExcel(`DonSalo_SerieDiaria_${selloArchivo()}.xlsx`,[
+    {nombre:'Serie diaria',filas},
+    {nombre:'Por dia de semana',filas:dow}
+  ]);
+};
+
 window.exportStats=function(){
   if(!sExportData){ alert('Esperá a que termine de cargar el dashboard.'); return; }
   const d=sExportData;
@@ -3255,6 +3320,21 @@ function promedioDiario(pedidos, desdePeriodo, hastaPeriodo){
 //  los pedidos viejos no tienen esos datos, no es que valgan cero.
 //  Por eso este bloque arranca en una fecha fija y no se mueve.
 // ═══════════════════════════════════════════════════════
+// Categoría de una bebida por su nombre. Los pedidos guardan el nombre pero no
+// la categoría, así que se resuelve contra la lista y, si no está, por palabras.
+function catBebida(nombre){
+  const n=String(nombre||'').toUpperCase();
+  const enLista=BEB.find(b=>String(b.nombre).toUpperCase()===n);
+  if(enLista){
+    if(enLista.cat==='acqua') return 'acqua';
+    if(enLista.cat==='birra') return 'birra';
+    return 'gassata';
+  }
+  if(n.includes('ACQUA')) return 'acqua';
+  if(/BIRRA|QUILMES|MORETTI|PERONI|CORONA|HEINEKEN|ICHNUSA|STELLA/.test(n)) return 'birra';
+  return 'gassata';
+}
+
 const S_MES_DESDE='2026-09-01';
 
 // ═══════════════════════════════════════════════════════
@@ -3322,44 +3402,111 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       orderBy('timestamp','asc')));
     const todos=soloPedidos(snap.docs.map(d=>({id:d.id,...d.data()})));
 
-    // Cada contador lleva además cuánto fue al mediodía y cuánto a la cena
+    // ── CONTADORES ──
+    // Regla: los porcentajes van SIEMPRE sobre las ventas reales, que son las
+    // que facturan. El consumo interno y las devoluciones se cuentan aparte,
+    // porque no son ventas y mezclarlos corría todos los porcentajes.
     const par=()=>({p:0,e:0,pz:0,cn:0});
     const r={
+      // Ventas reales: lo que se facturó
+      vPedidos:0, vEmp:0, venta:0, costo:0,
+      // Todo lo que salió por la puerta, ventas o no
+      salieron:0, pedidosTodos:0,
       consumo:{mangia:par(), take:par(), delivery:par()},
-      promos:{}, sinPromo:par(),
       canales:{}, interno:par(), devol:par(),
-      tipos:{classicas:0, especiales:0, clPz:0, clCn:0, spPz:0, spCn:0},
-      pedidos:0, empanadas:0, venta:0, costo:0
+      tipos:{classicas:0, especiales:0, clPz:0, clCn:0, spPz:0, spCn:0,
+             clPromo:0, spPromo:0, clSuelta:0, spSuelta:0},
+      // Promos: aplicaciones, pedidos y empanadas, cada cosa por separado
+      promos:{}, promoPedidos:par(), empEnPromo:0, empExtraEnPromo:0,
+      sinPromo:par(), sinPromoTramo:{corto:0, largo:0},
+      // Bebidas, con las de promo incluidas
+      beb:{acqua:0, gassata:0, birra:0},
+      // Serie día por día, para exportar
+      dias:{}
     };
     todos.forEach(o=>{
       const n=contarPorTipo(o), emp=n.total, k=canalKey(o);
       const esPz = turnoDePedido(o)==='pranzo';
-      // Suma un pedido a un contador, anotando también en qué turno cayó
+      const esVenta = !(k==='interno' || k==='devolucion');
       const sum=(x)=>{ x.p++; x.e+=emp; if(esPz) x.pz++; else x.cn++; };
-      r.pedidos++; r.empanadas+=emp;
+
+      r.pedidosTodos++; r.salieron+=emp;
       r.tipos.classicas+=n.classicas; r.tipos.especiales+=n.especiales;
       if(esPz){ r.tipos.clPz+=n.classicas; r.tipos.spPz+=n.especiales; }
       else    { r.tipos.clCn+=n.classicas; r.tipos.spCn+=n.especiales; }
-      // Canal
+
+      if(esVenta){
+        r.vPedidos++; r.vEmp+=emp;
+        r.venta+=ventaPedido(o); r.costo+=costoPedido(o);
+      }
+
       if(!r.canales[k]) r.canales[k]=par();
       sum(r.canales[k]);
-      // Dónde consume
+
       if(k==='interno')            sum(r.interno);
       else if(k==='devolucion')    sum(r.devol);
       else if(CANALES[k].delivery) sum(r.consumo.delivery);
       else if(esTakeaway(o))       sum(r.consumo.take);
       else                         sum(r.consumo.mangia);
-      // Promos
+
+      // ── PROMOS ──
+      // Se separan tres cosas que antes se mezclaban:
+      //   · cuántas veces se aplicó cada promo
+      //   · cuántos PEDIDOS llevaron promo
+      //   · cuántas empanadas cubre la promo y cuántas se agregaron sueltas
       const pr=promosDePedido(o);
       const claves=Object.keys(pr);
+      const L=listaDePedido(o);
       if(claves.length){
-        claves.forEach(c=>{ r.promos[c]=(r.promos[c]||0)+pr[c]; });
-      }else if(!CANALES[k].delivery && k!=='interno' && k!=='devolucion'){
+        let cubiertas=0;
+        claves.forEach(cl=>{
+          r.promos[cl]=(r.promos[cl]||0)+pr[cl];
+          const def=L.promos && L.promos[cl];
+          if(def) cubiertas += def.cant*pr[cl];
+        });
+        cubiertas=Math.min(cubiertas, emp);
+        sum(r.promoPedidos);
+        r.empEnPromo+=cubiertas;
+        r.empExtraEnPromo+=Math.max(0, emp-cubiertas);
+        // Las promos se llenan primero con classiche, igual que el precio
+        const cPromo=Math.min(n.classicas, cubiertas);
+        const sPromo=Math.max(0, cubiertas-cPromo);
+        r.tipos.clPromo+=cPromo; r.tipos.spPromo+=sPromo;
+        r.tipos.clSuelta+=n.classicas-cPromo; r.tipos.spSuelta+=n.especiales-sPromo;
+      }else if(esVenta && !CANALES[k].delivery){
         sum(r.sinPromo);
+        // Tramo de precio que le tocó: es el dato para saber si el 9+ se usa
+        if(emp>=9) r.sinPromoTramo.largo++; else r.sinPromoTramo.corto++;
+        r.tipos.clSuelta+=n.classicas; r.tipos.spSuelta+=n.especiales;
+      }else{
+        r.tipos.clSuelta+=n.classicas; r.tipos.spSuelta+=n.especiales;
       }
-      // Plata
-      r.venta+=ventaPedido(o); r.costo+=costoPedido(o);
+
+      // ── BEBIDAS ──
+      // La bebida que va DENTRO de una promo es una venta, aunque no se haya
+      // cargado como ítem. En el mostrador la promo se marca sin elegir la
+      // bebida; en el QR el cliente sí la elige. Para no contarla dos veces se
+      // toma, por categoría, el mayor entre lo cargado y lo que implica la promo.
+      const exp={acqua:0, gassata:0, birra:0};
+      (o.items||[]).forEach(i=>{
+        if(i.tipo!=='bebida') return;
+        exp[catBebida(i.nombre)] += parseInt(i.cantidad)||0;
+      });
+      const imp={acqua:(pr.duoAgua||0), gassata:(pr.duoBebida||0), birra:0};
+      r.beb.acqua   += Math.max(exp.acqua,   imp.acqua);
+      r.beb.gassata += Math.max(exp.gassata, imp.gassata);
+      r.beb.birra   += exp.birra;
+
+      // ── SERIE DIARIA ──
+      const fd=fechaDePedido(o);
+      if(!r.dias[fd]) r.dias[fd]={emp:0,pedidos:0,venta:0,costo:0,pz:0,cn:0,interno:0};
+      const d=r.dias[fd];
+      if(esVenta){
+        d.emp+=emp; d.pedidos++; d.venta+=ventaPedido(o); d.costo+=costoPedido(o);
+        if(esPz) d.pz+=emp; else d.cn+=emp;
+      }else if(k==='interno') d.interno+=emp;
     });
+
     sMesCache=r; sMesCacheHora=ahora; sMesCacheClave=clave;
     sMesPintar(r);
   }catch(e){
@@ -3372,8 +3519,6 @@ function sMesPintar(r){
   const cont=document.getElementById('s-mes-bloques');
   if(!cont) return;
   const pct=(n,t)=>t>0?Math.round(n/t*100)+'%':null;
-  // El porcentaje va al lado del número, entre paréntesis y más chico.
-  // Debajo, el desglose 🌞 mediodía · 🌙 cena, igual que en PEDIDOS.
   const caja=(label,num,sub,cls,porc,v)=>{
     const turnos = v ? `<div class="s-mini-turnos">🌞 ${v.pz} · 🌙 ${v.cn}</div>` : '';
     return `<div class="s-mini ${cls||''}">
@@ -3383,52 +3528,77 @@ function sMesPintar(r){
       <div class="s-mini-sub">${sub||''}</div>
     </div>`;
   };
-
-  // Etiquetas de promo de la lista vigente, con respaldo para las viejas
   const L=listaHoy();
   const nombrePromo=k=>{
     if(L.promos && L.promos[k]) return L.promos[k].label;
-    return {duoAgua:'Promo 2 + A', duoBebida:'Promo 2 + B', pranzo:'Promo Pranzo'}[k] || k;
+    return {duoAgua:'Promo 2 + A', duoBebida:'Promo 2 + B', pranzo:'Promo 3 Empanadas'}[k] || k;
   };
-
-  const totLocal=r.consumo.mangia.p+r.consumo.take.p;
   const totPromos=Object.values(r.promos).reduce((a,b)=>a+b,0);
+  const totLocal=r.consumo.mangia.p+r.consumo.take.p;
+  const bebTot=r.beb.acqua+r.beb.gassata+r.beb.birra;
 
   let h='';
 
-  // ── Dónde consume ──
-  h+='<div class="s-mini-grid">';
-  h+=caja('🍽️ Mangia qui', r.consumo.mangia.p, r.consumo.mangia.e+' empanadas · sobre el local','',pct(r.consumo.mangia.p,totLocal), r.consumo.mangia);
-  h+=caja('🥡 Takeaway', r.consumo.take.p, r.consumo.take.e+' empanadas · sobre el local','take',pct(r.consumo.take.p,totLocal), r.consumo.take);
-  h+=caja('🛵 Delivery', r.consumo.delivery.p, r.consumo.delivery.e+' empanadas · sobre el total','deliv',pct(r.consumo.delivery.p,r.pedidos), r.consumo.delivery);
+  // ── Base de los porcentajes, dicha una vez ──
+  h+=`<div class="s-base-aviso">Los porcentajes van sobre <strong>${r.vPedidos} pedidos</strong>
+      y <strong>${r.vEmp} empanadas vendidas</strong>. El consumo interno y las devoluciones
+      se cuentan aparte, al final, porque no son ventas.</div>`;
+
+  // ── Dónde consume ── (sobre pedidos vendidos)
+  h+='<div class="s-mini-sub-title">Dónde consume · sobre los pedidos vendidos</div><div class="s-mini-grid">';
+  h+=caja('🍽️ Mangia qui', r.consumo.mangia.p, r.consumo.mangia.e+' empanadas','',pct(r.consumo.mangia.p,r.vPedidos), r.consumo.mangia);
+  h+=caja('🥡 Takeaway', r.consumo.take.p, r.consumo.take.e+' empanadas','take',pct(r.consumo.take.p,r.vPedidos), r.consumo.take);
+  h+=caja('🛵 Delivery', r.consumo.delivery.p, r.consumo.delivery.e+' empanadas','deliv',pct(r.consumo.delivery.p,r.vPedidos), r.consumo.delivery);
   h+='</div>';
 
-  // ── Promos ──
-  h+='<div class="s-mini-sub-title">Promos aplicadas</div><div class="s-mini-grid">';
+  // ── Promos: tres cosas distintas, separadas ──
+  h+='<div class="s-mini-sub-title">Promos · cada número mide algo distinto</div><div class="s-mini-grid">';
   ['duoAgua','duoBebida','pranzo'].forEach(k=>{
     const n=r.promos[k]||0;
-    h+=caja(nombrePromo(k), n, n>0?'sobre el total de promos':'ninguna','promo',pct(n,totPromos));
+    h+=caja(nombrePromo(k), n, n>0?'veces aplicada':'ninguna','promo',pct(n,totPromos));
   });
-  h+=caja('Sin promo', r.sinPromo.p, r.sinPromo.e+' empanadas · sobre el local','',pct(r.sinPromo.p,totLocal), r.sinPromo);
+  h+='</div><div class="s-mini-grid">';
+  h+=caja('Pedidos CON promo', r.promoPedidos.p, totPromos+' promos aplicadas en total','promo',pct(r.promoPedidos.p,r.vPedidos), r.promoPedidos);
+  h+=caja('Pedidos SIN promo', r.sinPromo.p, r.sinPromo.e+' empanadas','',pct(r.sinPromo.p,r.vPedidos), r.sinPromo);
+  h+=caja('Empanadas EN promo', r.empEnPromo, 'cubiertas por una promo','promo',pct(r.empEnPromo,r.vEmp));
+  h+=caja('Sueltas sumadas a una promo', r.empExtraEnPromo, 'agregadas fuera de la promo','',pct(r.empExtraEnPromo,r.vEmp));
   h+='</div>';
 
-  // ── Canales ──
-  h+='<div class="s-mini-sub-title">Por canal</div><div class="s-mini-grid">';
+  // ── Tramos de los pedidos sin promo ──
+  h+='<div class="s-mini-sub-title">Pedidos sin promo · por tramo de precio</div><div class="s-mini-grid">';
+  h+=caja('Tramo 1 a 8', r.sinPromoTramo.corto, 'pedidos','',pct(r.sinPromoTramo.corto,r.sinPromo.p));
+  h+=caja('Tramo 9 o más', r.sinPromoTramo.largo, 'pedidos · el precio más bajo','deliv',pct(r.sinPromoTramo.largo,r.sinPromo.p));
+  h+='</div>';
+
+  // ── Bebidas, con las de promo ──
+  h+='<div class="s-mini-sub-title">Bebidas · incluye las que van dentro de una promo</div><div class="s-mini-grid">';
+  h+=caja('💧 Acqua', r.beb.acqua, 'botellas','',pct(r.beb.acqua,bebTot));
+  h+=caja('🥤 Gassate', r.beb.gassata, 'botellas','',pct(r.beb.gassata,bebTot));
+  h+=caja('🍺 Birra', r.beb.birra, 'botellas','',pct(r.beb.birra,bebTot));
+  h+=caja('Total bebidas', bebTot, r.vPedidos?(bebTot/r.vPedidos).toFixed(2)+' por pedido':'','gan');
+  h+='</div>';
+
+  // ── Canales ── (sobre pedidos vendidos)
+  h+='<div class="s-mini-sub-title">Por canal · sobre los pedidos vendidos</div><div class="s-mini-grid">';
   ['mostrador','qr','web','glovo','justeat','deliveroo'].forEach(k=>{
     const v=r.canales[k]; if(!v) return;
-    h+=caja(CANALES[k].label, v.p, v.e+' empanadas · sobre el total','',pct(v.p,r.pedidos), v);
+    h+=caja(CANALES[k].label, v.p, v.e+' empanadas','',pct(v.p,r.vPedidos), v);
   });
   h+='</div>';
 
-  // ── Lo que no factura y la mezcla ──
-  h+='<div class="s-mini-sub-title">Otros</div><div class="s-mini-grid">';
-  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.interno.e*COSTO_EMPANADA))+' de costo','interno',pct(r.interno.e,r.empanadas), r.interno);
-  h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.empanadas), r.devol);
-  h+=caja('🔵 Classiche', r.tipos.classicas, 'empanadas · sobre el total','',pct(r.tipos.classicas,r.empanadas), {pz:r.tipos.clPz, cn:r.tipos.clCn});
-  h+=caja('🔴 Speciali', r.tipos.especiales, 'empanadas · sobre el total','',pct(r.tipos.especiales,r.empanadas), {pz:r.tipos.spPz, cn:r.tipos.spCn});
-  // Ticket promedio y Ganancia quedan ocultos hasta que los destapes
-  h+=caja('Ticket promedio', dinero(r.pedidos?eur(r.venta/r.pedidos):'—'), r.pedidos?(r.empanadas/r.pedidos).toFixed(1)+' empanadas por pedido':'');
-  h+=caja('Ganancia', dinero(eur(r.venta-r.costo)), r.empanadas?dinero(eur((r.venta-r.costo)/r.empanadas))+' por empanada':'','gan',dinero(pct(r.venta-r.costo,r.venta)));
+  // ── Classiche y Speciali, cruzadas con promo ──
+  h+='<div class="s-mini-sub-title">Classiche y Speciali · sobre todo lo que salió</div><div class="s-mini-grid">';
+  h+=caja('🔵 Classiche', r.tipos.classicas, r.tipos.clPromo+' en promo · '+r.tipos.clSuelta+' sueltas','',pct(r.tipos.classicas,r.salieron), {pz:r.tipos.clPz, cn:r.tipos.clCn});
+  h+=caja('🔴 Speciali', r.tipos.especiales, r.tipos.spPromo+' en promo · '+r.tipos.spSuelta+' sueltas','',pct(r.tipos.especiales,r.salieron), {pz:r.tipos.spPz, cn:r.tipos.spCn});
+  h+='</div>';
+
+  // ── Lo que no factura y la plata ──
+  h+='<div class="s-mini-sub-title">No son ventas · aparte del resto</div><div class="s-mini-grid">';
+  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.interno.e*COSTO_EMPANADA))+' de costo','interno',pct(r.interno.e,r.salieron), r.interno);
+  h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.salieron), r.devol);
+  h+=caja('Ticket promedio', dinero(r.vPedidos?eur(r.venta/r.vPedidos):'—'), r.vPedidos?(r.vEmp/r.vPedidos).toFixed(2)+' empanadas por pedido vendido':'');
+  h+=caja('Facturación', dinero(eur(r.venta)), r.vPedidos+' pedidos vendidos','');
+  h+=caja('Ganancia', dinero(eur(r.venta-r.costo)), r.vEmp?dinero(eur((r.venta-r.costo)/r.vEmp))+' por empanada':'','gan',dinero(pct(r.venta-r.costo,r.venta)));
   h+='</div>';
 
   cont.innerHTML=h;
