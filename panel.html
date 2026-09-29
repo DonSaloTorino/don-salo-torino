@@ -656,6 +656,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .coc-pr-btn.mas:hover{background:#f0fdf4;}
 .coc-pr-btn.menos{border-color:#fecaca;color:#991b1b;}
 .coc-pr-btn.menos:hover{background:#fef2f2;}
+.coc-hora{font-size:10px;color:#bbb;letter-spacing:0.5px;margin-top:1px;}
 .coc-hasta{display:block;font-size:10px;color:#aaa;letter-spacing:0.5px;margin-top:2px;}
 .coc-hasta.hoy{color:#92400e;font-weight:700;}
 .coc-hasta.venc{color:#991b1b;font-weight:700;}
@@ -1017,7 +1018,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   <div class="coc-table-wrap">
     <table class="coc-table">
       <thead><tr>
-        <th style="cursor:pointer;user-select:none;" onclick="cocOrdenar('fecha')">Fecha <span id="cocsort-fecha"></span></th>
+        <th style="cursor:pointer;user-select:none;" onclick="cocOrdenar('fecha')">Fecha y hora <span id="cocsort-fecha"></span></th>
         <th style="cursor:pointer;user-select:none;" onclick="cocOrdenar('sabor')">Sabor <span id="cocsort-sabor"></span></th>
         <th style="text-align:center;cursor:pointer;user-select:none;" onclick="cocOrdenar('cantidad')">Cantidad <span id="cocsort-cantidad"></span></th>
         <th style="text-align:center;">Días</th>
@@ -5282,9 +5283,14 @@ window.toggleDetalleAviso=function(id,btn){
 // FIFO por sabor: devuelve los lotes que siguen vivos, con su fecha de cocción
 function cocCalcularFIFO(){
   const eventos={};   // sabor -> [{fecha,tipo:'in'|'out',cant}]
-  const agregar=(sabor,fecha,tipo,cant,turno)=>{
+  // esVenta distingue las salidas por VENTA de las otras (ajuste del conteo,
+  // descarte, cotta non venduta). Solo una venta puede generar "faltante":
+  // si vendiste sin registrar la cocción, es que cocinaste y no lo anotaste.
+  // Un ajuste que no encuentra lote NO es eso — es que había menos de lo que
+  // el sistema creía, que es justamente lo que el conteo vino a corregir.
+  const agregar=(sabor,fecha,tipo,cant,turno,esVenta)=>{
     if(!sabor||!fecha||!cant||cant<=0) return;
-    (eventos[sabor]=eventos[sabor]||[]).push({fecha,tipo,cant,turno:turno||'pranzo'});
+    (eventos[sabor]=eventos[sabor]||[]).push({fecha,tipo,cant,turno:turno||'pranzo',venta:!!esVenta});
   };
   cocDataAll.forEach(c=>{
     const cant=parseInt(c.cantidad)||0;
@@ -5298,8 +5304,8 @@ function cocCalcularFIFO(){
   });
   Object.entries(cocVentasPorDia).forEach(([sabor,porDia])=>{
     Object.entries(porDia).forEach(([fecha,porTurno])=>{
-      if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo');
-      if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena');
+      if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo',true);
+      if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena',true);
     });
   });
 
@@ -5320,9 +5326,12 @@ function cocCalcularFIFO(){
       while(falta>0){
         const lote=lotes.find(l=>l.restante>0);
         if(!lote){
-          // Se vendió más de lo registrado como cocinado.
-          // Se anota el faltante EN EL DÍA de esa venta, para poder registrarlo después
-          // con la fecha correcta en la reconciliación automática.
+          // Sin lote que descontar. Solo cuenta como faltante si fue una VENTA:
+          // ahí sí quiere decir que se cocinó sin registrarlo.
+          // Si fue un ajuste del conteo, un descarte o una pérdida, se ignora:
+          // antes generaba un faltante que el control automático volvía a sumar
+          // como cocción, deshaciendo solo el conteo de vitrina.
+          if(!e.venta){ falta=0; break; }
           asumidas+=falta;
           deficitPorDia[e.fecha]=(deficitPorDia[e.fecha]||0)+falta;
           const tt=e.turno||'pranzo';
@@ -5460,6 +5469,17 @@ function cocRender(){
 let cocSortCol='fecha', cocSortDir='desc';
 
 // Clasifica un registro en una de las categorías del filtro
+// Hora exacta en que se grabó el registro. Sin esto no hay forma de saber si
+// una cocción AUTO la puso el control de las 14:00 o el de la noche.
+function cocHoraDe(c){
+  const ts=c && c.timestamp;
+  let d=null;
+  if(ts && ts.toDate) d=ts.toDate();
+  else if(ts && ts.seconds) d=new Date(ts.seconds*1000);
+  if(!d) return '—';
+  return d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+
 function cocCategoria(c){
   if(c.tipo===TIPO_PERDIDA)              return 'cotta_non_venduta';
   if(c.origen==='conteo')                return 'conteo';
@@ -5557,7 +5577,8 @@ window.cocTablaRender=function(){
     const detalleFecha = cat==='cotta_non_venduta' && c.fechaCoccion
       ? `<div style="font-size:10px;color:#bbb;">cocinada ${c.fechaCoccion}</div>` : '';
     return `<tr>
-      <td style="color:#888;white-space:nowrap;">${c.fecha}${detalleFecha}</td>
+      <td style="color:#888;white-space:nowrap;">${c.fecha}
+        <div class="coc-hora">${cocHoraDe(c)}</div>${detalleFecha}</td>
       <td style="font-weight:500;">${c.sabor}</td>
       <td style="text-align:center;font-weight:700;">${c.cantidad}</td>
       <td style="text-align:center;">${esSalida?'—':`<span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span>`}</td>
@@ -6064,7 +6085,7 @@ window.exportCoccion=function(){
   });
 
   // Hoja 3: registro crudo de cocciones, descartes y pérdidas
-  const mov=[['Fecha','Sabor','Cantidad','Tipo','Fecha cocción','Días desde cocción','Automático']];
+  const mov=[['Fecha','Hora','Sabor','Cantidad','Tipo','Fecha cocción','Días desde cocción','Automático']];
   [...cocDataAll].sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).forEach(c=>{
     const et = c.tipo===TIPO_PERDIDA ? LABEL_PERDIDA
              : (c.origen==='conteo' && c.tipo==='ajuste') ? 'CONTEO VITRINA (RESTA)'
@@ -6073,7 +6094,7 @@ window.exportCoccion=function(){
              : c.tipo==='descarte' ? 'DESCARTE'
              : (c.auto && c.origen==='deficit') ? 'COCCIÓN AUTO'
              : 'COCCIÓN';
-    mov.push([c.fecha,c.sabor,parseInt(c.cantidad)||0, et, c.fechaCoccion||'',
+    mov.push([c.fecha,cocHoraDe(c),c.sabor,parseInt(c.cantidad)||0, et, c.fechaCoccion||'',
       c.tipo==='coccion'?cocDiasEntre(c.fecha,hoy):'', c.auto?'SÍ':'']);
   });
 
