@@ -657,6 +657,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .coc-pr-btn.menos{border-color:#fecaca;color:#991b1b;}
 .coc-pr-btn.menos:hover{background:#fef2f2;}
 .coc-hora{font-size:10px;color:#bbb;letter-spacing:0.5px;margin-top:1px;}
+.coc-ctrl{font-size:9px;color:#c2410c;letter-spacing:0.5px;font-weight:600;}
 .coc-hasta{display:block;font-size:10px;color:#aaa;letter-spacing:0.5px;margin-top:2px;}
 .coc-hasta.hoy{color:#92400e;font-weight:700;}
 .coc-hasta.venc{color:#991b1b;font-weight:700;}
@@ -5125,9 +5126,15 @@ async function cocReconciliarDeficit(turno){
   try{
     for(const p of pend){
       const idDoc='auto_'+(p.sabor+'_'+p.fecha).replace(/[^a-zA-Z0-9]/g,'_')+'_'+turno;
+      // Se guarda el horario del control al que pertenece. La página solo corre
+      // cuando está abierta, así que un control de las 14:00 puede ejecutarse a
+      // las 17:59 si recién ahí abriste el panel. Sin este dato, la hora del
+      // registro parecía un horario de control que nunca configuramos.
+      const ctrl=cocControlesDelDia().find(x=>x.turno===turno);
       await setDoc(doc(db,'cocciones',idDoc),{
         sabor:p.sabor, cantidad:p.cantidad, fecha:p.fecha,
         tipo:'coccion', auto:true, origen:'deficit', turno,
+        horaControl: ctrl ? ctrl.label : '',
         timestamp:serverTimestamp()
       });
       hechas.push(p);
@@ -5236,7 +5243,8 @@ function cocMostrarAviso(recon,perdidas){
       <div style="flex:1;min-width:220px;">
         <strong>🍳 Se registraron ${recon.total} empanadas como cocinadas</strong>
         <div class="aviso-det plegado" id="aviso-det-coc">
-          Se vendieron sin estar cargadas — control de las ${recon.turnos.join(' y ')}<br>${lineas}
+          Se vendieron sin estar cargadas — control de las ${recon.turnos.join(' y ')}.
+          Si el panel estaba cerrado a esa hora, el control corre recién al abrirlo.<br>${lineas}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
@@ -5445,7 +5453,7 @@ function cocRender(){
     const cn=CIERRE_NOCHE[dia]||CIERRE_NOCHE[6];
     const cierre=String(cn.hora).padStart(2,'0')+':'+String(cn.minuto).padStart(2,'0');
     hz.textContent='controles automáticos hoy: '+cocControlesDelDia().map(c=>c.label).join(' y ')
-      +' · cierre '+cierre;
+      +' · cierre '+cierre+' · si el panel está cerrado, corren al abrirlo';
   }
   const infoGr=document.getElementById('coc-grid-info');
   if(infoGr) infoGr.textContent=totalVivas+' cocinadas'+(totalVencidas?` · ${totalVencidas} vencidas`:'');
@@ -5478,6 +5486,13 @@ function cocHoraDe(c){
   else if(ts && ts.seconds) d=new Date(ts.seconds*1000);
   if(!d) return '—';
   return d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+
+// A qué control pertenece una cocción automática, cuando lo sabemos
+function cocCtrlDe(c){
+  if(!(c && c.auto && c.origen==='deficit')) return '';
+  const h = c.horaControl || (c.turno==='t1' ? 'mediodía' : c.turno==='t2' ? 'noche' : '');
+  return h ? `<div class="coc-ctrl">control ${h}</div>` : '';
 }
 
 function cocCategoria(c){
@@ -5578,7 +5593,7 @@ window.cocTablaRender=function(){
       ? `<div style="font-size:10px;color:#bbb;">cocinada ${c.fechaCoccion}</div>` : '';
     return `<tr>
       <td style="color:#888;white-space:nowrap;">${c.fecha}
-        <div class="coc-hora">${cocHoraDe(c)}</div>${detalleFecha}</td>
+        <div class="coc-hora">${cocHoraDe(c)}${cocCtrlDe(c)}</div>${detalleFecha}</td>
       <td style="font-weight:500;">${c.sabor}</td>
       <td style="text-align:center;font-weight:700;">${c.cantidad}</td>
       <td style="text-align:center;">${esSalida?'—':`<span class="coc-edad-badge ${cocClaseEdad(dias)}">${cocEtiquetaEdad(dias)}</span>`}</td>
@@ -6085,7 +6100,7 @@ window.exportCoccion=function(){
   });
 
   // Hoja 3: registro crudo de cocciones, descartes y pérdidas
-  const mov=[['Fecha','Hora','Sabor','Cantidad','Tipo','Fecha cocción','Días desde cocción','Automático']];
+  const mov=[['Fecha','Hora del registro','Control de las','Sabor','Cantidad','Tipo','Fecha cocción','Días desde cocción','Automático']];
   [...cocDataAll].sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).forEach(c=>{
     const et = c.tipo===TIPO_PERDIDA ? LABEL_PERDIDA
              : (c.origen==='conteo' && c.tipo==='ajuste') ? 'CONTEO VITRINA (RESTA)'
@@ -6094,7 +6109,7 @@ window.exportCoccion=function(){
              : c.tipo==='descarte' ? 'DESCARTE'
              : (c.auto && c.origen==='deficit') ? 'COCCIÓN AUTO'
              : 'COCCIÓN';
-    mov.push([c.fecha,cocHoraDe(c),c.sabor,parseInt(c.cantidad)||0, et, c.fechaCoccion||'',
+    mov.push([c.fecha,cocHoraDe(c),c.horaControl||'',c.sabor,parseInt(c.cantidad)||0, et, c.fechaCoccion||'',
       c.tipo==='coccion'?cocDiasEntre(c.fecha,hoy):'', c.auto?'SÍ':'']);
   });
 
