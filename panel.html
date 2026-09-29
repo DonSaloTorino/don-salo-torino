@@ -3226,7 +3226,28 @@ function sPrv(p){const n=new Date();
 }
 async function sFt(f,t){const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f)),where('timestamp','<=',Timestamp.fromDate(t)),orderBy('timestamp','desc')));return soloVentas(s.docs.map(d=>({id:d.id,...d.data()})));}
 const cE=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));return t;};
-const cB=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(i.tipo==='bebida')t+=i.cantidad||0;}));return t;};
+// ── CONTEO DE BEBIDAS ──
+// Una promo 2+A o 2+B YA VENDIÓ una bebida, aunque en el mostrador no se
+// cargue como ítem: la promo la incluye por definición.
+// En el QR el cliente sí la elige, así que para no contarla dos veces se toma,
+// por categoría, el mayor entre lo cargado y lo que implica la promo.
+function contarBebidas(os){
+  const r={acqua:0, gassata:0, birra:0, total:0};
+  (os||[]).forEach(o=>{
+    const exp={acqua:0, gassata:0, birra:0};
+    (o.items||[]).forEach(i=>{
+      if(i.tipo!=='bebida') return;
+      exp[catBebida(i.nombre)] += parseInt(i.cantidad)||0;
+    });
+    const pr=promosDePedido(o);
+    r.acqua   += Math.max(exp.acqua,   pr.duoAgua||0);
+    r.gassata += Math.max(exp.gassata, pr.duoBebida||0);
+    r.birra   += exp.birra;
+  });
+  r.total = r.acqua + r.gassata + r.birra;
+  return r;
+}
+const cB=os=>contarBebidas(os).total;
 const cR=os=>{const m={};os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada'){const n=nombreLimpio(i.nombre);m[n]=(m[n]||0)+(i.cantidad||0);}}));return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
 
 // ═══════════════════════════════════════════════════════
@@ -3627,7 +3648,7 @@ async function sLoadData(){
   document.getElementById('s-loading').style.display='block';document.getElementById('s-content').style.display='none';
   const r=sP==='custom'?window._sCR:sRng(sP);if(!r)return;
   document.getElementById('s-period-label').textContent=r.label;
-  const os=await sFt(r.from,r.to),emp=cE(os),beb=cB(os);
+  const os=await sFt(r.from,r.to),emp=cE(os),bebD=contarBebidas(os),beb=bebD.total;
   sCargarMes(r.from, r.to);   // el bloque de abajo sigue el mismo período
   const[tO,wO,mO]=await Promise.all([sP==='today'?os:sFt(sRng('today').from,sRng('today').to),sP==='week'?os:sFt(sRng('week').from,sRng('week').to),sP==='month'?os:sFt(sRng('month').from,sRng('month').to)]);
   // Promedio diario del período (lunes a sábado, sin feriados italianos)
@@ -3644,7 +3665,7 @@ async function sLoadData(){
     : prom.promedio!==null
       ? `${prom.dias} ${prom.dias===1?'día trabajado':'días trabajados'}`
       : 'sin días trabajados';
-  document.getElementById('s-counters').innerHTML=`<div class="s-counter promedio"><div class="s-c-label">📈 Promedio diario</div><div class="s-c-num">${promTxt}</div><div class="s-c-sub">${promSub}</div></div><div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">${os.length} pedidos</div></div>`;
+  document.getElementById('s-counters').innerHTML=`<div class="s-counter promedio"><div class="s-c-label">📈 Promedio diario</div><div class="s-c-num">${promTxt}</div><div class="s-c-sub">${promSub}</div></div><div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">💧 ${bebD.acqua} · 🥤 ${bebD.gassata} · 🍺 ${bebD.birra}</div></div>`;
   // Almuerzo y cena del período. La venta se ve; la ganancia se tapa.
   sTurnosCache=resumenPorTurno(os);
   pintarTurnos(sTurnosCache);
