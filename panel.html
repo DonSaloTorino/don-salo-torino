@@ -656,6 +656,10 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .coc-pr-btn.mas:hover{background:#f0fdf4;}
 .coc-pr-btn.menos{border-color:#fecaca;color:#991b1b;}
 .coc-pr-btn.menos:hover{background:#fef2f2;}
+.coc-auto-box{background:#fff;border:1px solid #eee;border-radius:10px;padding:11px 16px;max-width:290px;}
+.coc-auto-top{display:flex;align-items:center;gap:10px;}
+.coc-auto-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#666;font-weight:600;}
+.coc-auto-texto{font-size:10px;color:#bbb;line-height:1.5;margin-top:5px;}
 .coc-hora{font-size:10px;color:#bbb;letter-spacing:0.5px;margin-top:1px;}
 .coc-ctrl{font-size:9px;color:#c2410c;letter-spacing:0.5px;font-weight:600;}
 .coc-hasta{display:block;font-size:10px;color:#aaa;letter-spacing:0.5px;margin-top:2px;}
@@ -973,6 +977,13 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
       <button onclick="cocGuardarLimite()" style="padding:6px 14px;background:#111;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Guardar</button>
     </div>
     <button class="xls-btn" onclick="exportCoccion()">📊 Excel</button>
+    <div class="coc-auto-box">
+      <div class="coc-auto-top">
+        <div class="beb-switch on" id="coc-auto-switch" onclick="cocToggleAuto()"></div>
+        <span class="coc-auto-label">Reconciliación automática</span>
+      </div>
+      <div class="coc-auto-texto" id="coc-auto-texto"></div>
+    </div>
     <button class="coc-add-btn" style="background:#7e22ce;" onclick="openCocInvModal()">📋 Contar vitrina</button>
     <button class="coc-add-btn" onclick="openCocModal()">🍳 Registrar cocción</button>
   </div>
@@ -1653,17 +1664,24 @@ function nombreLimpio(n){ return String(n==null?'':n).replace(/^\(\s*[CS]\s*\)\s
 // Dos renglones con el desglose, para poder marcar en la caja sin contar.
 // No son empanadas: llevan tipo:'resumen' y se descartan en el stock, en las
 // estadísticas y en las tarjetas del panel.
-function itemsResumen(empItems){
+function itemsResumen(empItems, promos){
   let cl=0, sp=0;
   (empItems||[]).forEach(i=>{
     const q=parseInt(i.cantidad)||0;
     const t=i.tipoEmp || tipoDeSabor(nombreLimpio(i.nombre));
     if(t==='speciale') sp+=q; else cl+=q;
   });
-  if(cl+sp===0) return [];
   const r=[];
   if(cl>0) r.push({nombre:'CLASSICHE', cantidad:cl, tipo:'resumen'});
   if(sp>0) r.push({nombre:'SPECIALI',  cantidad:sp, tipo:'resumen'});
+  // Cada promo con su renglón, para que se lea suelta en el ticket
+  const L=listaHoy();
+  Object.entries(promos||{}).forEach(([clave,n])=>{
+    const q=parseInt(n)||0;
+    if(q<=0) return;
+    const def=L.promos && L.promos[clave];
+    r.push({nombre: def ? def.corto : clave.toUpperCase(), cantidad:q, tipo:'resumen'});
+  });
   return r;
 }
 function esResumen(i){ return i && i.tipo==='resumen'; }
@@ -2615,7 +2633,7 @@ window.confirmarManual=async function(){
   // Resumen al final del ticket: la app de la Munbyn imprime la lista de ítems,
   // así que el desglose se manda como dos renglones más. Van marcados
   // tipo:'resumen' para que no cuenten como empanadas en ningún cálculo.
-  const items=[...ei,...bi,...itemsResumen(ei)];
+  const items=[...ei,...bi,...itemsResumen(ei, promosSel)];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
   // Delivery: solo combos exactos. Una cantidad que no arma combo es un error de carga.
   if(esDelivery){
@@ -2770,7 +2788,7 @@ window.switchTab=function(tab){
   document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas'}[tab];
-  if(tab==='stats'){sLoadFixed();sLoadData();pintarDinero();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
+  if(tab==='stats'){sLoadFixed();sLoadData();pintarDinero();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocCargarAuto()).then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -5092,6 +5110,45 @@ function cocControlesDelDia(){
 }
 const cocControlesHechos=new Set();   // turnos ya corridos en esta sesión
 
+// ── INTERRUPTOR DE LA RECONCILIACIÓN AUTOMÁTICA ──
+// La reconciliación existía para tapar un hueco: si vendías sin registrar la
+// cocción, las cocinadas quedaban en negativo. Era una deducción, no un dato.
+// Desde que contás la vitrina dos veces por día, tenés el dato real medido,
+// y las dos cosas se pisan. Con esto apagado, las cocinadas salen solo de lo
+// que registrás al cocinar y de lo que corregís contando. Nada se inventa.
+let cocAutoActivo=true;
+
+async function cocCargarAuto(){
+  try{
+    const snap=await getDoc(doc(db,'config','settings'));
+    if(snap.exists() && snap.data().reconciliacionAuto!==undefined){
+      cocAutoActivo = snap.data().reconciliacionAuto !== false;
+    }
+  }catch(e){ console.error('cocCargarAuto error',e); }
+  pintarInterruptorAuto();
+}
+function pintarInterruptorAuto(){
+  const sw=document.getElementById('coc-auto-switch');
+  const tx=document.getElementById('coc-auto-texto');
+  if(sw) sw.className='beb-switch'+(cocAutoActivo?' on':'');
+  if(tx) tx.textContent = cocAutoActivo
+    ? 'El sistema da de alta solo lo que se vendió sin cocción registrada'
+    : 'Apagado — las cocinadas salen solo de lo que cargás y de contar la vitrina';
+}
+window.cocToggleAuto=async function(){
+  const nuevo=!cocAutoActivo;
+  const msg = nuevo
+    ? '¿Encender la reconciliación automática?\n\nEl sistema va a dar de alta como cocinadas las empanadas que se vendieron sin tener cocción registrada.'
+    : '¿Apagar la reconciliación automática?\n\nLas cocinadas van a salir solo de lo que registres al cocinar y de lo que corrijas contando la vitrina. Si algún sabor queda en negativo, lo vas a ver y lo corregís contando.';
+  if(!confirm(msg)) return;
+  try{
+    await setDoc(doc(db,'config','settings'),{reconciliacionAuto:nuevo},{merge:true});
+    cocAutoActivo=nuevo;
+    pintarInterruptorAuto();
+    await cocLoadAll();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
 // Qué controles ya deberían haber pasado hoy según la hora actual
 function cocControlesPasados(){
   const n=new Date();
@@ -5146,6 +5203,7 @@ async function cocReconciliarDeficit(turno){
 // Corre los controles que correspondan y devuelve lo que se registró
 async function cocCorrerControles(){
   const resumen={total:0,detalle:[],turnos:[]};
+  if(!cocAutoActivo) return resumen;   // apagado: no se da de alta nada solo
   for(const c of cocControlesPasados()){
     if(cocControlesHechos.has(c.turno)) continue;
     cocControlesHechos.add(c.turno);
@@ -5172,7 +5230,7 @@ function iniciarRelojControles(){
     const hoy=cocHoy();
     if(hoy!==cocDiaControl){ cocDiaControl=hoy; cocControlesHechos.clear(); }
     // Revisa cada 5 minutos si se cruzó alguna hora de control
-    if(cocControlesPasados().some(c=>!cocControlesHechos.has(c.turno))){
+    if(cocAutoActivo && cocControlesPasados().some(c=>!cocControlesHechos.has(c.turno))){
       cocLoadAll().catch(e=>console.error('control automático',e));
     }
   }, 5*60*1000);
