@@ -311,6 +311,10 @@ const mesaParam   = urlParams.get('mesa');
 const MESA        = mesaParam && /^[0-9]{1,2}$/.test(mesaParam) ? mesaParam : null;
 // Modo de prueba: fuerza las promos visibles fuera de horario → ...?test=1
 const MODO_PRUEBA = urlParams.get('test') === '1';
+// Promos abiertas todo el día → ...?promo=1
+// Sirve para mandarle el link a alguien que va a pedir antes de las 12:00.
+// A diferencia de test=1, no muestra ningún cartel: para el cliente es normal.
+const PROMO_ABIERTA = urlParams.get('promo') === '1';
 
 // Cada empanada lleva su tipoEmp: 'classica' o 'speciale'.
 // Tiene que coincidir EXACTAMENTE con lo que está cargado en el panel (colección "sabores"),
@@ -380,7 +384,7 @@ let extrasAbiertos = false;      // el cliente dijo que quiere agregar algo más
 
 // ¿Estamos dentro de la ventana de promos?
 function ventanaPromo(){
-  if(MODO_PRUEBA) return true;
+  if(MODO_PRUEBA || PROMO_ABIERTA) return true;
   const n = new Date();
   const dia = n.getDay();                 // 1..5 = lunes a viernes
   if(dia < 1 || dia > 5) return false;
@@ -759,6 +763,11 @@ window.confirmarPedido = async function() {
     empItems.forEach(i => { if (i.tipoEmp === 'speciale') sp += i.cantidad; else cl += i.cantidad; });
     if (cl > 0) resumenItems.push({ nombre: 'CLASSICHE', cantidad: cl, tipo: 'resumen' });
     if (sp > 0) resumenItems.push({ nombre: 'SPECIALI',  cantidad: sp, tipo: 'resumen' });
+    // Cada promo con su propio renglón, para que se lea suelta en el ticket
+    PROMOS.forEach(p => {
+      const n = promoQtys[p.clave] || 0;
+      if (n > 0) resumenItems.push({ nombre: p.corto, cantidad: n, tipo: 'resumen' });
+    });
   }
   const items = [...empItems, ...bebItems, ...resumenItems];
 
