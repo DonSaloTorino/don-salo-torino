@@ -5354,9 +5354,25 @@ function cocCalcularFIFO(){
   // si vendiste sin registrar la cocción, es que cocinaste y no lo anotaste.
   // Un ajuste que no encuentra lote NO es eso — es que había menos de lo que
   // el sistema creía, que es justamente lo que el conteo vino a corregir.
-  const agregar=(sabor,fecha,tipo,cant,turno,esVenta)=>{
+  // "orden" es el minuto del día en que ocurrió el evento. Sirve para resolver
+  // el orden DENTRO de un mismo día con la hora real, no por tipo.
+  // Sin esto, un conteo de vitrina hecho a las 09:00 se comía las empanadas
+  // que se cocinaban a las 11:36, porque todas las cocciones del día se
+  // procesaban antes que todos los ajustes.
+  const agregar=(sabor,fecha,tipo,cant,turno,esVenta,orden)=>{
     if(!sabor||!fecha||!cant||cant<=0) return;
-    (eventos[sabor]=eventos[sabor]||[]).push({fecha,tipo,cant,turno:turno||'pranzo',venta:!!esVenta});
+    (eventos[sabor]=eventos[sabor]||[]).push({
+      fecha, tipo, cant, turno:turno||'pranzo', venta:!!esVenta,
+      orden: (orden===undefined||orden===null) ? null : orden
+    });
+  };
+  // Minuto del día de un documento, si tiene hora guardada
+  const minutoDe=(d)=>{
+    const ts=d && d.timestamp;
+    let f=null;
+    if(ts && ts.toDate) f=ts.toDate();
+    else if(ts && ts.seconds) f=new Date(ts.seconds*1000);
+    return f ? f.getHours()*60+f.getMinutes() : null;
   };
   cocDataAll.forEach(c=>{
     const cant=parseInt(c.cantidad)||0;
@@ -5365,13 +5381,16 @@ function cocCalcularFIFO(){
     // unidades. El ajuste es una corrección del conteo de la vitrina: NO toca
     // el stock, porque esas empanadas ya se descontaron al venderse o nunca
     // existieron para el sistema.
-    if(c.tipo==='descarte'||c.tipo===TIPO_PERDIDA||c.tipo==='ajuste') agregar(c.sabor,c.fecha,'out',cant);
-    else agregar(c.sabor,c.fecha,'in',cant);
+    const min=minutoDe(c);
+    if(c.tipo==='descarte'||c.tipo===TIPO_PERDIDA||c.tipo==='ajuste') agregar(c.sabor,c.fecha,'out',cant,null,false,min);
+    else agregar(c.sabor,c.fecha,'in',cant,null,false,min);
   });
   Object.entries(cocVentasPorDia).forEach(([sabor,porDia])=>{
     Object.entries(porDia).forEach(([fecha,porTurno])=>{
-      if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo',true);
-      if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena',true);
+      // Las ventas se agrupan por turno, así que se usa una hora representativa:
+      // el mediodía en medio del servicio de pranzo, la cena a la noche.
+      if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo',true,13*60);
+      if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena',true,20*60);
     });
   });
 
@@ -5380,10 +5399,15 @@ function cocCalcularFIFO(){
     // Por fecha; dentro del mismo día primero las cocciones (se cocina antes de vender)
     // Por fecha. Dentro del día: primero lo cocinado, después las ventas del
     // mediodía y al final las de la cena. Así el FIFO consume en el orden real.
+    // Dentro del día manda la HORA. Si un evento no la tiene (registros viejos),
+    // se usa el orden de antes: primero lo cocinado, después mediodía, después cena.
     const peso=e => e.tipo==='in' ? 0 : (e.turno==='pranzo' ? 1 : 2);
+    const clave=e => e.orden!==null ? e.orden : (e.tipo==='in' ? -1 : (e.turno==='pranzo' ? 13*60 : 20*60));
     evs.sort((a,b)=>{
       if(a.fecha!==b.fecha) return a.fecha.localeCompare(b.fecha);
-      return peso(a)-peso(b);
+      const ca=clave(a), cb=clave(b);
+      if(ca!==cb) return ca-cb;
+      return peso(a)-peso(b);   // a igual hora, primero lo que entra
     });
     const lotes=[]; let asumidas=0; const deficitPorDia={}; const deficitPorTurno={};
     evs.forEach(e=>{
