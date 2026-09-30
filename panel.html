@@ -1989,10 +1989,18 @@ function renderOrders(){
   const bloque=(clave,titulo,lista)=>{
     if(!lista.length) return '';
     const id='pleg-ped-'+clave;
+    // El consumo interno y las devoluciones NO son pedidos: se muestran, pero
+    // no suman al conteo. Van aparte, para que el número sea el de ventas.
+    const ventas=soloVentas(lista);
+    const internos=lista.filter(o=>canalKey(o)==='interno');
+    const devols=lista.filter(o=>canalKey(o)==='devolucion');
+    const extra=[];
+    if(internos.length) extra.push(`🏠 ${emps(internos)} interno`);
+    if(devols.length)   extra.push(`↩️ ${emps(devols)} devolución`);
     return `<div class="turno-bloque plegable" id="${id}" data-abierto="1">
       <div class="turno-cab ${clave}" onclick="togglePlegable('${id}')">
         <span class="turno-tit">${titulo}</span>
-        <span class="turno-info">${lista.length} ${lista.length===1?'pedido':'pedidos'} · ${emps(lista)} empanadas</span>
+        <span class="turno-info">${ventas.length} ${ventas.length===1?'pedido':'pedidos'} · ${emps(ventas)} empanadas${extra.length?' · '+extra.join(' · '):''}</span>
         <span class="turno-flecha">▼</span>
       </div>
       <div class="turno-cuerpo"><div class="orders-grid">${lista.map(tarjeta).join('')}</div></div>
@@ -2002,7 +2010,8 @@ function renderOrders(){
                  + bloque('cena','🌙 Cena',porTurno.cena);
   restaurarPlegables();
 
-  const act=orders.filter(o=>o.estado!=='completado');
+  // Los pendientes: sin contar interno ni devoluciones, que no son pedidos
+  const act=soloVentas(orders).filter(o=>o.estado!=='completado');
   document.getElementById('badge-count').textContent=act.length+(act.length===1?' pedido':' pedidos');
 }
 
@@ -2015,18 +2024,19 @@ function updateStats(){
     const cn=lista.length-p;
     el.textContent = lista.length ? `🌞 ${p} · 🌙 ${cn}` : '';
   };
-  const nuevos=orders.filter(o=>o.estado==='nuevo');
-  const prep  =orders.filter(o=>o.estado==='en-preparacion');
-  const comp  =orders.filter(o=>o.estado==='completado');
+  // Los tres contadores cuentan PEDIDOS. El consumo interno y las devoluciones
+  // no son pedidos, así que no suman: aparecen en las tarjetas pero no en el número.
+  const ventas=soloVentas(orders);
+  const nuevos=ventas.filter(o=>o.estado==='nuevo');
+  const prep  =ventas.filter(o=>o.estado==='en-preparacion');
+  const comp  =ventas.filter(o=>o.estado==='completado');
   document.getElementById('stat-nuevo').textContent=nuevos.length;
   document.getElementById('stat-prep').textContent=prep.length;
   document.getElementById('stat-comp').textContent=comp.length;
   split('turnos-nuevo',nuevos);
   split('turnos-prep',prep);
   split('turnos-comp',comp);
-  // "Empanadas hoy" es un contador de VENTAS: el consumo interno no suma acá.
-  // Los contadores de estado (nuevos / en preparación / completados) sí lo incluyen,
-  // porque esos pedidos hay que prepararlos igual.
+  // "Empanadas hoy" es un contador de VENTAS, igual que los tres de arriba.
   let t=0, tp=0, tc=0;
   soloVentas(orders).forEach(o=>{
     let n=0;
