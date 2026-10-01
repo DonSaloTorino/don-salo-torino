@@ -5407,7 +5407,16 @@ function cocCalcularFIFO(){
     // unidades. El ajuste es una corrección del conteo de la vitrina: NO toca
     // el stock, porque esas empanadas ya se descontaron al venderse o nunca
     // existieron para el sistema.
-    const min=minutoDe(c);
+    let min=minutoDe(c);
+    // ── COCCIÓN AUTOMÁTICA ──
+    // La crea el control para cubrir ventas que no tenían cocción registrada.
+    // Se graba a la hora en que corrió el control, que puede ser mucho después
+    // de esas ventas. Si se ordenara por esa hora, las ventas pasarían primero,
+    // no encontrarían nada, y la cocción quedaría entera como disponible.
+    // Por eso se la coloca JUSTO ANTES de las ventas del turno que vino a cubrir.
+    if(c.auto && c.origen==='deficit'){
+      min = (c.turno==='t2') ? 20*60-1 : 13*60-1;
+    }
     // El conteo de vitrina FIJA el número: no es una entrada ni una salida,
     // es "en este momento había exactamente esto". Guardar la diferencia, como
     // se hacía antes, se rompía apenas cambiaba algo en el cálculo.
