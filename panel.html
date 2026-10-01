@@ -1464,7 +1464,13 @@ function arrancarApp(){
   initSabores();
   iniciarRelojControles();
   setTimeout(()=>{
-    cocCargarLimite().then(()=>cocLoadAll()).catch(e=>console.error('chequeo inicial cocción',e));
+    // El interruptor de la reconciliación se lee ANTES del primer cálculo.
+    // Si no, el control automático corre con el valor por defecto (encendido)
+    // y registra cocciones aunque esté apagado — que es justo lo que pasaba.
+    cocCargarLimite()
+      .then(()=>cocCargarAuto())
+      .then(()=>cocLoadAll())
+      .catch(e=>console.error('chequeo inicial cocción',e));
   }, 2500);
 }
 
@@ -5127,27 +5133,32 @@ const cocControlesHechos=new Set();   // turnos ya corridos en esta sesión
 // Desde que contás la vitrina dos veces por día, tenés el dato real medido,
 // y las dos cosas se pisan. Con esto apagado, las cocinadas salen solo de lo
 // que registrás al cocinar y de lo que corregís contando. Nada se inventa.
-let cocAutoActivo=true;
+// Arranca en null: "todavía no sé". Hasta que no se lea de la base, el control
+// automático no corre. Antes arrancaba en true y registraba cocciones en los
+// segundos que tardaba en enterarse de que estaba apagado.
+let cocAutoActivo=null;
 
 async function cocCargarAuto(){
   try{
     const snap=await getDoc(doc(db,'config','settings'));
-    if(snap.exists() && snap.data().reconciliacionAuto!==undefined){
-      cocAutoActivo = snap.data().reconciliacionAuto !== false;
-    }
-  }catch(e){ console.error('cocCargarAuto error',e); }
+    const v = snap.exists() ? snap.data().reconciliacionAuto : undefined;
+    cocAutoActivo = (v===undefined) ? true : (v !== false);
+  }catch(e){
+    console.error('cocCargarAuto error',e);
+    cocAutoActivo = false;   // ante la duda, no inventa nada
+  }
   pintarInterruptorAuto();
 }
 function pintarInterruptorAuto(){
   const sw=document.getElementById('coc-auto-switch');
   const tx=document.getElementById('coc-auto-texto');
-  if(sw) sw.className='beb-switch'+(cocAutoActivo?' on':'');
+  if(sw) sw.className='beb-switch'+(cocAutoActivo===true?' on':'');
   if(tx) tx.textContent = cocAutoActivo
     ? 'El sistema da de alta solo lo que se vendió sin cocción registrada'
     : 'Apagado — las cocinadas salen solo de lo que cargás y de contar la vitrina';
 }
 window.cocToggleAuto=async function(){
-  const nuevo=!cocAutoActivo;
+  const nuevo = cocAutoActivo!==true;
   const msg = nuevo
     ? '¿Encender la reconciliación automática?\n\nEl sistema va a dar de alta como cocinadas las empanadas que se vendieron sin tener cocción registrada.'
     : '¿Apagar la reconciliación automática?\n\nLas cocinadas van a salir solo de lo que registres al cocinar y de lo que corrijas contando la vitrina. Si algún sabor queda en negativo, lo vas a ver y lo corregís contando.';
@@ -5214,7 +5225,8 @@ async function cocReconciliarDeficit(turno){
 // Corre los controles que correspondan y devuelve lo que se registró
 async function cocCorrerControles(){
   const resumen={total:0,detalle:[],turnos:[]};
-  if(!cocAutoActivo) return resumen;   // apagado: no se da de alta nada solo
+  // Apagado, o todavía sin saber si está encendido: no se registra nada
+  if(cocAutoActivo!==true) return resumen;
   for(const c of cocControlesPasados()){
     if(cocControlesHechos.has(c.turno)) continue;
     cocControlesHechos.add(c.turno);
@@ -5241,7 +5253,7 @@ function iniciarRelojControles(){
     const hoy=cocHoy();
     if(hoy!==cocDiaControl){ cocDiaControl=hoy; cocControlesHechos.clear(); }
     // Revisa cada 5 minutos si se cruzó alguna hora de control
-    if(cocAutoActivo && cocControlesPasados().some(c=>!cocControlesHechos.has(c.turno))){
+    if(cocAutoActivo===true && cocControlesPasados().some(c=>!cocControlesHechos.has(c.turno))){
       cocLoadAll().catch(e=>console.error('control automático',e));
     }
   }, 5*60*1000);
