@@ -5041,14 +5041,16 @@ async function cocLoadAll(){
         const s=nombreLimpio(i.nombre);
         const q=parseInt(i.cantidad)||0;
         if(!q) return;
-        // Se separa por turno: el control del mediodía cierra solo el mediodía,
-        // y el de la noche cierra la noche. Antes se acumulaba todo el día junto
-        // y el control de las 14:00, si corría a las 18:50, daba de alta como
-        // cocinadas ventas de la cena que todavía no habían pasado.
+        // Cada venta guarda SU HORA REAL. Antes se agrupaban por turno y se
+        // procesaban todas como si fueran a las 13:00: un conteo de vitrina de
+        // las 12:01 quedaba antes de ventas que ya habían ocurrido, y esas
+        // ventas se comían lo que acababas de contar.
         const t=turnoDePedido(o);
+        const min=ts.getHours()*60+ts.getMinutes();
         map[s]=map[s]||{};
-        map[s][f]=map[s][f]||{pranzo:0, cena:0};
+        map[s][f]=map[s][f]||{pranzo:0, cena:0, eventos:[]};
         map[s][f][t]+=q;
+        map[s][f].eventos.push({cant:q, turno:t, minuto:min});
       });
     });
     cocVentasPorDia=map;
@@ -5392,6 +5394,13 @@ function cocCalcularFIFO(){
       orden: (orden===undefined||orden===null) ? null : orden
     });
   };
+  // Hora de la primera venta de ese sabor, ese día y ese turno
+  const primeraVenta=(sabor,fecha,turno)=>{
+    const porDia=(cocVentasPorDia[sabor]||{})[fecha];
+    const evs=porDia && porDia.eventos ? porDia.eventos.filter(e=>e.turno===turno) : [];
+    if(!evs.length) return turno==='cena' ? 20*60 : 13*60;
+    return Math.min(...evs.map(e=>e.minuto));
+  };
   // Minuto del día de un documento, si tiene hora guardada
   const minutoDe=(d)=>{
     const ts=d && d.timestamp;
@@ -5415,7 +5424,10 @@ function cocCalcularFIFO(){
     // no encontrarían nada, y la cocción quedaría entera como disponible.
     // Por eso se la coloca JUSTO ANTES de las ventas del turno que vino a cubrir.
     if(c.auto && c.origen==='deficit'){
-      min = (c.turno==='t2') ? 20*60-1 : 13*60-1;
+      // Va justo antes de la primera venta del turno que vino a cubrir.
+      // Si no hay ventas ese día, da igual dónde caiga.
+      min = (c.turno==='t2') ? primeraVenta(c.sabor,c.fecha,'cena')-1
+                             : primeraVenta(c.sabor,c.fecha,'pranzo')-1;
     }
     // El conteo de vitrina FIJA el número: no es una entrada ni una salida,
     // es "en este momento había exactamente esto". Guardar la diferencia, como
@@ -5428,8 +5440,14 @@ function cocCalcularFIFO(){
     Object.entries(porDia).forEach(([fecha,porTurno])=>{
       // Las ventas se agrupan por turno, así que se usa una hora representativa:
       // el mediodía en medio del servicio de pranzo, la cena a la noche.
-      if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo',true,13*60);
-      if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena',true,20*60);
+      // Una entrada por cada venta, con la hora real en que entró el pedido.
+      // Los días viejos, que no tienen el detalle, caen al modo de antes.
+      if(porTurno.eventos && porTurno.eventos.length){
+        porTurno.eventos.forEach(ev=>agregar(sabor,fecha,'out',ev.cant,ev.turno,true,ev.minuto));
+      }else{
+        if(porTurno.pranzo>0) agregar(sabor,fecha,'out',porTurno.pranzo,'pranzo',true,13*60);
+        if(porTurno.cena>0)   agregar(sabor,fecha,'out',porTurno.cena,'cena',true,20*60);
+      }
     });
   });
 
