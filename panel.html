@@ -91,6 +91,9 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .card-footer { padding:12px 18px;background:#fafafa;border-top:1px solid #f0f0f0;display:flex;gap:8px;align-items:center; }
 .total-label { font-size:12px;color:#aaa;flex:1; }
 .total-num { font-size:14px;font-weight:600; }
+.desglose-tipos{font-size:11px;letter-spacing:1px;margin-top:3px;font-weight:700;}
+.dt-cl{color:#2563eb;}
+.dt-sp{color:#b91c1c;}
 .action-btn { padding:8px 14px;border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:500;border:none;transition:all 0.15s; }
 .btn-preparar { background:#111;color:#fff; }
 .btn-preparar:hover { background:#333; }
@@ -1931,6 +1934,26 @@ function resumenPorTurno(lista){
   return r;
 }
 
+// Cuántas classiche y cuántas speciali tiene el pedido.
+// Se muestra en la tarjeta para poder marcar en la caja desde la tablet,
+// sin tener la comanda impresa delante.
+// Desglose de un conjunto de pedidos, para la cabecera de cada turno
+function tiposDe(lista){
+  let cl=0, sp=0;
+  (lista||[]).forEach(o=>{ const n=contarPorTipo(o); cl+=n.classicas; sp+=n.especiales; });
+  if(cl+sp===0) return '';
+  return ` · <span class="dt-cl">${cl} CL</span> · <span class="dt-sp">${sp} SP</span>`;
+}
+
+function desgloseTipos(o){
+  const n=contarPorTipo(o);
+  if(n.total===0) return '';
+  const partes=[];
+  if(n.classicas>0) partes.push(`<span class="dt-cl">${n.classicas} CL</span>`);
+  if(n.especiales>0) partes.push(`<span class="dt-sp">${n.especiales} SP</span>`);
+  return `<div class="desglose-tipos">${partes.join(' · ')}</div>`;
+}
+
 function renderOrders(){
   const empty=document.getElementById('empty-state');
   const disp=activeFilter?orders.filter(o=>o.estado===activeFilter):orders;
@@ -1984,7 +2007,7 @@ function renderOrders(){
       + takeBadge
       + (promosLabel(o)?'<span class="promo-tag">'+promosLabel(o)+'</span>':'');
 
-    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${MAY(o.cliente||'ANONIMO')}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div></div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
+    return`<div class="${cardClass}">${webBanner}<div class="card-header"><div class="card-header-left"><div class="cliente">${MAY(o.cliente||'ANONIMO')}${canalBadge}${o.modificado?' <span style="font-size:10px;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:10px;">MODIFICATO</span>':''}</div><div class="time">${fTime(o.timestamp)}${!isWeb&&o.fecha&&o.fecha!==today?' · <span style="color:#a08030">📅 '+fFecha(o.fecha)+'</span>':''}</div></div><span class="estado-badge estado-${o.estado}">${eLabel(o.estado)}</span></div><div class="card-items">${items}</div><div class="card-footer no-print"><div><div class="total-label">Totale</div><div class="total-num">${emp} emp.</div>${desgloseTipos(o)}</div>${btn}${canEdit?`<button class="action-btn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;" onclick="editOrder('${o.id}')">✏️</button>`:''}<button class="action-btn btn-print" onclick="printOrder('${o.id}')">🖨</button>${cancelBtn}</div></div>`;
   };
 
   // Los pedidos se muestran separados en ALMUERZO y CENA. Cada bloque se puede
@@ -2006,7 +2029,7 @@ function renderOrders(){
     return `<div class="turno-bloque plegable" id="${id}" data-abierto="1">
       <div class="turno-cab ${clave}" onclick="togglePlegable('${id}')">
         <span class="turno-tit">${titulo}</span>
-        <span class="turno-info">${ventas.length} ${ventas.length===1?'pedido':'pedidos'} · ${emps(ventas)} empanadas${extra.length?' · '+extra.join(' · '):''}</span>
+        <span class="turno-info">${ventas.length} ${ventas.length===1?'pedido':'pedidos'} · ${emps(ventas)} empanadas${tiposDe(ventas)}${extra.length?' · '+extra.join(' · '):''}</span>
         <span class="turno-flecha">▼</span>
       </div>
       <div class="turno-cuerpo"><div class="orders-grid">${lista.map(tarjeta).join('')}</div></div>
