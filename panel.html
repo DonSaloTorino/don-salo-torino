@@ -2,13 +2,16 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Don Salo — Panel Mostrador</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <!-- SheetJS: genera archivos .xlsx reales (no CSV) para los botones "Excel" de cada solapa -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+/* touch-action va solo en los botones. Aplicado a TODO, algunos Android
+   dejan de reconocer el gesto de scroll dentro de contenedores con overflow. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+button, .modal-card, .coc-modal-card, .stat-card { touch-action: manipulation; }
 /* TODO EL PANEL EN MAYÚSCULAS.
    Se hace por CSS para que alcance a cada texto de la pantalla sin tocar
    ni un dato: lo guardado en Firestore no cambia, solo cómo se ve. */
@@ -115,6 +118,52 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .stat-num { font-size:28px;font-weight:600;color:#111; }
 .filter-hint { font-size:9px;color:#ccc;margin-top:2px;letter-spacing:1px; }
 
+/* ══════════════════════════════════════
+   CELULAR Y TABLET ANGOSTA
+   El modal pasa a pantalla completa y respeta las barras del sistema.
+   100dvh tiene en cuenta la barra del navegador que aparece y desaparece;
+   100vh sola deja parte del modal tapada en iPhone.
+   ══════════════════════════════════════ */
+@media (max-width: 760px){
+  .modal-overlay{ align-items: stretch; justify-content: stretch; }
+  .modal{
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .modal-top{ padding: 14px 16px 10px; max-height: 58vh; }
+  .modal-top-row{ flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .modal-title{ font-size: 16px; flex-basis: 100%; }
+  .modal-scroll{ padding: 0 12px 24px; }
+  /* Tres columnas en un teléfono dejan los nombres ilegibles */
+  .modal-grid{ grid-template-columns: repeat(2,1fr); gap: 7px; }
+  .modal-card{ min-height: 78px; }
+  .modal-card-name{ font-size: 12px; }
+  /* Los botones de canal y las promos, más compactos */
+  .canal-btn, .consumo-btn{ padding: 7px 11px; font-size: 11px; }
+  .promo-item{ min-width: 104px; padding: 7px 10px; }
+  .modal-tab-btn{ padding: 6px 13px; font-size: 11px; }
+  .modal-input{ font-size: 16px; }   /* 16px evita que el iPhone haga zoom al escribir */
+  /* La grilla de pedidos, a una columna */
+  .orders-grid{ grid-template-columns: 1fr; }
+  .main{ padding: 14px 12px 70px; }
+  .stats-bar{ gap: 10px; }
+  .stat-card{ min-width: 0; padding: 11px 14px; }
+  .stat-num{ font-size: 23px; }
+  /* La cabecera, que con tantas solapas se desarmaba */
+  .header{ flex-wrap: wrap; gap: 10px; padding: 12px 14px; }
+  .header-right{ width: 100%; flex-wrap: wrap; gap: 7px; }
+  .header-left .brand{ font-size: 18px; }
+  /* Las tablas largas se mueven de costado en vez de romper la pantalla */
+  .hist-table-wrap, .stock-table-wrap, .coc-table-wrap{ overflow-x: auto; }
+  .hist-table, .stock-table, .coc-table{ min-width: 720px; }
+  .fab-btn{ bottom: calc(18px + env(safe-area-inset-bottom, 0px)); right: 18px; }
+}
+
 @media print {
   body{background:#fff;} .header,.stats-bar,.card-footer,.no-print{display:none!important;}
   .orders-grid{grid-template-columns:1fr;gap:12px;} .order-card{break-inside:avoid;border:1px solid #ccc;}
@@ -147,6 +196,11 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 /* Parte fija arriba */
 .modal-top {
   flex-shrink: 0;
+  /* Si la parte de arriba crece mucho (promos, canales, tabs) no puede comerse
+     toda la pantalla: a partir de cierto alto scrollea ella también. */
+  max-height: 55vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px 24px 14px;
   border-bottom: 2px solid #eee;
 }
@@ -192,7 +246,18 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .modal-tab-btn.active { background:#111;color:#fff;border-color:#111; }
 
 /* Parte scrolleable */
-.modal-scroll { flex:1;overflow-y:auto;padding:0 16px 20px; }
+.modal-scroll {
+  flex: 1 1 0;
+  /* min-height:0 es IMPRESCINDIBLE: sin esto un hijo flexible no puede
+     encogerse por debajo de su contenido, el overflow nunca se activa y la
+     lista no scrollea. En pantalla grande no se nota porque sobra espacio;
+     en el celular la lista queda sin lugar y no se puede mover. */
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 0 16px 20px;
+}
 
 .modal-section-label { font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#888;padding:14px 0 8px; }
 
