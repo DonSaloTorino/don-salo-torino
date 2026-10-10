@@ -768,6 +768,8 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .del-edit input,.del-edit select{padding:7px 10px;border:1px solid #ddd;border-radius:6px;
   font-size:12px;font-family:'DM Sans',sans-serif;width:100%;}
 .del-edit .del-acciones{grid-column:1/-1;margin-top:4px;}
+.del-paso-fin{display:inline-block;padding:8px 15px;border-radius:7px;background:#d1fae5;
+  color:#065f46;font-size:12px;font-weight:600;letter-spacing:.5px;}
 .del-vacio{text-align:center;color:#ccc;padding:34px;font-size:13px;}
 .coc-auto-box{background:#fff;border:1px solid #eee;border-radius:10px;padding:11px 16px;max-width:290px;}
 .coc-auto-top{display:flex;align-items:center;gap:10px;}
@@ -1328,7 +1330,8 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 <div class="beb-panel" id="del-panel" style="display:none;">
   <div class="del-top">
     <div class="del-fecha" id="del-fecha"></div>
-    <button class="stock-btn stock-btn-sec" onclick="delCargar()">🔄 Actualizar</button>
+    <button class="stock-btn stock-btn-sec" id="del-refresh" onclick="delCargar()">🔄 Actualizar</button>
+    <button class="stock-btn stock-btn-sec" id="btn-dinero-del" onclick="toggleDinero()">👁 Ver importes</button>
     <div class="del-cfg">
       <span class="del-cfg-lbl">Envío</span>
       <input type="number" step="0.01" id="del-envio" class="umbral-input">
@@ -2972,7 +2975,7 @@ window.switchTab=function(tab){
   document.getElementById('del-panel').style.display=tab==='delivery'?'block':'none';
   document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas',delivery:'Entregas propias'}[tab];
   if(tab==='stats'){sLoadFixed();sLoadData();pintarDinero();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocCargarAuto()).then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
-  if(tab==='delivery')delInit();
+  if(tab==='delivery'){delInit();pintarDinero();}
 };
 
 // ═══════════════════════════════════════════════════════
@@ -3046,6 +3049,10 @@ window.delGuardarCfg = async function(){
 };
 
 window.delCargar = async function(){
+  // El botón avisa que está trabajando: antes parecía que no hacía nada
+  const btn = document.getElementById('del-refresh');
+  const txtOriginal = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = '⏳ Buscando...'; btn.disabled = true; }
   const hoy = cocHoy();
   const f = document.getElementById('del-fecha');
   if(f) f.textContent = '🛵 ' + delFechaLegible(hoy);
@@ -3059,9 +3066,14 @@ window.delCargar = async function(){
     console.error('delCargar', e);
     document.getElementById('del-pendientes').innerHTML =
       '<div class="del-vacio">No se pudieron cargar las solicitudes.<br>'+e.message+'</div>';
+    if(btn){ btn.textContent = txtOriginal; btn.disabled = false; }
     return;
   }
   delRender();
+  if(btn){
+    btn.textContent = '✓ Actualizado';
+    setTimeout(()=>{ btn.textContent = txtOriginal; btn.disabled = false; }, 1200);
+  }
 };
 
 // Una solicitud vencida es la que pasó los 15 minutos sin avisar el pago
@@ -3163,6 +3175,35 @@ async function delLiberarCupo(fecha, franja){
     });
   }catch(e){ console.error('liberar cupo', e); }
 }
+
+// ── LOS PASOS QUE VE EL CLIENTE ──
+// Son cuatro y van en orden. El último no avanza a ningún lado: antes el
+// botón ciclaba sin fin y se podía volver de "entregado" a "preparación".
+const DEL_PASOS = [
+  { id:'confirmado',  n:1, txt:'Pago confirmado' },
+  { id:'preparacion', n:2, txt:'En preparación' },
+  { id:'camino',      n:3, txt:'En camino' },
+  { id:'entregado',   n:4, txt:'Entregado' }
+];
+function delPaso(id){ return DEL_PASOS.find(p=>p.id===id) || DEL_PASOS[0]; }
+
+function delBotonPaso(e){
+  const actual = delPaso(e.estado);
+  const sig = DEL_PASOS[actual.n];          // el siguiente, si existe
+  const etiqueta = `${e.codigo} · <b>${actual.n}. ${actual.txt}</b>`;
+  if(!sig){
+    return `<span class="del-paso-fin">${etiqueta} ✓</span>`;
+  }
+  return `<button class="del-btn est" onclick="delEstado('${e.codigo}','${sig.id}')">
+    ${etiqueta} → ${sig.n}. ${sig.txt}</button>`;
+}
+
+// Volver un paso atrás, por si te adelantaste
+window.delVolverPaso = async function(codigo, estadoActual){
+  const a = delPaso(estadoActual);
+  if(a.n <= 1) return;
+  await delEstado(codigo, DEL_PASOS[a.n-2].id);
+};
 
 // ── ESTADO QUE VE EL CLIENTE ──
 // Vive en pedidos, que es de lectura pública, así que la pantalla de
@@ -3293,7 +3334,7 @@ function delRender(){
         <div class="del-ped-cab">
           <span class="del-cod">${s.id}</span>
           <span class="del-chip franja">${s.franja}</span>
-          <span class="del-chip ok">${MAY(est)}</span>
+          <span class="del-chip ok">${delPaso(est).n}. ${MAY(delPaso(est).txt)}</span>
         </div>
         <div class="del-dato"><b>${MAY(s.name||'—')}</b> · ${s.phone||'—'}</div>
         <div class="del-dato">${MAY(s.address||'—')}${s.details?' · Timbre: '+MAY(s.details):''}${s.distKm?' · '+Number(s.distKm).toFixed(1)+' km':''}</div>
@@ -3340,8 +3381,7 @@ function delRender(){
       </div>
       <div class="del-msg" id="msg-${idFr}">${delMensajeRuta(franja, entregas, esUltima)}</div>
       <div class="del-acciones">
-        ${entregas.map(e=>`<button class="del-btn est" onclick="delEstado('${e.codigo}','${e.estado==='camino'?'entregado':e.estado==='preparacion'?'camino':'preparacion'}')">
-          ${e.codigo}: ${e.estado} → ${e.estado==='camino'?'entregado':e.estado==='preparacion'?'camino':'preparacion'}</button>`).join('')}
+        ${entregas.map(e=>delBotonPaso(e)).join('')}
       </div>
     </div>`;
   });
@@ -4064,6 +4104,11 @@ window.toggleDinero=function(){
 function pintarDinero(){
   const b=document.getElementById('btn-dinero');
   if(b) b.textContent = dineroVisible ? '🙈 Ocultar importes' : '👁 Ver importes';
+  const bd=document.getElementById('btn-dinero-del');
+  if(bd) bd.textContent = dineroVisible ? '🙈 Ocultar importes' : '👁 Ver importes';
+  // Si la solapa de entregas está abierta, se vuelve a dibujar con los importes
+  const dp=document.getElementById('del-panel');
+  if(dp && dp.style.display==='block' && typeof delRender==='function') delRender();
   if(sMesCache) sMesPintar(sMesCache);
   const cont=document.getElementById('s-turnos');
   if(cont && sTurnosCache) pintarTurnos(sTurnosCache);
