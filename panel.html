@@ -724,6 +724,45 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .coc-pr-btn.mas:hover{background:#f0fdf4;}
 .coc-pr-btn.menos{border-color:#fecaca;color:#991b1b;}
 .coc-pr-btn.menos:hover{background:#fef2f2;}
+.del-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+.del-fecha{font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.del-cfg{display:flex;align-items:center;gap:7px;margin-left:auto;}
+.del-cfg-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#999;}
+.del-resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px;}
+.del-card{background:#fff;border:1px solid #eee;border-radius:10px;padding:14px 16px;}
+.del-card.rider{background:#111;color:#fff;border-color:#111;}
+.del-card.margen{background:#f0fdf4;border-color:#bbf7d0;}
+.del-c-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin-bottom:5px;}
+.del-card.rider .del-c-lbl{color:rgba(255,255,255,0.5);}
+.del-c-num{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
+.del-c-sub{font-size:11px;color:#bbb;margin-top:3px;}
+.del-card.rider .del-c-sub{color:rgba(255,255,255,0.45);}
+.del-seccion{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#bbb;margin:22px 0 10px;font-weight:600;}
+.del-ped{background:#fff;border:1px solid #eee;border-radius:10px;padding:15px 17px;margin-bottom:10px;}
+.del-ped.esperando{border-left:4px solid #f59e0b;}
+.del-ped.avisado{border-left:4px solid #2563eb;background:#eff6ff;}
+.del-ped-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+.del-cod{font-size:15px;font-weight:700;letter-spacing:1px;}
+.del-chip{font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:12px;font-weight:600;}
+.del-chip.franja{background:#f3f4f6;color:#374151;}
+.del-chip.esperando{background:#fef3c7;color:#92400e;}
+.del-chip.avisado{background:#dbeafe;color:#1e40af;}
+.del-chip.ok{background:#d1fae5;color:#065f46;}
+.del-dato{font-size:12px;color:#666;line-height:1.7;}
+.del-dato b{color:#111;}
+.del-items{font-size:12px;color:#888;margin:7px 0;line-height:1.6;}
+.del-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;}
+.del-btn{padding:8px 15px;border-radius:7px;border:1px solid #ddd;background:#fff;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.5px;}
+.del-btn.ok{background:#065f46;color:#fff;border-color:#065f46;}
+.del-btn.no{border-color:#fecaca;color:#991b1b;}
+.del-btn.est{border-color:#bfdbfe;color:#1e40af;}
+.del-ruta{background:#fff;border:1px solid #eee;border-radius:10px;padding:15px 17px;margin-bottom:16px;}
+.del-ruta-cab{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.del-ruta-tit{font-size:13px;font-weight:700;letter-spacing:1px;}
+.del-ruta-nota{font-size:10px;color:#999;letter-spacing:.5px;text-transform:uppercase;}
+.del-msg{background:#f9fafb;border:1px dashed #ddd;border-radius:8px;padding:12px 14px;font-size:12px;
+  line-height:1.7;white-space:pre-wrap;text-transform:none;font-family:'DM Sans',sans-serif;color:#333;}
+.del-vacio{text-align:center;color:#ccc;padding:34px;font-size:13px;}
 .coc-auto-box{background:#fff;border:1px solid #eee;border-radius:10px;padding:11px 16px;max-width:290px;}
 .coc-auto-top{display:flex;align-items:center;gap:10px;}
 .coc-auto-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#666;font-weight:600;}
@@ -818,6 +857,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
       <button id="tab-stock" onclick="switchTab('stock')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📦 STOCK</button>
       <button id="tab-coccion" onclick="switchTab('coccion')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🍳 COCCIÓN</button>
       <button id="tab-bebidas" onclick="switchTab('bebidas')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🥤 BEBIDAS</button>
+      <button id="tab-delivery" onclick="switchTab('delivery')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🛵 DELIVERY <span id="del-badge" style="display:none;background:#dc2626;color:#fff;border-radius:9px;padding:1px 6px;font-size:10px;margin-left:3px;"></span></button>
     </div>
     <div class="counter-badge" id="badge-count">0 pedidos</div>
     <button class="btn-salir" onclick="hacerLogout()" title="Cerrar sesión">SALIR</button>
@@ -1273,6 +1313,30 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 </div>
 
 <!-- BEBIDAS PANEL -->
+<!-- ═══════════════════════════════════════════════════════
+     DELIVERY — entregas propias
+     Acá se confirman los pagos y se arma el reparto. Los datos
+     personales del cliente viven solo en esta pantalla: nunca
+     pasan a "pedidos", que la impresora lee sin contraseña.
+     ═══════════════════════════════════════════════════════ -->
+<div class="beb-panel" id="del-panel" style="display:none;">
+  <div class="del-top">
+    <div class="del-fecha" id="del-fecha"></div>
+    <button class="stock-btn stock-btn-sec" onclick="delCargar()">🔄 Actualizar</button>
+    <div class="del-cfg">
+      <span class="del-cfg-lbl">Envío</span>
+      <input type="number" step="0.01" id="del-envio" class="umbral-input">
+      <span class="del-cfg-lbl">Rider</span>
+      <input type="number" step="0.01" id="del-rider" class="umbral-input">
+      <button class="stock-btn" onclick="delGuardarCfg()">Guardar</button>
+    </div>
+  </div>
+
+  <div class="del-resumen" id="del-resumen"></div>
+  <div class="del-pendientes" id="del-pendientes"></div>
+  <div class="del-franjas" id="del-franjas"></div>
+</div>
+
 <div class="beb-panel" id="beb-panel">
   <button class="beb-add-btn" onclick="openBebModal()">+ Agregar bebida</button>
 
@@ -1453,7 +1517,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -1773,7 +1837,14 @@ const CANALES = {
   // devolver. No factura y tampoco es un costo, porque se recupera.
   devolucion:{label:'Devolución', corto:'Devol.', delivery:false, esVenta:false, sinCosto:true},
   qr:       {label:'QR',        corto:'QR',        delivery:false},
-  web:      {label:'Web',       corto:'Web',       delivery:false}
+  web:      {label:'Web',       corto:'Web',       delivery:false},
+  // ── CONSEGNA: el delivery propio ──
+  // delivery:false a propósito. Esa marca activa los COMBOS de las apps
+  // (6/9/12 empanadas a precio cerrado), y acá se cobra con los tramos del
+  // local: 1-8 y 9+. Sin esa distinción, un pedido de 5 saldría €38.
+  // propio:true lo agrupa aparte en las estadísticas, sin mezclarlo con
+  // Glovo ni con los pedidos del mostrador.
+  logistica:{label:'Consegna',  corto:'Consegna',  delivery:false, propio:true}
 };
 // ¿Este pedido factura? El consumo interno no.
 function esConsumoInterno(o){ return canalKey(o)==='interno'; }
@@ -1988,7 +2059,7 @@ function resumenPorTurno(lista){
       else if(k==='devolucion') x.devol+=n;
       else {
         x.emp+=n;
-        if(CANALES[k].delivery) x.deliv++;
+        if(CANALES[k].delivery || CANALES[k].propio) x.deliv++;
         else if(esTakeaway(o)) x.take++;
         else x.mangia++;
       }
@@ -2885,16 +2956,363 @@ document.getElementById('beb-modal-overlay').addEventListener('click',e=>{if(e.t
 // ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
-  ['pedidos','stats','hist','stock','coccion','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
+  ['pedidos','stats','hist','stock','coccion','bebidas','delivery'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
   document.getElementById('main').style.display=tab==='pedidos'?'block':'none';
   document.getElementById('stats-panel').style.display=tab==='stats'?'block':'none';
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
   document.getElementById('stock-panel').style.display=tab==='stock'?'block':'none';
   document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
-  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas'}[tab];
+  document.getElementById('del-panel').style.display=tab==='delivery'?'block':'none';
+  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas',delivery:'Entregas propias'}[tab];
   if(tab==='stats'){sLoadFixed();sLoadData();pintarDinero();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocCargarAuto()).then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
+  if(tab==='delivery')delInit();
 };
+
+// ═══════════════════════════════════════════════════════
+//  DELIVERY — ENTREGAS PROPIAS
+//  Los datos del cliente (nombre, teléfono, dirección) viven en
+//  solicitudes_delivery y delivery_privado, nunca en pedidos:
+//  esa colección la lee la impresora sin contraseña.
+// ═══════════════════════════════════════════════════════
+const DEL_ENVIO_DEF = 5.99;
+const DEL_RIDER_DEF = 5.00;
+let delEnvio = DEL_ENVIO_DEF, delRider = DEL_RIDER_DEF;
+let delSolicitudes = [], delPedidos = [];
+
+// Las claves del menú del cliente no son los nombres internos del stock.
+// Sin esta traducción se crearían sabores duplicados.
+const DEL_NOMBRE_INTERNO = {
+  'Caprese':'CAPRESE', 'Carne':'CARNE', 'Formaggio e Cipolla':'FORMAGGIO E CIPOLLA',
+  'Humita':'HUMITA', 'Prosciutto e Formaggio':'PROSCIUTTO E FORMAGGIO',
+  'Tonno e Cipolla':'TONNO E CIPOLLA', 'Verdura':'VERDURA',
+  'Vacio e Provola':'VACIO (BAVETTA)', 'Matambre':'MATAMBRE (SOTTOPANCIA)',
+  'Chorizo e Broccoli':'CHORIZO + BROCCOLI', 'Cheese Burger':'CHESE BURGER',
+  'Parmigiana':'PARMIGIANA', 'Pollo e Curcuma':'POLLO — CURCUMA',
+  'Bondiola alla Birra':'BONDIOLA ALLA BIRRA',
+  'Entrecote + Chimichurri':'ENTRECOTE + CHIMICHURRI',
+  'Prosciutto e Formaggio Senza Lattosio':'PROSCIUTTO E FORMAGGIO SENZA LATTOSIO'
+};
+function delInterno(clave){
+  const n = DEL_NOMBRE_INTERNO[clave];
+  if(n) return n;
+  // Si el menú del cliente suma un sabor nuevo, se busca por mayúsculas
+  const up = String(clave||'').toUpperCase();
+  const e = EMP.find(x => x.nombre.toUpperCase() === up);
+  return e ? e.nombre : up;
+}
+
+// Fecha en palabras: "Viernes 10/10"
+function delFechaLegible(f){
+  const dias=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const d=new Date(f+'T00:00:00');
+  return dias[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+async function delInit(){
+  await delCargarCfg();
+  await delCargar();
+}
+
+async function delCargarCfg(){
+  try{
+    const s = await getDoc(doc(db,'config','settings'));
+    if(s.exists()){
+      const d = s.data();
+      if(typeof d.deliveryEnvio === 'number') delEnvio = d.deliveryEnvio;
+      if(typeof d.deliveryRider === 'number') delRider = d.deliveryRider;
+    }
+  }catch(e){ console.error('delCargarCfg', e); }
+  const a=document.getElementById('del-envio'), b=document.getElementById('del-rider');
+  if(a) a.value = delEnvio.toFixed(2);
+  if(b) b.value = delRider.toFixed(2);
+}
+
+window.delGuardarCfg = async function(){
+  const a = parseFloat(document.getElementById('del-envio').value);
+  const b = parseFloat(document.getElementById('del-rider').value);
+  if(isNaN(a) || isNaN(b) || a < 0 || b < 0){ alert('Valores no válidos.'); return; }
+  try{
+    await setDoc(doc(db,'config','settings'), { deliveryEnvio:a, deliveryRider:b }, { merge:true });
+    delEnvio = a; delRider = b;
+    await delCargar();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+window.delCargar = async function(){
+  const hoy = cocHoy();
+  const f = document.getElementById('del-fecha');
+  if(f) f.textContent = '🛵 ' + delFechaLegible(hoy);
+  try{
+    const snap = await getDocs(query(collection(db,'solicitudes_delivery')));
+    delSolicitudes = snap.docs.map(d=>({id:d.id, ...d.data()}))
+      .filter(s => s.fecha === hoy);
+    // Los que ya pasaron a pedido: se leen de los pedidos de hoy en memoria
+    delPedidos = soloPedidos(orders).filter(o => canalKey(o) === 'logistica');
+  }catch(e){
+    console.error('delCargar', e);
+    document.getElementById('del-pendientes').innerHTML =
+      '<div class="del-vacio">No se pudieron cargar las solicitudes.<br>'+e.message+'</div>';
+    return;
+  }
+  delRender();
+};
+
+// Una solicitud vencida es la que pasó los 15 minutos sin avisar el pago
+function delVencida(s){
+  if(s.estado === 'vencida' || s.estado === 'rechazada') return true;
+  if(s.estado === 'confirmada') return false;
+  if(s.estado === 'pago_avisado') return false;
+  return s.vence && Date.now() > s.vence;
+}
+
+// ── CONFIRMAR EL PAGO ──
+// Es el momento en que la solicitud se convierte en un pedido real:
+// imprime, descuenta stock y entra en las estadísticas. Los datos del
+// cliente se copian a delivery_privado; a pedidos NO va ninguno.
+window.delConfirmar = async function(codigo){
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!s) return;
+  if(!confirm(
+    `Confirmar el pago de ${codigo}?\n\n`+
+    `${s.name} · ${s.franja}\n`+
+    `${s.qty} empanadas · ${eur(s.subtotal||0)} + ${eur(s.envio||delEnvio)} de envío\n\n`+
+    `Se va a imprimir la comanda y se va a descontar del stock.`
+  )) return;
+
+  // Ítems con el nombre interno y el prefijo, igual que el mostrador y el QR
+  const ei = [];
+  let nCl = 0, nSp = 0;
+  Object.entries(s.flavors || {}).forEach(([clave, q])=>{
+    const cant = parseInt(q) || 0;
+    if(cant <= 0) return;
+    const interno = delInterno(clave);
+    const emp = EMP.find(x => x.nombre === interno);
+    const tipo = emp ? emp.tipoEmp : 'classica';
+    if(tipo === 'speciale') nSp += cant; else nCl += cant;
+    ei.push({ nombre: PREFIJO_TIPO[tipo] + interno, cantidad: cant,
+              curcuma: emp ? emp.curcuma === true : false,
+              tipo: 'empanada', tipoEmp: tipo });
+  });
+  if(!ei.length){ alert('La solicitud no tiene empanadas.'); return; }
+
+  const resumen = [];
+  if(nCl > 0) resumen.push({ nombre:'CLASSICHE', cantidad:nCl, tipo:'resumen' });
+  if(nSp > 0) resumen.push({ nombre:'SPECIALI',  cantidad:nSp, tipo:'resumen' });
+  resumen.push({ nombre:'CONSEGNA ' + s.franja, cantidad:1, tipo:'resumen' });
+
+  const items = [...ei, ...resumen];
+
+  try{
+    // 1) El pedido. Sin nombre, sin dirección, sin teléfono.
+    await setDoc(doc(db,'pedidos',codigo), {
+      cliente: 'CONSEGNA ' + s.franja + ' · ' + codigo,
+      items,
+      total: contarPorTipo({items}).total,
+      estado: 'nuevo',
+      canalVenta: 'logistica',
+      consumo: 'delivery',
+      promos: {},
+      franja: s.franja,
+      envio: (typeof s.envio === 'number') ? s.envio : delEnvio,
+      estadoDelivery: 'confirmado',
+      timestamp: serverTimestamp()
+    });
+    // 2) Los datos del cliente, aparte y cerrados
+    await setDoc(doc(db,'delivery_privado',codigo), {
+      name: s.name || '', phone: s.phone || '', address: s.address || '',
+      details: s.details || '', lat: s.lat || null, lng: s.lng || null,
+      distKm: s.distKm || null, franja: s.franja, fecha: s.fecha,
+      fechaCreacion: serverTimestamp()
+    });
+    // 3) La solicitud queda marcada
+    await setDoc(doc(db,'solicitudes_delivery',codigo),
+      { estado:'confirmada', confirmadaMs: Date.now() }, { merge:true });
+    await delCargar();
+  }catch(e){ alert('Error al confirmar: '+e.message); }
+};
+
+// ── RECHAZAR ──
+// El pago no llegó. Se libera el lugar de la franja para otro cliente.
+window.delRechazar = async function(codigo){
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!s) return;
+  if(!confirm(`Rechazar ${codigo}?\n\nSe libera el lugar de la franja ${s.franja}.`)) return;
+  try{
+    await setDoc(doc(db,'solicitudes_delivery',codigo),
+      { estado:'rechazada', rechazadaMs: Date.now() }, { merge:true });
+    await delLiberarCupo(s.fecha, s.franja);
+    await delCargar();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+async function delLiberarCupo(fecha, franja){
+  const k = String(fecha)+'_'+String(franja).replace(/[^0-9A-Za-z]/g,'');
+  try{
+    const ref = doc(db,'cupos',k);
+    await runTransaction(db, async (tx)=>{
+      const snap = await tx.get(ref);
+      const n = snap.exists() ? (snap.data().ocupados||0) : 0;
+      tx.set(ref, { ocupados: Math.max(0, n-1), fecha, franja }, { merge:true });
+    });
+  }catch(e){ console.error('liberar cupo', e); }
+}
+
+// ── ESTADO QUE VE EL CLIENTE ──
+// Vive en pedidos, que es de lectura pública, así que la pantalla de
+// seguimiento lo lee con el código y sin contraseña.
+window.delEstado = async function(codigo, estado){
+  try{
+    await updateDoc(doc(db,'pedidos',codigo), { estadoDelivery: estado });
+    await delCargar();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+// ── ORDEN DE REPARTO ──
+// Franjas intermedias: arranca por el MÁS LEJANO y termina cerca del local,
+// así vuelve enseguida a cargar la tanda siguiente y sale.
+// Última franja del día (o cuando hay una sola): al revés, el más cercano
+// primero, porque ya no tiene que volver a buscar nada.
+function delOrdenarRuta(entregas, esUltima){
+  const conDist = [...entregas].sort((a,b)=>(a.distKm||0)-(b.distKm||0));
+  return esUltima ? conDist : conDist.reverse();
+}
+
+// Las franjas del día, en orden, para saber cuál es la última
+function delFranjasDelDia(){
+  const d = new Date().getDay();
+  const med = ['12:30-13:30','13:30-14:30'];
+  const noche = (d===1||d===2) ? ['19:30-20:30']
+              : (d===3||d===4) ? ['19:30-20:30','20:30-21:30']
+              : (d===5||d===6) ? ['19:30-20:30','20:30-21:30','21:30-22:30']
+              : [];
+  return { mediodia: med, noche };
+}
+
+// El mensaje para copiar y pegarle al rider
+function delMensajeRuta(franja, entregas, esUltima){
+  const lineas = [];
+  lineas.push('🛵 DON SALO · ' + franja);
+  lineas.push(esUltima
+    ? 'Orden: del más cerca al más lejos (última salida).'
+    : 'Orden: del más lejos al más cerca, para volver al local.');
+  lineas.push('');
+  delOrdenarRuta(entregas, esUltima).forEach((e,i)=>{
+    lineas.push(`${i+1}) ${e.address}`);
+    const extra = [];
+    if(e.details) extra.push('Timbre: ' + e.details);
+    if(e.distKm) extra.push(e.distKm.toFixed(1) + ' km');
+    if(extra.length) lineas.push('   ' + extra.join(' · '));
+    lineas.push('   ' + e.name + ' · ' + e.phone);
+    lineas.push('   Pedido ' + e.codigo + ' · ' + e.qty + ' empanadas · PAGADO');
+    lineas.push('');
+  });
+  lineas.push(`Total: ${entregas.length} entregas · a cobrar: nada, ya está pago.`);
+  return lineas.join('\n');
+}
+
+window.delCopiarRuta = function(franja){
+  const txt = document.getElementById('msg-'+franja.replace(/[^0-9]/g,'')).textContent;
+  navigator.clipboard.writeText(txt)
+    .then(()=> alert('Mensaje copiado. Pegáselo al rider.'))
+    .catch(()=> alert('No se pudo copiar. Seleccionalo a mano.'));
+};
+
+function delRender(){
+  const pend = delSolicitudes.filter(s => !delVencida(s) && s.estado !== 'confirmada');
+  const avisados = pend.filter(s => s.estado === 'pago_avisado');
+  const esperando = pend.filter(s => s.estado !== 'pago_avisado');
+
+  // Badge rojo en la solapa: los que esperan que confirmes el pago
+  const badge = document.getElementById('del-badge');
+  if(badge){
+    badge.style.display = avisados.length ? 'inline-block' : 'none';
+    badge.textContent = avisados.length;
+  }
+
+  // ── RESUMEN DEL DÍA ──
+  const entregados = delPedidos.length;
+  const empTot = delPedidos.reduce((a,o)=>a+contarPorTipo(o).total,0);
+  const envioTot = delPedidos.reduce((a,o)=>a+(typeof o.envio==='number'?o.envio:delEnvio),0);
+  const riderTot = entregados * delRider;
+  const margen = envioTot - riderTot;
+  const caja = (lbl,num,sub,cls)=>`<div class="del-card ${cls||''}">
+      <div class="del-c-lbl">${lbl}</div><div class="del-c-num">${num}</div>
+      <div class="del-c-sub">${sub||''}</div></div>`;
+  document.getElementById('del-resumen').innerHTML =
+      caja('🛵 Entregas de hoy', entregados, empTot+' empanadas')
+    + caja('💶 Envíos cobrados', dinero(eur(envioTot)), entregados+' × '+eur(delEnvio))
+    + caja('🤝 A pagar al rider', dinero(eur(riderTot)), entregados+' × '+eur(delRider), 'rider')
+    + caja('📈 Margen de envíos', dinero(eur(margen)),
+        entregados ? dinero(eur(margen/entregados))+' por entrega' : '', 'margen');
+
+  // ── PENDIENTES ──
+  let h = '';
+  if(avisados.length || esperando.length){
+    h += '<div class="del-seccion">Pendientes de confirmar</div>';
+    [...avisados, ...esperando].forEach(s=>{
+      const av = s.estado === 'pago_avisado';
+      const items = Object.entries(s.flavors||{})
+        .map(([k,q])=>`${delInterno(k)} ×${q}`).join(' · ');
+      h += `<div class="del-ped ${av?'avisado':'esperando'}">
+        <div class="del-ped-cab">
+          <span class="del-cod">${s.id}</span>
+          <span class="del-chip franja">${s.franja}</span>
+          <span class="del-chip ${av?'avisado':'esperando'}">${av?'💳 Avisó que pagó':'⏳ Esperando pago'}</span>
+        </div>
+        <div class="del-dato"><b>${MAY(s.name||'—')}</b> · ${s.phone||'—'}</div>
+        <div class="del-dato">${MAY(s.address||'—')}${s.details?' · Timbre: '+MAY(s.details):''}${s.distKm?' · '+s.distKm.toFixed(1)+' km':''}</div>
+        <div class="del-items">${s.qty} empanadas — ${items}</div>
+        <div class="del-dato">${dinero(eur(s.subtotal||0))} + ${dinero(eur(s.envio||delEnvio))} de envío = <b>${dinero(eur(s.total||0))}</b></div>
+        <div class="del-acciones">
+          <button class="del-btn ok" onclick="delConfirmar('${s.id}')">✓ Confirmar pago</button>
+          <button class="del-btn no" onclick="delRechazar('${s.id}')">✕ No llegó</button>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('del-pendientes').innerHTML = h;
+
+  // ── RUTAS POR FRANJA ──
+  const fr = delFranjasDelDia();
+  const todas = [...fr.mediodia, ...fr.noche];
+  const privados = {};
+  delSolicitudes.filter(s=>s.estado==='confirmada').forEach(s=>{ privados[s.id] = s; });
+
+  let r = '';
+  todas.forEach((franja, idx)=>{
+    const deEsta = delPedidos.filter(o => o.franja === franja);
+    if(!deEsta.length) return;
+    // La última franja del turno es la que no tiene otra después
+    const esUltimaMed = fr.mediodia.indexOf(franja) === fr.mediodia.length-1 && fr.mediodia.includes(franja);
+    const esUltimaNoc = fr.noche.indexOf(franja) === fr.noche.length-1 && fr.noche.includes(franja);
+    const esUltima = esUltimaMed || esUltimaNoc;
+
+    const entregas = deEsta.map(o=>{
+      const s = privados[o.id] || {};
+      return { codigo:o.id, address:s.address||'(dirección no disponible)',
+               name:s.name||'—', phone:s.phone||'—', details:s.details||'',
+               distKm: typeof s.distKm==='number'? s.distKm : 0,
+               qty: contarPorTipo(o).total, estado: o.estadoDelivery||'confirmado' };
+    });
+    const idFr = franja.replace(/[^0-9]/g,'');
+    r += `<div class="del-ruta">
+      <div class="del-ruta-cab">
+        <span class="del-ruta-tit">${franja}</span>
+        <span class="del-chip ok">${entregas.length} ${entregas.length===1?'entrega':'entregas'}</span>
+        <span class="del-ruta-nota">${esUltima ? 'última salida · del más cerca al más lejos' : 'vuelve al local · del más lejos al más cerca'}</span>
+        <button class="del-btn est" style="margin-left:auto;" onclick="delCopiarRuta('${franja}')">📋 Copiar para el rider</button>
+      </div>
+      <div class="del-msg" id="msg-${idFr}">${delMensajeRuta(franja, entregas, esUltima)}</div>
+      <div class="del-acciones">
+        ${entregas.map(e=>`<button class="del-btn est" onclick="delEstado('${e.codigo}','${e.estado==='camino'?'entregado':e.estado==='preparacion'?'camino':'preparacion'}')">
+          ${e.codigo}: ${e.estado} → ${e.estado==='camino'?'entregado':e.estado==='preparacion'?'camino':'preparacion'}</button>`).join('')}
+      </div>
+    </div>`;
+  });
+  document.getElementById('del-franjas').innerHTML =
+    r || (delPedidos.length ? '' : '<div class="del-vacio">Todavía no hay entregas confirmadas para hoy.</div>');
+}
 
 // ═══════════════════════════════════════════════════════
 //  EXPORTACIÓN A EXCEL (.xlsx)
@@ -2956,6 +3374,7 @@ function itemsTexto(o){ return (o.items||[]).filter(i=>!esResumen(i)).map(i=>`${
 // Etiqueta de consumo para los reportes
 function consumoLabel(o){
   const k=canalKey(o);
+  if(CANALES[k].propio) return 'Consegna';
   if(CANALES[k].delivery) return 'Delivery';
   return esTakeaway(o) ? 'Takeaway' : 'Mangia qui';
 }
@@ -3565,6 +3984,8 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       // Promos: aplicaciones, pedidos y empanadas, cada cosa por separado
       promos:{}, promoPedidos:par(), empEnPromo:0, empExtraEnPromo:0,
       sinPromo:par(), sinPromoTramo:{corto:0, largo:0},
+      // Entregas propias: cantidad, empanadas, venta y envíos cobrados
+      consegne:{p:0,e:0,pz:0,cn:0, venta:0, envio:0, empPz:0, empCn:0},
       // Bebidas, con las de promo incluidas
       beb:{acqua:0, gassata:0, birra:0},
       // Serie día por día, para exportar
@@ -3589,9 +4010,17 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       if(!r.canales[k]) r.canales[k]=par();
       sum(r.canales[k]);
 
+      // Entregas propias, que se siguen aparte de Glovo y del mostrador
+      if(CANALES[k].propio){
+        sum(r.consegne);
+        r.consegne.venta += ventaPedido(o);
+        r.consegne.envio += (typeof o.envio==='number') ? o.envio : 0;
+        if(esPz) r.consegne.empPz += emp; else r.consegne.empCn += emp;
+      }
+
       if(k==='interno')            sum(r.interno);
       else if(k==='devolucion')    sum(r.devol);
-      else if(CANALES[k].delivery) sum(r.consumo.delivery);
+      else if(CANALES[k].delivery || CANALES[k].propio) sum(r.consumo.delivery);
       else if(esTakeaway(o))       sum(r.consumo.take);
       else                         sum(r.consumo.mangia);
 
@@ -3619,7 +4048,7 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
         const sPromo=Math.max(0, cubiertas-cPromo);
         r.tipos.clPromo+=cPromo; r.tipos.spPromo+=sPromo;
         r.tipos.clSuelta+=n.classicas-cPromo; r.tipos.spSuelta+=n.especiales-sPromo;
-      }else if(esVenta && !CANALES[k].delivery){
+      }else if(esVenta && !CANALES[k].delivery && !CANALES[k].propio){
         sum(r.sinPromo);
         // Tramo de precio que le tocó: es el dato para saber si el 9+ se usa
         if(emp>=9) r.sinPromoTramo.largo++; else r.sinPromoTramo.corto++;
@@ -3723,6 +4152,21 @@ function sMesPintar(r){
   h+=caja('🍺 Birra', r.beb.birra, 'botellas','',pct(r.beb.birra,bebTot));
   h+=caja('Total bebidas', bebTot, r.vPedidos?(bebTot/r.vPedidos).toFixed(2)+' por pedido':'','gan');
   h+='</div>';
+
+  // ── Entregas propias ──
+  if(r.consegne.p > 0){
+    const rider = r.consegne.p * (typeof delRider==='number' ? delRider : 5);
+    h+='<div class="s-mini-sub-title">Consegne · entregas propias</div><div class="s-mini-grid">';
+    h+=caja('🌞 Almuerzo', r.consegne.pz, r.consegne.empPz+' empanadas','promo',pct(r.consegne.pz,r.consegne.p));
+    h+=caja('🌙 Cena', r.consegne.cn, r.consegne.empCn+' empanadas','deliv',pct(r.consegne.cn,r.consegne.p));
+    h+=caja('Total entregas', r.consegne.p, r.consegne.e+' empanadas · '+dinero(eur(r.consegne.venta)),'gan');
+    h+='</div><div class="s-mini-grid">';
+    h+=caja('💶 Envíos cobrados', dinero(eur(r.consegne.envio)), r.consegne.p+' entregas');
+    h+=caja('🤝 A pagar al rider', dinero(eur(rider)), r.consegne.p+' × '+eur(typeof delRider==='number'?delRider:5),'interno');
+    h+=caja('📈 Margen de envíos', dinero(eur(r.consegne.envio-rider)),
+            r.consegne.p ? dinero(eur((r.consegne.envio-rider)/r.consegne.p))+' por entrega' : '','promo');
+    h+='</div>';
+  }
 
   // ── Canales ── (sobre pedidos vendidos)
   h+='<div class="s-mini-sub-title">Por canal · sobre los pedidos vendidos</div><div class="s-mini-grid">';
