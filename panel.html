@@ -762,6 +762,12 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .del-ruta-nota{font-size:10px;color:#999;letter-spacing:.5px;text-transform:uppercase;}
 .del-msg{background:#f9fafb;border:1px dashed #ddd;border-radius:8px;padding:12px 14px;font-size:12px;
   line-height:1.7;white-space:pre-wrap;text-transform:none;font-family:'DM Sans',sans-serif;color:#333;}
+.del-edit{background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:13px 15px;margin-top:11px;
+  display:grid;grid-template-columns:90px 1fr;gap:7px 11px;align-items:center;}
+.del-edit label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#999;}
+.del-edit input,.del-edit select{padding:7px 10px;border:1px solid #ddd;border-radius:6px;
+  font-size:12px;font-family:'DM Sans',sans-serif;width:100%;}
+.del-edit .del-acciones{grid-column:1/-1;margin-top:4px;}
 .del-vacio{text-align:center;color:#ccc;padding:34px;font-size:13px;}
 .coc-auto-box{background:#fff;border:1px solid #eee;border-radius:10px;padding:11px 16px;max-width:290px;}
 .coc-auto-top{display:flex;align-items:center;gap:10px;}
@@ -852,12 +858,12 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
     <div class="live-label">EN VIVO</div>
     <div style="display:flex;gap:6px;">
       <button id="tab-pedidos" onclick="switchTab('pedidos')" style="background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">🫔 PEDIDOS</button>
+      <button id="tab-delivery" onclick="switchTab('delivery')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🛵 DELIVERY <span id="del-badge" style="display:none;background:#dc2626;color:#fff;border-radius:9px;padding:1px 6px;font-size:10px;margin-left:3px;"></span></button>
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
       <button id="tab-hist" onclick="switchTab('hist')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 HISTORIAL</button>
       <button id="tab-stock" onclick="switchTab('stock')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📦 STOCK</button>
       <button id="tab-coccion" onclick="switchTab('coccion')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🍳 COCCIÓN</button>
       <button id="tab-bebidas" onclick="switchTab('bebidas')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🥤 BEBIDAS</button>
-      <button id="tab-delivery" onclick="switchTab('delivery')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🛵 DELIVERY <span id="del-badge" style="display:none;background:#dc2626;color:#fff;border-radius:9px;padding:1px 6px;font-size:10px;margin-left:3px;"></span></button>
     </div>
     <div class="counter-badge" id="badge-count">0 pedidos</div>
     <button class="btn-salir" onclick="hacerLogout()" title="Cerrar sesión">SALIR</button>
@@ -2956,7 +2962,7 @@ document.getElementById('beb-modal-overlay').addEventListener('click',e=>{if(e.t
 // ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
-  ['pedidos','stats','hist','stock','coccion','bebidas','delivery'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
+  ['pedidos','delivery','stats','hist','stock','coccion','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
   document.getElementById('main').style.display=tab==='pedidos'?'block':'none';
   document.getElementById('stats-panel').style.display=tab==='stats'?'block':'none';
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
@@ -3266,12 +3272,41 @@ function delRender(){
         <div class="del-dato">${dinero(eur(s.subtotal||0))} + ${dinero(eur(s.envio||delEnvio))} de envío = <b>${dinero(eur(s.total||0))}</b></div>
         <div class="del-acciones">
           <button class="del-btn ok" onclick="delConfirmar('${s.id}')">✓ Confirmar pago</button>
+          <button class="del-btn est" onclick="delEditar('${s.id}')">✏️ Modificar</button>
           <button class="del-btn no" onclick="delRechazar('${s.id}')">✕ No llegó</button>
+          <button class="del-btn no" onclick="delBorrar('${s.id}')">🗑 Borrar</button>
         </div>
+        <div id="edit-${s.id}"></div>
       </div>`;
     });
   }
   document.getElementById('del-pendientes').innerHTML = h;
+
+  // ── CONFIRMADAS ──
+  const confirmadas = delSolicitudes.filter(s => s.estado === 'confirmada');
+  if(confirmadas.length){
+    let hc = '<div class="del-seccion">Confirmadas · ya son pedidos</div>';
+    confirmadas.forEach(s=>{
+      const ped = delPedidos.find(o => o.id === s.id);
+      const est = ped ? (ped.estadoDelivery || 'confirmado') : 'sin pedido';
+      hc += `<div class="del-ped">
+        <div class="del-ped-cab">
+          <span class="del-cod">${s.id}</span>
+          <span class="del-chip franja">${s.franja}</span>
+          <span class="del-chip ok">${MAY(est)}</span>
+        </div>
+        <div class="del-dato"><b>${MAY(s.name||'—')}</b> · ${s.phone||'—'}</div>
+        <div class="del-dato">${MAY(s.address||'—')}${s.details?' · Timbre: '+MAY(s.details):''}${s.distKm?' · '+Number(s.distKm).toFixed(1)+' km':''}</div>
+        <div class="del-items">${s.qty} empanadas</div>
+        <div class="del-acciones">
+          <button class="del-btn est" onclick="delEditar('${s.id}')">✏️ Modificar</button>
+          <button class="del-btn no" onclick="delCancelarConfirmada('${s.id}')">🗑 Cancelar entrega</button>
+        </div>
+        <div id="edit-${s.id}"></div>
+      </div>`;
+    });
+    document.getElementById('del-pendientes').innerHTML += hc;
+  }
 
   // ── RUTAS POR FRANJA ──
   const fr = delFranjasDelDia();
@@ -3313,6 +3348,108 @@ function delRender(){
   document.getElementById('del-franjas').innerHTML =
     r || (delPedidos.length ? '' : '<div class="del-vacio">Todavía no hay entregas confirmadas para hoy.</div>');
 }
+
+// ── CANCELAR UNA ENTREGA YA CONFIRMADA ──
+// Deshace todo: borra el pedido, devuelve las empanadas al stock, libera el
+// lugar de la franja y borra los datos personales del cliente.
+window.delCancelarConfirmada = async function(codigo){
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!confirm(
+    `⚠️ CANCELAR LA ENTREGA ${codigo}?\n\n`+
+    `· Se borra el pedido del mostrador\n`+
+    `· Las empanadas vuelven al stock\n`+
+    `· Se libera el lugar de la franja\n`+
+    `· Se borran los datos del cliente\n\n`+
+    `Esto no se puede deshacer.`
+  )) return;
+  try{
+    const o = orders.find(x => x.id === codigo);
+    await deleteDoc(doc(db,'pedidos',codigo));
+    if(o){
+      const emp = (o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
+      await Promise.all(emp.map(item=>{
+        const docId = codigo+'_'+nombreLimpio(item.nombre).replace(/[^a-zA-Z0-9]/g,'_');
+        return deleteDoc(doc(db,'stock',docId)).catch(()=>{});
+      }));
+    }
+    await deleteDoc(doc(db,'delivery_privado',codigo)).catch(()=>{});
+    await setDoc(doc(db,'solicitudes_delivery',codigo),
+      { estado:'cancelada', canceladaMs: Date.now() }, { merge:true });
+    if(s) await delLiberarCupo(s.fecha, s.franja);
+    await syncDisponibilidadFromDB();
+    await delCargar();
+  }catch(e){ alert('Error al cancelar: '+e.message); }
+};
+
+// ── BORRAR UNA SOLICITUD SIN CONFIRMAR ──
+window.delBorrar = async function(codigo){
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!s) return;
+  if(!confirm(`Borrar la solicitud ${codigo}?\n\nNo llegó a ser un pedido, así que no toca ni stock ni caja.\nSe libera el lugar de la franja.`)) return;
+  try{
+    await deleteDoc(doc(db,'solicitudes_delivery',codigo));
+    await delLiberarCupo(s.fecha, s.franja);
+    await delCargar();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+// ── MODIFICAR A MANO LOS DATOS DE LA ENTREGA ──
+// Sirve para corregir una dirección mal escrita, un timbre o la franja,
+// antes o después de confirmar el pago.
+window.delEditar = function(codigo){
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!s) return;
+  const box = document.getElementById('edit-'+codigo);
+  if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const franjas = [...delFranjasDelDia().mediodia, ...delFranjasDelDia().noche];
+  box.innerHTML = `
+    <div class="del-edit">
+      <label>Nombre</label><input id="ed-name-${codigo}" value="${(s.name||'').replace(/"/g,'&quot;')}">
+      <label>Teléfono</label><input id="ed-phone-${codigo}" value="${(s.phone||'').replace(/"/g,'&quot;')}">
+      <label>Dirección</label><input id="ed-addr-${codigo}" value="${(s.address||'').replace(/"/g,'&quot;')}">
+      <label>Timbre</label><input id="ed-det-${codigo}" value="${(s.details||'').replace(/"/g,'&quot;')}">
+      <label>Franja</label>
+      <select id="ed-fr-${codigo}">
+        ${franjas.map(f=>`<option value="${f}"${f===s.franja?' selected':''}>${f}</option>`).join('')}
+      </select>
+      <label>Km</label><input id="ed-km-${codigo}" type="number" step="0.1" value="${s.distKm||0}">
+      <div class="del-acciones">
+        <button class="del-btn ok" onclick="delGuardarEdit('${codigo}')">Guardar</button>
+        <button class="del-btn" onclick="delEditar('${codigo}')">Cancelar</button>
+      </div>
+    </div>`;
+};
+
+window.delGuardarEdit = async function(codigo){
+  const g = id => document.getElementById(id+'-'+codigo);
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!s) return;
+  const nuevaFranja = g('ed-fr').value;
+  const datos = {
+    name: g('ed-name').value.trim(),
+    phone: g('ed-phone').value.trim(),
+    address: g('ed-addr').value.trim(),
+    details: g('ed-det').value.trim(),
+    franja: nuevaFranja,
+    distKm: parseFloat(g('ed-km').value) || 0
+  };
+  try{
+    await setDoc(doc(db,'solicitudes_delivery',codigo), datos, { merge:true });
+    // Si ya era un pedido, hay que actualizar también lo que ve el mostrador
+    if(s.estado === 'confirmada'){
+      await setDoc(doc(db,'delivery_privado',codigo), datos, { merge:true });
+      if(nuevaFranja !== s.franja){
+        await updateDoc(doc(db,'pedidos',codigo), {
+          franja: nuevaFranja,
+          cliente: 'CONSEGNA ' + nuevaFranja + ' · ' + codigo
+        });
+        await delLiberarCupo(s.fecha, s.franja);
+      }
+    }
+    await delCargar();
+  }catch(e){ alert('Error al guardar: '+e.message); }
+};
 
 // ═══════════════════════════════════════════════════════
 //  EXPORTACIÓN A EXCEL (.xlsx)
