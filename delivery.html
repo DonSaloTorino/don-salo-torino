@@ -1724,6 +1724,15 @@ async function crearSolicitud(){
    confirme el pago desde el mostrador, ahí se arma el pedido con
    el código y la franja, sin dirección ni teléfono.
    ═══════════════════════════════════════════════════════════ */
+// Arma el teléfono una sola vez, sin repetir el prefijo
+function telefonoCompleto(){
+  const pref = (state.phonePrefix || '+39').trim();
+  let num = String(state.phone || '').trim();
+  if(num.startsWith(pref)) num = num.slice(pref.length).trim();
+  num = num.replace(/^\+\d{1,3}\s*/, '').trim();
+  return (pref + ' ' + num).trim();
+}
+
 async function guardarSolicitud(){
   const resumen = calcularTotal();
   // Desglose por tipo, que el mostrador necesita para el ticket
@@ -1746,7 +1755,9 @@ async function guardarSolicitud(){
     distKm: state.distKm,
     // Cliente
     name: state.name,
-    phone: (state.phonePrefix || '+39') + ' ' + state.phone,
+    // El número a veces ya trae el prefijo adentro. Sin limpiarlo antes,
+    // en el mostrador salía "+39 +39 351...".
+    phone: telefonoCompleto(),
     details: state.details || '',
     lang: state.lang,
     privacyAccepted: !!state.privacyAccepted,
