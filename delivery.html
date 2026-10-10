@@ -159,6 +159,19 @@
     overflow-y:auto;
   }
   .suggestions-box.show{ display:flex; }
+  .hoy-chip{
+    display:inline-block; background: var(--paper, #F6F1E8);
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 14px; font-size: 13px; font-weight: 600;
+    margin-bottom: 18px; letter-spacing: .5px;
+  }
+  .sin-franjas{ display:none; }
+  .sin-franjas.show{
+    display:block; background:#FDF3E7; border:1.5px solid #E8C9A0;
+    border-radius: var(--radius-sm); padding: 16px 18px; margin-top: 4px;
+  }
+  .sf-tit{ font-size:14px; font-weight:700; margin-bottom:6px; }
+  .sf-txt{ font-size:12px; line-height:1.6; text-transform:none; opacity:.85; }
   .suggestion-item{
     padding: 11px 14px;
     font-size: 13px;
@@ -611,11 +624,14 @@
     <div class="zone-msg" id="zoneMsg"></div>
 
     <div id="dateFranjaBlock" class="hidden">
-      <label class="field-label" id="lbl-date">DATA</label>
-      <select id="dateSelect" onchange="onDateChange()"></select>
+      <!-- Solo se entrega HOY. La fecha se muestra, no se elige: así el pedido
+           entra en el mostrador como uno más, imprime y descuenta stock en el
+           día correcto, sin trabajo manual de por medio. -->
+      <div class="hoy-chip" id="hoyChip"></div>
 
       <label class="field-label" id="lbl-franja">FASCIA ORARIA</label>
       <div class="franja-list" id="franjaList"></div>
+      <div class="sin-franjas" id="sinFranjas"></div>
     </div>
   </div>
 
@@ -793,9 +809,10 @@ const CONFIG = {
   colchonStock: 20,
   minEmpanadas: 3,
   cupoPorFranja: 3,
-  envio: 4.99,
+  envio: 5.99,
   vencimientoMin: 15,
-  diasAnticipacion: 7,
+  // Solo se entrega HOY. Se deja el valor por si se vuelve a abrir en el futuro.
+  diasAnticipacion: 1,
   // Interruptor por turno. Arranca con mediodía apagado y noche prendido.
   // TODO Ra: esto en producción va a vivir en Firestore (config/turnos) para que
   // lo prendas y apagues vos mismo sin tocar este archivo — por ahora es fijo acá.
@@ -1337,36 +1354,29 @@ function openWhatsappZonaFail(){
 /* =====================================================================
    FECHA Y FRANJAS (con cupo)
    ===================================================================== */
-function getOpenDates(){
-  const dates = [];
-  let d = new Date();
-  while(dates.length < CONFIG.diasAnticipacion){
-    if(d.getDay() !== 0) dates.push(new Date(d));
-    d.setDate(d.getDate()+1);
-  }
-  return dates;
+/* Fecha de hoy en formato YYYY-MM-DD, con la hora local.
+   toISOString() devuelve UTC y de noche se adelanta un día: en Italia, a las
+   23:30 del viernes diría que es sábado y el pedido caería en el día equivocado. */
+function hoyStr(){
+  const d = new Date();
+  return d.getFullYear() + '-' +
+         String(d.getMonth()+1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
 }
 
+/* Se entrega solo hoy. La fecha se muestra para que el cliente la vea,
+   pero no se elige. */
 function renderDateOptions(){
-  const sel = document.getElementById('dateSelect');
-  sel.innerHTML = '';
-  getOpenDates().forEach((d,i)=>{
-    const opt = document.createElement('option');
-    opt.value = d.toISOString().slice(0,10);
-    const dayName = t('day_names')[d.getDay()];
-    opt.textContent = `${dayName} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-    sel.appendChild(opt);
-  });
-  if(!state.fecha) state.fecha = sel.value;
-  sel.value = state.fecha;
+  state.fecha = hoyStr();
+  const chip = document.getElementById('hoyChip');
+  if(!chip) return;
+  const d = new Date();
+  const dayName = t('day_names')[d.getDay()];
+  const etiqueta = state.lang === 'it' ? 'OGGI' : 'HOY';
+  chip.textContent = `📅 ${etiqueta} · ${dayName} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
-function onDateChange(){
-  state.fecha = document.getElementById('dateSelect').value;
-  state.franja = null;
-  renderFranjas();
-  updateMainButton();
-}
+function onDateChange(){ /* ya no se elige fecha */ }
 
 /* Cuántos lugares están tomados en esa fecha y franja.
    Se lee de un contador público que NO guarda datos de nadie: solo un número.
@@ -1390,6 +1400,22 @@ async function getCupoOcupado(fecha, franja){
 }
 /* Toma un lugar de la franja, de forma atómica. Devuelve false si ya se llenó
    mientras el cliente estaba eligiendo: ahí hay que avisarle. */
+/* Devuelve el lugar a la franja. Se llama cuando vencen los 15 minutos sin
+   que el cliente avise el pago. Sin esto, cada pedido abandonado se come uno
+   de los tres lugares del día para siempre. */
+async function devolverCupo(fecha, franja){
+  const k = claveCupo(fecha, franja);
+  try{
+    const ref = doc(db(), 'cupos', k);
+    await runTransaction(db(), async (tx)=>{
+      const snap = await tx.get(ref);
+      const n = snap.exists() ? (snap.data().ocupados || 0) : 0;
+      tx.set(ref, { ocupados: Math.max(0, n - 1), fecha: fecha, franja: franja }, { merge: true });
+    });
+    if(_cacheCupo[k] !== undefined) _cacheCupo[k] = Math.max(0, _cacheCupo[k] - 1);
+  }catch(e){ console.error('devolver cupo', e); }
+}
+
 async function tomarCupo(fecha, franja){
   const k = claveCupo(fecha, franja);
   try{
@@ -1433,9 +1459,26 @@ async function renderFranjas(){
   const franjas = franjasDisponiblesDelDia(state.fecha);
 
   if(franjas.length === 0){
-    list.innerHTML = `<p class="field-note">${t('no_franjas_hoy')}</p>`;
+    // Dos motivos distintos, y al cliente le sirve saber cuál es:
+    // domingo cerrado, o ya pasaron los cortes de hoy.
+    const esDomingo = new Date().getDay() === 0;
+    const box = document.getElementById('sinFranjas');
+    if(box){
+      box.className = 'sin-franjas show';
+      box.innerHTML = esDomingo
+        ? `<div class="sf-tit">${state.lang==='it' ? 'OGGI SIAMO CHIUSI' : 'HOY ESTAMOS CERRADOS'}</div>
+           <div class="sf-txt">${state.lang==='it'
+             ? 'La domenica non consegniamo. Ti aspettiamo da lunedì!'
+             : 'Los domingos no entregamos. ¡Te esperamos desde el lunes!'}</div>`
+        : `<div class="sf-tit">${state.lang==='it' ? 'ORDINI CHIUSI PER OGGI' : 'PEDIDOS CERRADOS POR HOY'}</div>
+           <div class="sf-txt">${state.lang==='it'
+             ? 'Gli ordini per il pranzo si chiudono alle 12:00 e quelli per la cena alle 19:00. Torna domani!'
+             : 'Los pedidos del mediodía cierran a las 12:00 y los de la noche a las 19:00. ¡Volvé mañana!'}</div>`;
+    }
     return;
   }
+  const box = document.getElementById('sinFranjas');
+  if(box){ box.className = 'sin-franjas'; box.innerHTML = ''; }
 
   for(const f of franjas){
     const ocupado = await getCupoOcupado(state.fecha, f);
@@ -1726,6 +1769,15 @@ async function guardarSolicitud(){
   }
 }
 
+/* La solicitud venció sin que el cliente avisara el pago. */
+async function marcarVencida(){
+  if(!state.orderCode) return;
+  try{
+    await setDoc(doc(db(), 'solicitudes_delivery', state.orderCode),
+      { estado: 'vencida', vencidaMs: Date.now() }, { merge: true });
+  }catch(e){ console.error('marcar vencida', e); }
+}
+
 /* Marca que el cliente avisó el pago. El mostrador lo ve y confirma. */
 async function marcarPagoAvisado(){
   if(!state.orderCode) return;
@@ -1797,6 +1849,12 @@ function tickTimer(){
 // Se cumplieron los 15 minutos: se bloquea todo, nada de seguir como si no hubiera pasado nada.
 // El cliente tiene que volver a pedir (la franja ya se liberó del lado del cupo real).
 function expireOrder(){
+  // Se devuelve el lugar y se marca la solicitud como vencida, para que el
+  // mostrador no la vea como pendiente y otro cliente pueda usar ese cupo.
+  if(state.orderCode && !state.pagoAvisado){
+    devolverCupo(state.fecha, state.franja);
+    marcarVencida();
+  }
   clearSession();
   const block = document.getElementById('paymentBlock');
   block.innerHTML = `
@@ -1909,6 +1967,8 @@ function onMainBtn(){
     } else {
       // El cliente avisa que pagó. Queda registrado para que el mostrador lo vea.
       // El paso 4 ("pago confirmado") lo dispara Ra desde LOGÍSTICA, no el cliente.
+      state.pagoAvisado = true;
+      saveSession();
       marcarPagoAvisado();
       updateOrderSteps('confirmado_cliente');
     }
