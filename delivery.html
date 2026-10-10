@@ -1193,6 +1193,7 @@ let addressDebounce = null;
 let addressSelected = false; // true solo cuando el cliente eligió una sugerencia real
 
 function onAddressTyped(){
+ try{
   clearTimeout(addressDebounce);
   addressSelected = false;
   document.getElementById('zoneMsg').classList.remove('show');
@@ -1207,6 +1208,7 @@ function onAddressTyped(){
   box.classList.add('show');
   box.innerHTML = `<div class="suggestion-loading">${state.lang==='it' ? 'CERCO INDIRIZZI…' : 'BUSCANDO DIRECCIONES…'}</div>`;
   addressDebounce = setTimeout(()=> fetchSuggestions(val), 400);
+ }catch(e){ mostrarError('AL ESCRIBIR LA DIRECCIÓN: ' + (e.message||e)); }
 }
 
 async function fetchSuggestions(query){
@@ -1234,7 +1236,16 @@ async function fetchSuggestions(query){
     });
   }catch(e){
     console.error('Autocomplete error', e);
-    box.innerHTML = `<div class="suggestion-empty">${state.lang==='it' ? 'ERRORE DI RICERCA, RIPROVA' : 'ERROR DE BÚSQUEDA, PROBÁ DE NUEVO'}</div>`;
+    // Se muestra el motivo real: si es la cuota de OpenStreetMap, si es la red
+    // o si es otra cosa. Antes decía solo "error" y no se sabía por dónde empezar.
+    const errorBox = document.createElement('div');
+    errorBox.className = 'suggestion-empty';
+    errorBox.textContent = state.lang==='it' ? 'ERRORE DI RICERCA' : 'ERROR DE BÚSQUEDA';
+    const errorDetail = document.createElement('span');
+    errorDetail.style.cssText = 'font-size:10px;text-transform:none;opacity:.8';
+    errorDetail.textContent = String(e.message||e);
+    errorBox.append(document.createElement('br'), errorDetail);
+    box.replaceChildren(errorBox);
   }
 }
 
@@ -1917,6 +1928,38 @@ window.copyOrderCode = copyOrderCode;
 window.marcarPagoIntentado = marcarPagoIntentado;
 window.openWhatsappZonaFail = openWhatsappZonaFail;
 window.restartOrder = restartOrder;
+window.onAddressTyped = onAddressTyped;
+window.onDateChange = onDateChange;
+window.onPrefixChange = onPrefixChange;
+window.validatePhone = validatePhone;
+window.onPrivacyChange = onPrivacyChange;
+
+/* ═══════════════════════════════════════════════════════════
+   DETECTOR DE ERRORES
+   Muestra en pantalla cualquier fallo que normalmente quedaría
+   escondido en la consola. Sin esto, un error en medio de una
+   función la corta sin avisar y parece que "no hace nada".
+   ═══════════════════════════════════════════════════════════ */
+function mostrarError(msg){
+  let bar = document.getElementById('errBar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'errBar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;'
+      + 'background:#b91c1c;color:#fff;padding:10px 14px;font-size:11px;'
+      + 'font-family:monospace;text-transform:none;line-height:1.5;'
+      + 'max-height:45vh;overflow:auto;white-space:pre-wrap;';
+    bar.onclick = ()=> bar.remove();
+    document.body.appendChild(bar);
+  }
+  bar.textContent = (bar.textContent ? bar.textContent + '\n\n' : '') + msg;
+}
+window.addEventListener('error', e=>{
+  mostrarError('ERROR: ' + e.message + '\n' + (e.filename||'') + ' línea ' + (e.lineno||'?'));
+});
+window.addEventListener('unhandledrejection', e=>{
+  mostrarError('PROMESA RECHAZADA: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+});
 
 /* Listeners de inputs de texto libres */
 document.getElementById('nameInput').addEventListener('input', ()=>{ state.name = document.getElementById('nameInput').value; updateMainButton(); saveSession(); });
