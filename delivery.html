@@ -343,6 +343,9 @@
   .franja-opt .badge{ font-size:10px; font-weight:800; background:#EDE6D8; color:var(--ink-soft); padding:2px 8px; border-radius:10px; }
   .franja-opt.full .badge{ background: var(--error); color:#fff; }
   .franja-opt.selected .badge{ background: var(--accent); color:#fff; }
+  /* Cupo: "2/3 CONSEGNE DISPONIBILI" — el número es lo que queda libre, no lo ocupado */
+  .franja-cupo{ display:flex; align-items:center; gap:8px; }
+  .franja-cupo-txt{ font-size:9.5px; font-weight:700; opacity:0.75; text-align:right; line-height:1.2; }
 
   /* ---------- COUNTER ---------- */
   .counter-box{
@@ -483,6 +486,15 @@
   }
   .copy-btn:active{ transform: scale(0.96); }
   .copy-btn.copied{ background: var(--success); border-color: var(--success); }
+
+  /* Importe a pagar, repetido entre el código y los botones de pago */
+  .pay-amount{
+    text-align:center; margin: 0 0 6px 0;
+    padding: 12px 14px; border-radius: var(--radius);
+    background:#fff; border:1.5px solid var(--border);
+  }
+  .pay-amount .lbl{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; opacity:0.75; }
+  .pay-amount .val{ font-size:32px; font-weight:800; color: var(--ink); line-height:1.15; margin-top:2px; }
 
   .timer-box{
     text-align:center; margin: 10px 0 16px 0;
@@ -714,6 +726,11 @@
             </div>
 
             <div id="pagoExtras">
+              <div class="pay-amount">
+                <div class="lbl" id="payAmountLbl">IMPORTO DA PAGARE</div>
+                <div class="val" id="payAmount">€ 0.00</div>
+              </div>
+
               <div class="timer-box">
                 <span id="timer-label">HAI TEMPO FINO A</span> <span class="time" id="timerClock">15:00</span>
               </div>
@@ -937,6 +954,9 @@ const I18N = {
     zone_fail: "SIAMO SPIACENTI, AL MOMENTO NON CONSEGNIAMO NELLA TUA ZONA.",
     zone_fail_cta: "SCRIVICI SU WHATSAPP PER ORDINARE E RITIRARE NEL NOSTRO LOCALE →",
     lbl_date: "DATA", lbl_franja: "FASCIA ORARIA", franja_full: "COMPLETO",
+    cupo_disp: "CONSEGNE<br>DISPONIBILI", cupo_disp_1: "CONSEGNA<br>DISPONIBILE",
+    cupo_lleno: "QUESTA FASCIA ORARIA SI È APPENA RIEMPITA. SCEGLINE UN'ALTRA.",
+    pay_amount: "IMPORTO DA PAGARE",
     no_franjas_hoy: "PER OGGI NON CI SONO PIÙ FASCE DISPONIBILI. PROVA UN ALTRO GIORNO.",
     s2_title: "QUANTE EMPANADAS?", s2_sub: "MINIMO 3 EMPANADAS", s2_hint: "TOCCA + PER AGGIUNGERE",
     fp_label: "SAPORI SCELTI", flavor_unavail: "NON DISPONIBILE", ingredients_pending: "INGREDIENTI DA CONFERMARE",
@@ -973,6 +993,9 @@ const I18N = {
     zone_fail: "DISCULPÁ, POR AHORA NO ENTREGAMOS EN TU ZONA.",
     zone_fail_cta: "ESCRIBINOS POR WHATSAPP PARA PEDIR Y RETIRAR EN EL LOCAL →",
     lbl_date: "FECHA", lbl_franja: "FRANJA HORARIA", franja_full: "COMPLETO",
+    cupo_disp: "ENTREGAS<br>DISPONIBLES", cupo_disp_1: "ENTREGA<br>DISPONIBLE",
+    cupo_lleno: "ESTA FRANJA HORARIA SE ACABA DE LLENAR. ELEGÍ OTRA.",
+    pay_amount: "IMPORTE A PAGAR",
     no_franjas_hoy: "POR HOY NO QUEDAN FRANJAS DISPONIBLES. PROBÁ OTRO DÍA.",
     s2_title: "¿CUÁNTAS EMPANADAS?", s2_sub: "MÍNIMO 3 EMPANADAS", s2_hint: "TOCÁ + PARA SUMAR",
     fp_label: "SABORES ELEGIDOS", flavor_unavail: "NO DISPONIBLE", ingredients_pending: "INGREDIENTES A CONFIRMAR",
@@ -1128,7 +1151,9 @@ function showScreen(n){
       d.classList.toggle('done', (i+1) < n);
     });
   }
-  back.classList.toggle('hidden', n === 0 || n === 1);
+  // La flecha va en todas las pantallas salvo la de idioma, que es la primera.
+  // Se oculta también cuando el pedido ya tiene código (ver updateMainButton).
+  back.classList.toggle('hidden', n === 0);
   document.querySelector('.btn-fixed-wrap').classList.toggle('hidden', n === 0);
   saveSession();
 
@@ -1143,7 +1168,15 @@ function showScreen(n){
 }
 
 function goBack(){
-  if(state.step > 1) showScreen(state.step - 1);
+  if(pedidoBloqueado()) return;
+  if(state.step > 0) showScreen(state.step - 1);
+}
+
+/* Con el código generado, la solicitud ya está guardada con esos sabores y ese
+   total, y la franja ya tomó su lugar. Volver atrás dejaría cambiar el pedido
+   y pagar un importe distinto del registrado: por eso ahí no hay flecha. */
+function pedidoBloqueado(){
+  return state.step === 3 && !!state.orderCode;
 }
 
 function setLang(l){
@@ -1190,6 +1223,7 @@ function applyTexts(){
   document.getElementById('paymentReminderBtn').textContent = `"${t('btn_paid')}"`;
   document.getElementById('chooseFirstHint').textContent = t('choose_first_hint');
   document.getElementById('timer-label').textContent = t('timer_label');
+  document.getElementById('payAmountLbl').textContent = t('pay_amount');
 
   renderDateOptions();
   renderFranjas();
@@ -1484,7 +1518,11 @@ async function renderFranjas(){
     const full = ocupado >= CONFIG.cupoPorFranja;
     const div = document.createElement('div');
     div.className = 'franja-opt' + (full ? ' full' : '') + (state.franja === f ? ' selected' : '');
-    div.innerHTML = `<span>${f}</span><span class="badge${full?'':' badge-open'}">${ocupado}/${CONFIG.cupoPorFranja}</span>`;
+    const libres = Math.max(0, CONFIG.cupoPorFranja - ocupado);
+    const txtCupo = full ? t('franja_full') : (libres === 1 ? t('cupo_disp_1') : t('cupo_disp'));
+    div.innerHTML = `<span>${f}</span>`
+      + `<span class="franja-cupo"><span class="franja-cupo-txt">${txtCupo}</span>`
+      + `<span class="badge">${libres}/${CONFIG.cupoPorFranja}</span></span>`;
     if(!full) div.onclick = () => { state.franja = f; renderFranjas(); updateMainButton(); saveSession(); };
     list.appendChild(div);
   }
@@ -1663,6 +1701,10 @@ function renderSummary(){
   html += `<div class="summary-line total"><span>${t('sum_total')}</span><span>€ ${total.toFixed(2)}</span></div>`;
 
   card.innerHTML = html;
+
+  // El mismo total, grande, entre el código y los botones de pago
+  const amt = document.getElementById('payAmount');
+  if(amt) amt.textContent = `€ ${total.toFixed(2)}`;
 }
 
 /* =====================================================================
@@ -1694,9 +1736,11 @@ async function crearSolicitud(){
   // cliente elegía, se le avisa en vez de aceptarle un pedido que no entra.
   const hayLugar = await tomarCupo(state.fecha, state.franja);
   if(!hayLugar){
-    alert(t('cupo_lleno') || 'Questa fascia oraria si è appena riempita. Scegli un altro orario.');
-    state.step = 1;
-    render();
+    alert(t('cupo_lleno'));
+    _cacheCupo[claveCupo(state.fecha, state.franja)] = CONFIG.cupoPorFranja;
+    state.franja = null;
+    showScreen(1);
+    renderFranjas();
     return;
   }
   state.orderCode = await generarCodigo();
@@ -1956,6 +2000,8 @@ function marcarPagoIntentado(){
 }
 
 function updateMainButton(){
+  const back = document.getElementById('backBtn');
+  if(back) back.classList.toggle('hidden', state.step === 0 || pedidoBloqueado());
   const btn = document.getElementById('mainBtn');
   btn.disabled = !canAdvance();
   if(state.step === 3){
@@ -2037,7 +2083,7 @@ document.getElementById('detailsInput').addEventListener('input', ()=>{ state.de
 
 /* Init */
 applyTexts();
-cargarDisponibilidad().then(()=>{ if(state.step === 2) render(); });
+cargarDisponibilidad().then(()=>{ if(state.step === 2) renderFlavors(); });
 if(!restoreSession()){
   showScreen(0);
 }
