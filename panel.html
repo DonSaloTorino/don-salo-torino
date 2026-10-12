@@ -2813,9 +2813,8 @@ window.confirmarManual=async function(){
       nombre='DEVOLUCIÓN';
     }else{
       // Mostrador sin nombre: auto-número "Mostrador N"
-      const sodM=new Date();sodM.setHours(0,0,0,0);
-      const snapM=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sodM))));
-      const ventasHoy=snapM.docs.filter(d=>!esDocCoccion(d.data())).length;
+      // Los pedidos de hoy ya están en memoria (listener): no se relee nada
+      const ventasHoy=(orders||[]).length;
       nombre='MOSTRADOR '+(ventasHoy+1);
     }
   }
@@ -3074,9 +3073,9 @@ window.delCargar = async function(){
   const f = document.getElementById('del-fecha');
   if(f) f.textContent = '🛵 ' + delFechaLegible(hoy);
   try{
-    const snap = await getDocs(query(collection(db,'solicitudes_delivery')));
-    delSolicitudes = snap.docs.map(d=>({id:d.id, ...d.data()}))
-      .filter(s => s.fecha === hoy);
+    // Solo las de hoy: antes se leían TODAS las solicitudes de la historia
+    const snap = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','==',hoy)));
+    delSolicitudes = snap.docs.map(d=>({id:d.id, ...d.data()}));
     // Los que ya pasaron a pedido: se leen de los pedidos de hoy en memoria
     delPedidos = soloPedidos(orders).filter(o => canalKey(o) === 'logistica');
   }catch(e){
@@ -3962,7 +3961,63 @@ function sPrv(p){const n=new Date();
   if(p==='month'){const f=new Date(n.getFullYear(),n.getMonth()-1,1),l=new Date(n.getFullYear(),n.getMonth(),0);return{from:f,to:dE(l),label:'Mes anterior'};}
   return null;
 }
-async function sFt(f,t){const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f)),where('timestamp','<=',Timestamp.fromDate(t)),orderBy('timestamp','desc')));return soloVentas(s.docs.map(d=>({id:d.id,...d.data()})));}
+// Un solo listener con los pedidos del último mes (desde el día 1 del mes o
+// hace 30 días, lo que sea antes). Estadísticas y cocción leen de acá en vez
+// de releer la base cada vez que se abre la solapa.
+let pedRecientes=[], pedRecListo=null, pedRecDesde=null;
+function pedRecientesEscuchar(){
+  if(pedRecListo) return pedRecListo;
+  const hoy0=new Date(); hoy0.setHours(0,0,0,0);
+  const d30=new Date(hoy0); d30.setDate(d30.getDate()-COC_VENTANA_DIAS);
+  const mes=new Date(hoy0.getFullYear(),hoy0.getMonth(),1);
+  const desde = d30<mes ? d30 : mes;
+  pedRecListo=new Promise((resolve,reject)=>{
+    let primera=true;
+    onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(desde))), snap=>{
+      pedRecientes=snap.docs.map(d=>({id:d.id,...d.data()}));
+      pedRecDesde=desde;
+      if(primera){ primera=false; resolve(); }
+    }, err=>{
+      console.error('listener pedidos recientes',err);
+      pedRecListo=null; pedRecDesde=null;
+      if(primera){ primera=false; reject(err); }
+    });
+  });
+  pedRecListo.catch(()=>{ pedRecListo=null; });
+  return pedRecListo;
+}
+async function sFt(f,t){
+  try{ await pedRecientesEscuchar(); }catch(e){}
+  if(pedRecDesde && f>=pedRecDesde){
+    const fm=f.getTime(), tm=t.getTime();
+    const arr=pedRecientes.filter(o=>{
+      const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate().getTime():null;
+      return ts!==null && ts>=fm && ts<=tm;
+    }).sort((a,b)=>b.timestamp.toDate()-a.timestamp.toDate());
+    return soloVentas(arr);
+  }
+  return sFtBase(f,t);
+}
+// Pedidos crudos de un rango (sin filtrar ventas), en el orden pedido.
+// Si el rango cae dentro del mes en memoria, no se lee nada de la base.
+async function pedidosRango(desde,hasta,orden){
+  try{ await pedRecientesEscuchar(); }catch(e){}
+  if(pedRecDesde && desde>=pedRecDesde){
+    const fm=desde.getTime(), tm=hasta.getTime();
+    const arr=pedRecientes.filter(o=>{
+      const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate().getTime():null;
+      return ts!==null && ts>=fm && ts<=tm;
+    });
+    arr.sort((a,b)=> orden==='asc' ? a.timestamp.toDate()-b.timestamp.toDate() : b.timestamp.toDate()-a.timestamp.toDate());
+    return arr;
+  }
+  const snap=await getDocs(query(collection(db,'pedidos'),
+    where('timestamp','>=',Timestamp.fromDate(desde)),
+    where('timestamp','<=',Timestamp.fromDate(hasta)),
+    orderBy('timestamp',orden==='asc'?'asc':'desc')));
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function sFtBase(f,t){const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f)),where('timestamp','<=',Timestamp.fromDate(t)),orderBy('timestamp','desc')));return soloVentas(s.docs.map(d=>({id:d.id,...d.data()})));}
 const cE=os=>{let t=0;os.forEach(o=>(o.items||[]).forEach(i=>{if(!i.tipo||i.tipo==='empanada')t+=i.cantidad||0;}));return t;};
 // ── CONTEO DE BEBIDAS ──
 // Una promo 2+A o 2+B YA VENDIÓ una bebida, aunque en el mostrador no se
@@ -4160,11 +4215,7 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
   if(sMesCache && sMesCacheClave===clave && (ahora-sMesCacheHora)<5*60*1000){ sMesPintar(sMesCache); return; }
   cont.innerHTML='<div class="s-loading"><div class="s-spinner"></div>Cargando...</div>';
   try{
-    const snap=await getDocs(query(collection(db,'pedidos'),
-      where('timestamp','>=',Timestamp.fromDate(desde)),
-      where('timestamp','<=',Timestamp.fromDate(hasta)),
-      orderBy('timestamp','asc')));
-    const todos=soloPedidos(snap.docs.map(d=>({id:d.id,...d.data()})));
+    const todos=soloPedidos(await pedidosRango(desde,hasta,'asc'));
 
     // ── CONTADORES ──
     // Regla: los porcentajes van SIEMPRE sobre las ventas reales, que son las
@@ -4535,41 +4586,65 @@ window.sApplyRange=function(){const f=document.getElementById('s-date-from').val
 // Antes se releía todo el historial de pedidos cada vez que se abría STATS.
 let sRecordsCache=null;
 
+// Suma pedidos a los totales por día y por mes (misma lógica de siempre)
+function sAcumularRecords(lista, byDay, byMonth){
+  const days=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  lista.forEach(o=>{
+    if(!o.timestamp)return;
+    const d=o.timestamp.toDate();
+    const emp=cE([o]);
+    const dateStr=d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
+    const dayName=days[d.getDay()];
+    byDay[dayName+' '+dateStr]=(byDay[dayName+' '+dateStr]||0)+emp;
+    const claveMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!byMonth[claveMes]) byMonth[claveMes]={emp:0,pedidos:0};
+    byMonth[claveMes].emp+=emp;
+    byMonth[claveMes].pedidos++;
+  });
+}
+
+// Antes, la primera vez que se abría STATS en cada sesión se leía TODO el
+// historial de pedidos desde 2024. Ahora los meses ya cerrados se guardan
+// sumados en config/statsHistorico: se leen una sola vez en la vida y después
+// solo se agrega el mes nuevo cuando termina. El mes en curso sale de memoria.
 async function sLoadFixed(){
   try{
     if(sRecordsCache){ sPintarRecords(sRecordsCache); return; }
     const now=new Date();
-    // Mes anterior
     const prevMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1);
     const prevMonthEnd=new Date(now.getFullYear(),now.getMonth(),0,23,59,59,999);
     const prevMonthName=prevMonthStart.toLocaleString('it-IT',{month:'long',year:'numeric'});
-    const prevOs=await sFt(prevMonthStart,prevMonthEnd);
-    const prevTotal=cE(prevOs);
+    const hastaCerrado=cocFechaStr(prevMonthEnd);   // último día del mes anterior
+
+    const ref=doc(db,'config','statsHistorico');
+    let h=null;
+    try{ const sh=await getDoc(ref); if(sh.exists()) h=sh.data(); }catch(e){ console.error('leer statsHistorico',e); }
+    if(!h || !h.hasta || h.hasta<hastaCerrado){
+      // Se leen solo los meses cerrados que faltan
+      const desdeLeer = (h && h.hasta)
+        ? (()=>{ const d=new Date(h.hasta+'T00:00:00'); d.setDate(d.getDate()+1); return d; })()
+        : new Date('2024-01-01');
+      const nuevos=await sFtBase(desdeLeer, prevMonthEnd);
+      const byDay=Object.assign({}, h&&h.byDay||{});
+      const byMonth=JSON.parse(JSON.stringify(h&&h.byMonth||{}));
+      sAcumularRecords(nuevos, byDay, byMonth);
+      h={hasta:hastaCerrado, byDay, byMonth, actualizadoMs:Date.now()};
+      try{ await setDoc(ref,h); }catch(e){ console.error('guardar statsHistorico',e); }
+    }
+
+    // Mes anterior: sale de lo guardado
+    const prevKey=prevMonthStart.getFullYear()+'-'+String(prevMonthStart.getMonth()+1).padStart(2,'0');
+    const pm=(h.byMonth||{})[prevKey]||{emp:0,pedidos:0};
     document.getElementById('s-prev-month-label').textContent=prevMonthName.charAt(0).toUpperCase()+prevMonthName.slice(1);
-    document.getElementById('s-prev-month-num').textContent=prevTotal;
-    document.getElementById('s-prev-month-sub').textContent=`empanadas · ${prevOs.length} pedidos`;
+    document.getElementById('s-prev-month-num').textContent=pm.emp;
+    document.getElementById('s-prev-month-sub').textContent=`empanadas · ${pm.pedidos} pedidos`;
 
-    // Mejor día y mejor mes de todos los tiempos (una sola consulta para los dos)
-    const allOs=await sFt(new Date('2024-01-01'),dE(now));
-    const byDay={};
-    const byMonth={};
-    const days=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
-    allOs.forEach(o=>{
-      if(!o.timestamp)return;
-      const d=o.timestamp.toDate();
-      const emp=cE([o]);
-      // por día
-      const dateStr=d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
-      const dayName=days[d.getDay()];
-      byDay[dayName+' '+dateStr]=(byDay[dayName+' '+dateStr]||0)+emp;
-      // por mes
-      const claveMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      if(!byMonth[claveMes]) byMonth[claveMes]={emp:0,pedidos:0};
-      byMonth[claveMes].emp+=emp;
-      byMonth[claveMes].pedidos++;
-    });
+    // Mejor día y mejor mes: lo guardado + el mes en curso
+    const actuales=await sFt(new Date(now.getFullYear(),now.getMonth(),1), dE(now));
+    const byDay=Object.assign({}, h.byDay||{});
+    const byMonth=JSON.parse(JSON.stringify(h.byMonth||{}));
+    sAcumularRecords(actuales, byDay, byMonth);
 
-    // Se guarda el resultado para no volver a leer todo el historial
     const mesesOrden=Object.entries(byMonth).sort((a,b)=>b[1].emp-a[1].emp);
     const diasOrden=Object.entries(byDay).sort((a,b)=>b[1]-a[1]);
     sRecordsCache={
@@ -4608,9 +4683,18 @@ document.getElementById('s-date-from').value=td;document.getElementById('s-date-
 // ── HISTORIAL ──
 let hAll=[];
 window.histLoad=async function(){
-  const f=document.getElementById('hist-from').value,t=document.getElementById('hist-to').value;
-  const s=await getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(f?new Date(f+'T00:00:00'):new Date('2024-01-01'))),where('timestamp','<=',Timestamp.fromDate(t?new Date(t+'T23:59:59'):new Date())),orderBy('timestamp','desc')));
-  hAll=soloPedidos(s.docs.map(d=>({id:d.id,...d.data()})));hRender(hAll);
+  // Sin fechas, antes leía TODOS los pedidos desde 2024 cada vez que se abría
+  // la solapa. Ahora, si están vacías, se cargan los últimos 7 días y se
+  // muestran en los campos, así se ve qué período es. Para más, se eligen fechas.
+  const fIn=document.getElementById('hist-from'), tIn=document.getElementById('hist-to');
+  if(!fIn.value && !tIn.value){
+    const hoyD=new Date(), desdeD=new Date(); desdeD.setDate(desdeD.getDate()-6);
+    tIn.value=cocFechaStr(hoyD); fIn.value=cocFechaStr(desdeD);
+  }
+  const f=fIn.value,t=tIn.value;
+  const desdeH=f?new Date(f+'T00:00:00'):new Date('2024-01-01');
+  const hastaH=t?new Date(t+'T23:59:59'):new Date();
+  hAll=soloPedidos(await pedidosRango(desdeH,hastaH,'desc'));hRender(hAll);
 };
 window.histFilter=function(){const q=document.getElementById('hist-search').value.toLowerCase().trim();hRender(q?hAll.filter(o=>(o.cliente||'').toLowerCase().includes(q)):hAll);};
 window.histReset=function(){document.getElementById('hist-search').value='';document.getElementById('hist-from').value='';document.getElementById('hist-to').value='';hAll=[];hRender([]);};
@@ -4734,13 +4818,98 @@ document.getElementById('hist-from').value=td;document.getElementById('hist-to')
 let stockAllData=[];
 let stockCargado=false;   // la colección 'stock' ya se leyó en esta sesión
 
-// Lee la colección 'stock' UNA sola vez por sesión y la deja en memoria.
-// Todo lo que necesite el stock pasa por acá en vez de volver a leer la base.
+// ═══════════════════════════════════════════════════════════════
+//  STOCK SIN RELEER TODO EL HISTORIAL
+//  La colección 'stock' tiene decenas de miles de movimientos. Antes se leía
+//  entera cada vez que se abría STOCK: el 12/10 eso gastó 130.000 lecturas y
+//  cortó impresora, QR y delivery.
+//
+//  Ahora funciona como un cierre contable:
+//  · config/stockCierre guarda el SALDO de cada sabor a una fecha (el cierre).
+//  · Se leen solo los movimientos POSTERIORES a esa fecha.
+//  · El saldo entra al cálculo como un ajuste en la fecha del cierre, que es
+//    exactamente equivalente a sumar todo lo anterior (un ajuste fija el stock).
+//  · El cierre se corre solo, quedando siempre entre 14 y 21 días atrás.
+//  · Si alguien carga o corrige un movimiento con fecha anterior al cierre,
+//    el cierre se invalida y se recalcula con el historial completo.
+//  Además se ESCUCHA en vez de releer: después de la primera carga, Firebase
+//  solo manda (y cobra) los documentos que cambian.
+// ═══════════════════════════════════════════════════════════════
+const CIERRE_ATRAS=14;    // el cierre se pone 14 días antes de hoy
+const CIERRE_RENUEVA=21;  // y se renueva cuando quedó más de 21 días atrás
+let stockListo=null, stockUnsub=null, stockCierreActivo=null;
+
+function stockFechaMenos(dias){
+  const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-dias);
+  return cocFechaStr(d);
+}
+function stockFilasCierre(cierre){
+  if(!cierre) return [];
+  return Object.entries(cierre.saldos||{}).map(([sabor,n])=>({
+    id:'__cierre_'+sabor, sabor, cantidad:n, fecha:cierre.fecha,
+    tipo:'ajuste', cierre:true, timestamp:{seconds:0}
+  }));
+}
+function stockEscuchar(){
+  if(stockListo) return stockListo;
+  stockListo=(async()=>{
+    let cierre=null;
+    try{
+      const sc=await getDoc(doc(db,'config','stockCierre'));
+      const d=sc.exists()?sc.data():null;
+      if(d && !d.invalido && d.fecha && d.saldos) cierre=d;
+    }catch(e){ console.error('leer cierre de stock',e); }
+    const filasCierre=stockFilasCierre(cierre);
+    const q = cierre
+      ? query(collection(db,'stock'), where('fecha','>',cierre.fecha))
+      : collection(db,'stock');   // sin cierre válido: historial completo (una sola vez)
+    await new Promise((resolve,reject)=>{
+      let primera=true;
+      stockUnsub=onSnapshot(q, snap=>{
+        stockAllData=[...filasCierre, ...snap.docs.map(d=>({id:d.id,...d.data()}))];
+        stockCargado=true;
+        if(primera){ primera=false; resolve(); }
+      }, err=>{
+        console.error('listener stock',err);
+        stockListo=null; stockCargado=false; stockCierreActivo=null; stockUnsub=null;
+        if(primera){ primera=false; reject(err); }
+      });
+    });
+    stockCierreActivo=cierre;
+    stockMantenerCierre(cierre).catch(e=>console.error('mantener cierre',e));
+  })();
+  stockListo.catch(()=>{ stockListo=null; });
+  return stockListo;
+}
+// Corre el cierre hacia adelante cuando quedó viejo. Se calcula con lo que ya
+// está en memoria, sin leer nada de más.
+async function stockMantenerCierre(cierre){
+  const objetivo=stockFechaMenos(CIERRE_ATRAS);
+  if(cierre && cierre.fecha>=stockFechaMenos(CIERRE_RENUEVA)) return;
+  if(cierre && objetivo<=cierre.fecha) return;
+  const datos=stockAllData.filter(e=>!e.fecha || String(e.fecha)<=objetivo);
+  const calc=stockCalcBySabor(datos);
+  const saldos={};
+  Object.entries(calc).forEach(([sabor,v])=>{ saldos[sabor]=v.stock||0; });
+  await setDoc(doc(db,'config','stockCierre'),
+    { fecha:objetivo, saldos, creadoMs:Date.now(), invalido:false });
+}
+// Llamar DESPUÉS de escribir un movimiento de stock con una fecha elegida.
+// Si la fecha cae dentro del cierre, el saldo guardado ya no es correcto:
+// se invalida y se vuelve a leer todo para recalcularlo.
+async function stockTocaFecha(fecha){
+  if(!stockCierreActivo || !fecha) return;
+  if(String(fecha)>stockCierreActivo.fecha) return;
+  try{
+    await setDoc(doc(db,'config','stockCierre'),
+      { invalido:true, motivo:'movimiento con fecha '+fecha, invalidadoMs:Date.now() },{merge:true});
+  }catch(e){ console.error('invalidar cierre',e); }
+  if(stockUnsub){ try{ stockUnsub(); }catch(e){} }
+  stockUnsub=null; stockListo=null; stockCierreActivo=null; stockCargado=false;
+  await stockEscuchar();
+}
 async function asegurarStockCargado(){
-  if(stockCargado) return;
-  const snap=await getDocs(query(collection(db,'stock')));
-  stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
-  stockCargado=true;
+  await stockEscuchar();
 }
 // Agrega en memoria un movimiento recién escrito, sin releer nada
 function stockAgregarEnMemoria(doc){
@@ -4768,9 +4937,7 @@ function stockInitFilters(){
 
 async function stockLoadAll(){
   try{
-    const snap=await getDocs(query(collection(db,'stock')));
-    stockAllData=snap.docs.map(d=>({id:d.id,...d.data()}));
-    stockCargado=true;
+    await stockEscuchar();   // no relee: usa lo que el listener mantiene al día
     stockAllData.sort((a,b)=>{
       if(a.fecha&&b.fecha)return b.fecha.localeCompare(a.fecha);
       return 0;
@@ -4786,7 +4953,8 @@ async function stockLoadAll(){
     const by=stockCalcBySabor(stockDataHastaHoy());
     const neg=Object.values(by).filter(v=>v.stock<0).length;
     const tot=Object.values(by).reduce((a,v)=>a+Math.max(0,v.stock),0);
-    infoG.textContent=`${tot} empanadas`+(neg?` · ${neg} en negativo`:'');
+    infoG.textContent=`${tot} empanadas`+(neg?` · ${neg} en negativo`:'')
+      +(stockCierreActivo?` · detalle desde ${stockCierreActivo.fecha.split('-').reverse().join('/')}`:'');
   }
     await syncDisponibilidad(); // Sincroniza disponibilidad con menú cliente
   }catch(e){console.error('stock load error',e);}
@@ -4925,13 +5093,17 @@ window.stockApplyFilter=async function(){
   const tipo=document.getElementById('stock-filter-tipo').value;
   // Gráfico y total: mostrar stock histórico hasta la fecha "to" si está definida,
   // o hasta hoy por defecto (el stock futuro no cuenta como disponible todavía)
+  if(to && stockCierreActivo && to<=stockCierreActivo.fecha){
+    alert('El detalle día por día está disponible desde el '+stockCierreActivo.fecha.split('-').reverse().join('/')+
+          '.\nLo anterior está resumido en el saldo de cierre, así que el stock a una fecha anterior no se puede reconstruir acá.');
+  }
   const chartData=to?stockAllData.filter(e=>e.fecha<=to):stockDataHastaHoy(stockAllData);
   stockRenderChart(chartData);
   stockRenderTotal(chartData);
   const title=document.getElementById('stock-chart-title');
   if(title)title.textContent=to?`📊 Stock al ${to}`:'📊 Stock actual por sabor';
   // Tabla: filtrar por todos los criterios
-  let data=[...stockAllData];
+  let data=stockAllData.filter(e=>!e.cierre);
   if(sabor)data=data.filter(e=>e.sabor===sabor);
   if(from)data=data.filter(e=>e.fecha>=from);
   if(to)data=data.filter(e=>e.fecha<=to);
@@ -4967,10 +5139,12 @@ window.stockVerCalculo=function(){
     const q=parseInt(e.cantidad)||0;
     let mov='', nota='';
     if(e.tipo==='ajuste'){
-      nAjustes++;
+      if(!e.cierre) nAjustes++;
       entrada=q; venta=0;
       mov='= '+q;
-      nota='<div class="calc-nota">Reinicia el cálculo: borra todo lo anterior y fija el stock en '+q+'</div>';
+      nota = e.cierre
+        ? '<div class="calc-nota">SALDO DE CIERRE: resume todos los movimientos hasta esta fecha</div>'
+        : '<div class="calc-nota">Reinicia el cálculo: borra todo lo anterior y fija el stock en '+q+'</div>';
     }else if(e.tipo==='entrada'){
       entrada+=q; totalEnt+=q; mov='+ '+q;
     }else{
@@ -5124,6 +5298,11 @@ function ddtRender(){
     return;
   }
   if(!stockAllData.length){ cont.innerHTML='<div class="ddt-vacio">Cargando stock...</div>'; return; }
+  if(stockCierreActivo && String(ddt.fecha)<=stockCierreActivo.fecha){
+    cont.innerHTML='<div class="ddt-vacio">Esta consegna es anterior al '+stockCierreActivo.fecha.split('-').reverse().join('/')+
+      '. Los movimientos de esa época ya están resumidos en el saldo de cierre, así que sus cajas no se pueden recalcular. Elegí una consegna más reciente.</div>';
+    return;
+  }
 
   const c=ddtCalcular(ddt);
   const coincide = c.calculado===c.real;
@@ -5401,6 +5580,7 @@ window.guardarInventario=async function(){
         masivo:true, timestamp:serverTimestamp()
       });
     }
+    await stockTocaFecha(fecha);
     closeInventarioModal();
     await stockLoadAll();
     alert(`✅ Registrado: ${items.length} sabores, ${total} empanadas.`);
@@ -5429,7 +5609,8 @@ window.stockResetFilter=function(){  document.getElementById('stock-filter-sabor
 
 let stockGroupMap={};
 function stockRenderTable(data){
-  stockCurrentTableData=data||[];
+  data=(data||[]).filter(e=>!e.cierre);
+  stockCurrentTableData=data;
   const infoTb=document.getElementById('stock-tabla-info');
   if(infoTb) infoTb.textContent=(data||[]).length+' movimientos';
   if(!data||!data.length){document.getElementById('stock-tbody').innerHTML='<tr><td colspan="5" class="stock-empty">Sin registros para este filtro</td></tr>';return;}
@@ -5572,6 +5753,7 @@ window.guardarStock=async function(){
     }else{
       await addDoc(collection(db,'stock'),{sabor,cantidad,fecha,tipo,timestamp:serverTimestamp()});
     }
+    await stockTocaFecha(fecha);
     editingStockId=null;
     closeStockModal();
     await stockLoadAll();
@@ -5582,34 +5764,27 @@ window.guardarStock=async function(){
 // Sincroniza los pedidos de hoy — SOLO crea docs nuevos, nunca sobreescribe
 // Esto preserva los timestamps originales para que el ajuste funcione correctamente
 async function stockSyncToday(){
+  // Antes releía los pedidos de hoy y hacía una lectura por cada sabor de cada
+  // pedido, cada vez que se abría STOCK. Ahora usa los pedidos de hoy que el
+  // panel ya escucha y el stock en memoria: cero lecturas.
   try{
+    await stockEscuchar();
     const hoy=new Date().toISOString().split('T')[0];
-    const sod=new Date();sod.setHours(0,0,0,0);
-    const snap=await getDocs(query(
-      collection(db,'pedidos'),
-      where('timestamp','>=',Timestamp.fromDate(sod))
-    ));
+    const existentes=new Set(stockAllData.map(e=>e.id));
     const promises=[];
-    snap.forEach(d=>{
-      const order={id:d.id,...d.data()};
+    (orders||[]).forEach(order=>{
       if(esDocCoccion(order)) return;   // un ticket de cocina no descuenta stock
       const empItems=(order.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
       empItems.forEach(item=>{
         // El stock se guarda SIEMPRE con el nombre limpio, sin el prefijo (C)/(S)
         const sabor=nombreLimpio(item.nombre);
         const docId=order.id+'_'+sabor.replace(/[^a-zA-Z0-9]/g,'_');
-        const ref=doc(db,'stock',docId);
-        // Primero verifica si ya existe — si existe, NO sobreescribe (preserva timestamp original)
-        promises.push(
-          getDoc(ref).then(existing=>{
-            if(!existing.exists()){
-              return setDoc(ref,{
-                fecha:hoy,sabor,cantidad:item.cantidad,
-                tipo:tipoMovimientoStock(order),orderId:order.id,timestamp:serverTimestamp()
-              });
-            }
-          }).catch(()=>{})
-        );
+        // Si ya existe, NO se sobreescribe (preserva la hora original)
+        if(existentes.has(docId)) return;
+        promises.push(setDoc(doc(db,'stock',docId),{
+          fecha:hoy,sabor,cantidad:item.cantidad,
+          tipo:tipoMovimientoStock(order),orderId:order.id,timestamp:serverTimestamp()
+        }).catch(()=>{}));
       });
     });
     await Promise.all(promises);
@@ -5623,6 +5798,7 @@ async function rehacerStockDePedido(orderId, items, canal){
     // 1) Borrar lo que ese pedido había dejado en el stock
     const viejos=await getDocs(query(collection(db,'stock'),where('orderId','==',orderId)));
     await Promise.all(viejos.docs.map(d=>deleteDoc(doc(db,'stock',d.id)).catch(()=>{})));
+    for(const d of viejos.docs) await stockTocaFecha(d.data().fecha);
     viejos.docs.forEach(d=>{
       const i=stockAllData.findIndex(x=>x.id===d.id);
       if(i>=0) stockAllData.splice(i,1);
@@ -5643,6 +5819,7 @@ async function rehacerStockDePedido(orderId, items, canal){
       await setDoc(doc(db,'stock',docId),datos,{merge:false});
       stockAgregarEnMemoria({id:docId,...datos,timestamp:{seconds:Math.floor(Date.now()/1000)}});
     }
+    await stockTocaFecha(fecha);
 
     // 3) Actualizar lo que ve el cliente en el menú QR
     if(document.getElementById('stock-panel').style.display==='block') await stockLoadAll();
@@ -5775,18 +5952,39 @@ function cocClaseEdad(dias, limite){
   return 'ce-1';
 }
 
+// Cocciones de la ventana de días (incluye las prórrogas de esos lotes).
+// Se escuchan: después de la primera carga solo llegan los cambios.
+let cocMem=[], cocListo=null;
+function cocEscuchar(){
+  if(cocListo) return cocListo;
+  const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
+  const desdeStr=cocFechaStr(desde);
+  cocListo=new Promise((resolve,reject)=>{
+    let primera=true;
+    onSnapshot(query(collection(db,'cocciones'),where('fecha','>=',desdeStr)), snap=>{
+      cocMem=snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(primera){ primera=false; resolve(); }
+    }, err=>{
+      console.error('listener cocciones',err);
+      cocListo=null;
+      if(primera){ primera=false; reject(err); }
+    });
+  });
+  cocListo.catch(()=>{ cocListo=null; });
+  return cocListo;
+}
+
 // Lee las cocciones y las ventas de la ventana de días
 async function cocLoadAll(){
   try{
     const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
     const desdeStr=cocFechaStr(desde);
 
-    const [snapCoc, snapPed] = await Promise.all([
-      getDocs(query(collection(db,'cocciones'))),
-      getDocs(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(desde))))
-    ]);
+    // Antes se releían TODAS las cocciones y 30 días de pedidos cada vez que
+    // se abría la solapa o corría un control. Ahora salen de dos listeners.
+    await Promise.all([cocEscuchar(), pedRecientesEscuchar()]);
 
-    const todosCoc = snapCoc.docs.map(d=>({id:d.id,...d.data()}));
+    const todosCoc = cocMem;
     // Las prórrogas no son cocciones: son una marca sobre un lote.
     // Se guardan en la misma colección para no crear otra, pero se separan acá
     // y nunca entran al cálculo FIFO.
@@ -5798,11 +5996,11 @@ async function cocLoadAll(){
 
     // Ventas por sabor y por día (se usa la fecha en que ENTRÓ el pedido)
     const map={};
-    snapPed.forEach(d=>{
-      const o=d.data();
+    pedRecientes.forEach(o=>{
       if(esDocCoccion(o)) return;   // el ticket de cocina no es una venta
       const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate():null;
       if(!ts) return;
+      if(ts<desde) return;          // misma ventana de días que antes
       const f=cocFechaStr(ts);
       (o.items||[]).forEach(i=>{
         if(i.tipo && i.tipo!=='empanada') return;
@@ -5851,8 +6049,8 @@ async function cocLoadAll(){
 async function cocRecargarSilencioso(){
   const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
   const desdeStr=cocFechaStr(desde);
-  const snap=await getDocs(query(collection(db,'cocciones')));
-  const todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+  await cocEscuchar();
+  const todos=cocMem;
   cocProrrogas={};
   todos.filter(x=>x.tipo==='prorroga').forEach(x=>{
     cocProrrogas[cocClaveLote(x.sabor,x.fecha)] = parseInt(x.dias)||0;
@@ -6073,6 +6271,7 @@ async function cocRegistrarPerdidas(){
       };
       await setDoc(doc(db,'cocciones',idDoc),datos);
       await setDoc(doc(db,'stock',idDoc),datos);
+      await stockTocaFecha(fechaVenc);
       hechas.push(p);
     }
   }catch(e){
