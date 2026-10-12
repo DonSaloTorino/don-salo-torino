@@ -531,6 +531,23 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .stock-bar-track{flex:1;background:#f0f0f0;border-radius:4px;height:10px;overflow:hidden;}
 .stock-bar-fill{height:100%;border-radius:4px;transition:width 0.6s;}
 .stock-bar-val{font-size:14px;font-weight:700;min-width:40px;text-align:right;}
+/* Cajas por sabor (cajas de 50) y resumen de freezers */
+.stock-bar-cajas{min-width:120px;text-align:right;font-size:14px;font-weight:700;color:#111;white-space:nowrap;}
+.stock-bar-cajas small{font-size:10px;font-weight:500;color:#aaa;letter-spacing:0.5px;}
+.stock-bar-cajas.cero{color:#d1d5db;}
+.stock-bar-cajas-det{font-size:9.5px;font-weight:500;color:#9ca3af;letter-spacing:0.3px;margin-top:1px;}
+.stock-bar-head{display:flex;justify-content:flex-end;gap:12px;font-size:9px;letter-spacing:2px;color:#aaa;text-transform:uppercase;padding:0 0 4px 0;}
+.stock-bar-head span:first-child{min-width:40px;text-align:right;}
+.stock-bar-head span:last-child{min-width:120px;text-align:right;}
+.freezer-resumen{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid #eee;}
+.freezer-resumen>div{background:#f5f5f3;border-radius:8px;padding:10px 16px;min-width:110px;}
+.freezer-resumen span{display:block;font-size:9px;letter-spacing:2px;color:#aaa;text-transform:uppercase;margin-bottom:2px;}
+.freezer-resumen b{font-size:22px;}
+.freezer-resumen>div.disp{background:#111;color:#fff;}
+.freezer-resumen>div.disp span{color:rgba(255,255,255,0.6);}
+.freezer-resumen>div.lleno{background:#7f1d1d;color:#fff;}
+.freezer-resumen>div.lleno span{color:rgba(255,255,255,0.7);}
+.freezer-nota{font-size:11px;color:#9ca3af;margin-top:8px;}
 .stock-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
 .stock-select{border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#fff;cursor:pointer;}
 .stock-date-input{border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
@@ -4837,6 +4854,10 @@ function stockRenderAlerts(sourceData){
   div.innerHTML=h;
 }
 
+// Cajas de 50 empanadas y capacidad de los dos freezers (en cajas)
+const CAJA_UNIDADES=50;
+const FREEZERS=[22,28];
+
 let stockChartEntries=[];
 function stockRenderChart(sourceData){
   const bySabor=stockCalcBySabor(sourceData);
@@ -4856,12 +4877,45 @@ function stockRenderChart(sourceData){
     const barra = real<0
       ? '<div class="stock-bar-fill neg" style="width:100%;"></div>'
       : `<div class="stock-bar-fill" style="width:${pct}%;background:${color};"></div>`;
+    // Cajas que ocupa el sabor: las llenas más la abierta, que cuenta como una.
+    // Al lado, en chico, el detalle: cuántas llenas y con cuántas está la abierta.
+    const llenas=Math.floor(s/CAJA_UNIDADES);
+    const sueltas=s%CAJA_UNIDADES;
+    const totalCajas=llenas+(sueltas?1:0);
+    const detalle=sueltas
+      ? (llenas ? `${llenas} ${llenas===1?'LLENA':'LLENAS'} + 1 DE ${sueltas}` : `1 ABIERTA DE ${sueltas}`)
+      : (llenas ? (llenas===1?'LLENA':'LLENAS') : '');
+    const cajas=`<div class="stock-bar-cajas${s===0?' cero':''}">${totalCajas} <small>${totalCajas===1?'CAJA':'CAJAS'}</small>`
+      + `${detalle?`<div class="stock-bar-cajas-det">${detalle}</div>`:''}</div>`;
     return`<div class="stock-bar-row">
       <div class="stock-bar-label">${sabor}</div>
       <div class="stock-bar-track">${barra}</div>
       <div class="stock-bar-val" style="color:${color};font-weight:700;">${etiqueta}</div>
+      ${cajas}
     </div>`;
   }).join('');
+
+  // ── Resumen de freezers ──
+  // Una caja abierta ocupa su lugar en el freezer igual que una llena,
+  // así que para el espacio se cuenta como caja entera.
+  let totLlenas=0, totAbiertas=0;
+  entries.forEach(([,v])=>{
+    const s=Math.max(0,v.stock||0);
+    totLlenas+=Math.floor(s/CAJA_UNIDADES);
+    if(s%CAJA_UNIDADES) totAbiertas++;
+  });
+  const capacidad=FREEZERS.reduce((a,b)=>a+b,0);
+  const enStock=totLlenas+totAbiertas;
+  const disponibles=capacidad-enStock;
+  const head=`<div class="stock-bar-head"><span>UNID.</span><span>CAJAS</span></div>`;
+  const resumen=`<div class="freezer-resumen">
+      ${FREEZERS.map((c,i)=>`<div><span>Freezer ${i+1}</span><b>${c}</b></div>`).join('')}
+      <div><span>Total</span><b>${capacidad}</b></div>
+      <div><span>En stock</span><b>${enStock}</b></div>
+      <div class="${disponibles<0?'lleno':'disp'}"><span>${disponibles<0?'Sobran':'Disponibles'}</span><b>${Math.abs(disponibles)}</b></div>
+    </div>
+    <div class="freezer-nota">En stock: ${totLlenas} cajas llenas + ${totAbiertas} abiertas. Las abiertas cuentan como caja entera porque ocupan el mismo lugar.</div>`;
+  chartDiv.innerHTML=head+chartDiv.innerHTML+resumen;
 }
 
 window.stockApplyFilter=async function(){
