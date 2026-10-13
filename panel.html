@@ -1647,6 +1647,12 @@ function playAlert(){try{const c=new(window.AudioContext||window.webkitAudioCont
 
 const sod=new Date();sod.setHours(0,0,0,0);
 // El listener de pedidos arranca recién después del login (ver arrancarApp)
+// Se resuelve cuando llegan los pedidos de hoy por primera vez. Cocción la
+// espera: si calculara antes, vería el día sin ventas y el control automático
+// registraría un faltante que no existe.
+let ordersListoOk, ordersListoErr;
+const ordersListo=new Promise((r,j)=>{ ordersListoOk=r; ordersListoErr=j; });
+ordersListo.catch(()=>{});
 function iniciarListenerPedidos(){
 onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromDate(sod)),orderBy('timestamp','desc')),snap=>{
   const no=[],ni=new Set();
@@ -1657,7 +1663,8 @@ onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromD
     if(!isFirstLoad&&!knownIds.has(d.id)&&o.estado==='nuevo'){playAlert();autoRegisterVentas(o);}
   });
   orders=no;knownIds=ni;isFirstLoad=false;renderOrders();updateStats();
-});
+  ordersListoOk();
+}, err=>{ console.error('listener pedidos de hoy',err); ordersListoErr(err); });
 }
 
 function fFecha(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)} ${'gen,feb,mar,apr,mag,giu,lug,ago,set,ott,nov,dic'.split(',')[parseInt(m)-1]}`;}
@@ -2257,6 +2264,7 @@ window.eliminarOrder=async function(id){
   try{
     // 1) Borrar el pedido primero (así la sincronización no lo vuelve a registrar como venta)
     await deleteDoc(doc(db,'pedidos',id));
+    await ventasDiaInvalidar(o);
     // 2) Borrar los registros de venta de stock asociados → devuelve empanadas al stock
     if(o){
       const empItems=(o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
@@ -2872,6 +2880,7 @@ window.confirmarManual=async function(){
         estado:estadoPrevio, modificado:true,
         canalVenta:canalActivo, promos:promosSel, consumo
       });
+      await ventasDiaInvalidar(orig);
       // El stock se rehace de cero para este pedido. Sin esto, cambiar las
       // cantidades dejaba el stock con los números viejos y aparecía un desvío
       // silencioso que solo se descubría contando a mano semanas después.
@@ -3421,6 +3430,7 @@ window.delCancelarConfirmada = async function(codigo){
   try{
     const o = orders.find(x => x.id === codigo);
     await deleteDoc(doc(db,'pedidos',codigo));
+    await ventasDiaInvalidar(o);
     if(o){
       const emp = (o.items||[]).filter(i=>!i.tipo||i.tipo==='empanada');
       await Promise.all(emp.map(item=>{
@@ -4001,7 +4011,8 @@ async function sFt(f,t){
 // Pedidos crudos de un rango (sin filtrar ventas), en el orden pedido.
 // Si el rango cae dentro del mes en memoria, no se lee nada de la base.
 async function pedidosRango(desde,hasta,orden){
-  try{ await pedRecientesEscuchar(); }catch(e){}
+  // Usa el mes en memoria solo si ESTADÍSTICAS ya lo cargó. Abrir HISTORIAL
+  // no carga el mes entero: lee únicamente el rango pedido.
   if(pedRecDesde && desde>=pedRecDesde){
     const fm=desde.getTime(), tm=hasta.getTime();
     const arr=pedRecientes.filter(o=>{
@@ -5966,6 +5977,92 @@ function cocClaseEdad(dias, limite){
   return 'ce-1';
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  VENTAS POR DÍA RESUMIDAS (colección ventas_dia)
+//  Cocción necesita las ventas de 30 días con su hora real. Antes se leían
+//  los ~30 días de pedidos completos en cada equipo al abrir el panel: unas
+//  5.000 lecturas, y creciendo con cada venta.
+//  Ahora cada día CERRADO se resume una sola vez en un documento con cada
+//  venta (sabor, cantidad, turno, minuto): exactamente los datos que usa el
+//  cálculo, sacados con la misma lógica. 30 días = 30 lecturas.
+//  · Los pedidos NO se tocan ni se borran: el historial completo sigue ahí.
+//  · El día de HOY sale siempre de los pedidos en vivo, nunca de un resumen.
+//  · Si se modifica o borra un pedido de un día cerrado, el resumen de ese
+//    día se borra y se vuelve a armar desde los pedidos la próxima vez.
+//  · VENTAS_DIA_VERSION: si algún día cambia la forma de contar una venta,
+//    se sube el número y todos los resúmenes se rehacen solos.
+// ═══════════════════════════════════════════════════════════════
+const VENTAS_DIA_VERSION=1;
+let ventasDiaMem={}, ventasDiaListo=null;
+
+// La MISMA lógica que usaba cocción sobre los pedidos, en un solo lugar
+function ventasEventosDe(lista){
+  const ev=[];
+  lista.forEach(o=>{
+    if(esDocCoccion(o)) return;   // el ticket de cocina no es una venta
+    const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate():null;
+    if(!ts) return;
+    const t=turnoDePedido(o);
+    const m=ts.getHours()*60+ts.getMinutes();
+    const f=cocFechaStr(ts);
+    (o.items||[]).forEach(i=>{
+      if(i.tipo && i.tipo!=='empanada') return;
+      const s=nombreLimpio(i.nombre);
+      const q=parseInt(i.cantidad)||0;
+      if(!q) return;
+      ev.push({f, s, q, t, m});
+    });
+  });
+  return ev;
+}
+function ventasDiaEscuchar(){
+  if(ventasDiaListo) return ventasDiaListo;
+  const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS-1); desde.setHours(0,0,0,0);
+  ventasDiaListo=new Promise((resolve,reject)=>{
+    let primera=true;
+    onSnapshot(query(collection(db,'ventas_dia'),where('fecha','>=',cocFechaStr(desde))), snap=>{
+      const m={};
+      snap.docs.forEach(d=>{
+        const x=d.data();
+        if(x.v===VENTAS_DIA_VERSION && Array.isArray(x.eventos)) m[x.fecha]=x.eventos;
+      });
+      ventasDiaMem=m;
+      if(primera){ primera=false; resolve(); }
+    }, err=>{
+      console.error('listener ventas_dia',err);
+      ventasDiaListo=null;
+      if(primera){ primera=false; reject(err); }
+    });
+  });
+  ventasDiaListo.catch(()=>{ ventasDiaListo=null; });
+  return ventasDiaListo;
+}
+// Arma el resumen de un día cerrado leyendo sus pedidos (una vez en la vida)
+async function ventasDiaConstruir(fecha){
+  const d0=new Date(fecha+'T00:00:00'), d1=new Date(fecha+'T23:59:59.999');
+  const snap=await getDocs(query(collection(db,'pedidos'),
+    where('timestamp','>=',Timestamp.fromDate(d0)),
+    where('timestamp','<=',Timestamp.fromDate(d1))));
+  const lista=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const eventos=ventasEventosDe(lista)
+    .filter(e=>e.f===fecha)
+    .map(e=>({s:e.s, q:e.q, t:e.t, m:e.m}));
+  ventasDiaMem[fecha]=eventos;
+  await setDoc(doc(db,'ventas_dia',fecha),
+    { v:VENTAS_DIA_VERSION, fecha, eventos, nPedidos:lista.length, creadoMs:Date.now() });
+  return eventos;
+}
+// Llamar después de modificar o borrar un pedido. Si es de un día cerrado,
+// su resumen queda viejo: se borra y se rehace desde los pedidos.
+async function ventasDiaInvalidar(o){
+  const ts=o&&o.timestamp&&o.timestamp.toDate?o.timestamp.toDate():null;
+  if(!ts) return;
+  const f=cocFechaStr(ts);
+  if(f>=cocHoy()) return;   // hoy nunca usa resumen
+  delete ventasDiaMem[f];
+  try{ await deleteDoc(doc(db,'ventas_dia',f)); }catch(e){ console.error('invalidar ventas_dia',e); }
+}
+
 // Cocciones de la ventana de días (incluye las prórrogas de esos lotes).
 // Se escuchan: después de la primera carga solo llegan los cambios.
 let cocMem=[], cocListo=null;
@@ -5994,9 +6091,14 @@ async function cocLoadAll(){
     const desde=new Date(); desde.setDate(desde.getDate()-COC_VENTANA_DIAS); desde.setHours(0,0,0,0);
     const desdeStr=cocFechaStr(desde);
 
-    // Antes se releían TODAS las cocciones y 30 días de pedidos cada vez que
-    // se abría la solapa o corría un control. Ahora salen de dos listeners.
-    await Promise.all([cocEscuchar(), pedRecientesEscuchar()]);
+    // Cocciones: listener. Ventas: días cerrados desde ventas_dia y hoy desde
+    // los pedidos en vivo. Nada de releer 30 días de pedidos.
+    await Promise.all([cocEscuchar(), ventasDiaEscuchar(), ordersListo]);
+    const hoyStr=cocHoy();
+    const diasCerrados=[];
+    for(const d=new Date(desde); cocFechaStr(d)<hoyStr; d.setDate(d.getDate()+1)) diasCerrados.push(cocFechaStr(d));
+    const faltan=diasCerrados.filter(f=>!ventasDiaMem[f]);
+    if(faltan.length) await Promise.all(faltan.map(f=>ventasDiaConstruir(f)));
 
     const todosCoc = cocMem;
     // Las prórrogas no son cocciones: son una marca sobre un lote.
@@ -6009,30 +6111,19 @@ async function cocLoadAll(){
     cocDataAll = todosCoc.filter(c=>c.tipo!=='prorroga' && c.fecha && c.fecha>=desdeStr);
 
     // Ventas por sabor y por día (se usa la fecha en que ENTRÓ el pedido)
+    // Cada venta guarda SU HORA REAL. Antes se agrupaban por turno y se
+    // procesaban todas como si fueran a las 13:00: un conteo de vitrina de
+    // las 12:01 quedaba antes de ventas que ya habían ocurrido, y esas
+    // ventas se comían lo que acababas de contar.
     const map={};
-    pedRecientes.forEach(o=>{
-      if(esDocCoccion(o)) return;   // el ticket de cocina no es una venta
-      const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate():null;
-      if(!ts) return;
-      if(ts<desde) return;          // misma ventana de días que antes
-      const f=cocFechaStr(ts);
-      (o.items||[]).forEach(i=>{
-        if(i.tipo && i.tipo!=='empanada') return;
-        const s=nombreLimpio(i.nombre);
-        const q=parseInt(i.cantidad)||0;
-        if(!q) return;
-        // Cada venta guarda SU HORA REAL. Antes se agrupaban por turno y se
-        // procesaban todas como si fueran a las 13:00: un conteo de vitrina de
-        // las 12:01 quedaba antes de ventas que ya habían ocurrido, y esas
-        // ventas se comían lo que acababas de contar.
-        const t=turnoDePedido(o);
-        const min=ts.getHours()*60+ts.getMinutes();
-        map[s]=map[s]||{};
-        map[s][f]=map[s][f]||{pranzo:0, cena:0, eventos:[]};
-        map[s][f][t]+=q;
-        map[s][f].eventos.push({cant:q, turno:t, minuto:min});
-      });
-    });
+    const agregar=(f,ev)=>{
+      map[ev.s]=map[ev.s]||{};
+      map[ev.s][f]=map[ev.s][f]||{pranzo:0, cena:0, eventos:[]};
+      map[ev.s][f][ev.t]+=ev.q;
+      map[ev.s][f].eventos.push({cant:ev.q, turno:ev.t, minuto:ev.m});
+    };
+    diasCerrados.forEach(f=>(ventasDiaMem[f]||[]).forEach(ev=>agregar(f,ev)));
+    ventasEventosDe(orders||[]).filter(ev=>ev.f===hoyStr).forEach(ev=>agregar(hoyStr,ev));
     cocVentasPorDia=map;
 
     cocCalculado=cocCalcularFIFO();
