@@ -345,6 +345,9 @@
   .franja-opt.selected .badge{ background: var(--accent); color:#fff; }
   /* Cupo: "2/3 CONSEGNE DISPONIBILI" — el número es lo que queda libre, no lo ocupado */
   .franja-cupo{ display:flex; align-items:center; gap:8px; }
+  .franja-reserva{ font-size:11px; font-weight:700; color: var(--success); background: var(--success-bg);
+    border-radius: var(--radius-sm); padding: 8px 12px; margin-top: 4px; text-transform: uppercase; }
+  .franja-opt.cargando{ opacity:0.55; pointer-events:none; }
   .franja-cupo-txt{ font-size:9.5px; font-weight:700; opacity:0.75; text-align:right; line-height:1.2; }
 
   /* ---------- COUNTER ---------- */
@@ -794,7 +797,7 @@
    diseño: la seguridad real está en las reglas de Firestore.
    ═══════════════════════════════════════════════════════════ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, runTransaction, serverTimestamp }
+import { getFirestore, doc, getDoc, setDoc, runTransaction, serverTimestamp, onSnapshot }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let _db = null;
@@ -957,6 +960,8 @@ const I18N = {
     cupo_disp: "CONSEGNE<br>DISPONIBILI", cupo_disp_1: "CONSEGNA<br>DISPONIBILE",
     cupo_lleno: "QUESTA FASCIA ORARIA SI È APPENA RIEMPITA. SCEGLINE UN'ALTRA.",
     pay_amount: "IMPORTO DA PAGARE",
+    reserva_hasta: "TI TENIAMO QUESTO ORARIO FINO ALLE ",
+    track_camino_franja: "ARRIVO TRA LE ", track_entregado: "CONSEGNATO ✓",
     no_franjas_hoy: "PER OGGI NON CI SONO PIÙ FASCE DISPONIBILI. PROVA UN ALTRO GIORNO.",
     s2_title: "QUANTE EMPANADAS?", s2_sub: "MINIMO 3 EMPANADAS", s2_hint: "TOCCA + PER AGGIUNGERE",
     fp_label: "SAPORI SCELTI", flavor_unavail: "NON DISPONIBILE", ingredients_pending: "INGREDIENTI DA CONFERMARE",
@@ -996,6 +1001,8 @@ const I18N = {
     cupo_disp: "ENTREGAS<br>DISPONIBLES", cupo_disp_1: "ENTREGA<br>DISPONIBLE",
     cupo_lleno: "ESTA FRANJA HORARIA SE ACABA DE LLENAR. ELEGÍ OTRA.",
     pay_amount: "IMPORTE A PAGAR",
+    reserva_hasta: "TE GUARDAMOS ESTE HORARIO HASTA LAS ",
+    track_camino_franja: "LLEGA ENTRE LAS ", track_entregado: "ENTREGADO ✓",
     no_franjas_hoy: "POR HOY NO QUEDAN FRANJAS DISPONIBLES. PROBÁ OTRO DÍA.",
     s2_title: "¿CUÁNTAS EMPANADAS?", s2_sub: "MÍNIMO 3 EMPANADAS", s2_hint: "TOCÁ + PARA SUMAR",
     fp_label: "SABORES ELEGIDOS", flavor_unavail: "NO DISPONIBLE", ingredients_pending: "INGREDIENTES A CONFIRMAR",
@@ -1076,7 +1083,9 @@ function restoreSession(){
   if(!saved) return false;
 
   // Código con el tiempo ya vencido: no lo resucitamos, arranca todo de cero.
-  if(saved.orderCode && saved.timerEndTs && saved.timerEndTs <= Date.now()){
+  // (si ya avisó el pago o está confirmado, el seguimiento tiene que seguir)
+  if(saved.orderCode && saved.timerEndTs && saved.timerEndTs <= Date.now()
+     && (saved.orderPhase || 'pago') === 'pago'){
     clearSession();
     return false;
   }
@@ -1120,6 +1129,7 @@ function restoreSession(){
     document.getElementById('paySatispayBtn').href = CONFIG.linkSatispay;
     updateOrderSteps(saved.orderPhase || 'pago');
     if(state.orderPhase === 'pago') startTimer(state.timerEndTs);
+    seguirPedido();
   }
 
   const step = saved.step >= 1 ? saved.step : 1;
@@ -1417,22 +1427,94 @@ function onDateChange(){ /* ya no se elige fecha */ }
 function claveCupo(fecha, franja){
   return String(fecha) + '_' + String(franja).replace(/[^0-9A-Za-z]/g, '');
 }
-const _cacheCupo = {};
-async function getCupoOcupado(fecha, franja){
-  const k = claveCupo(fecha, franja);
-  if(_cacheCupo[k] !== undefined) return _cacheCupo[k];
+/* RESERVA TEMPORAL DE LA FRANJA
+   Al tocar una franja, el cliente la reserva por HOLD_MS. Mientras tanto,
+   los demás clientes la ven como ocupada. Si no llega a pagar, la reserva
+   vence sola: no hace falta que nadie la libere.
+   En el documento del cupo:
+     ocupados: pedidos que ya tienen código (igual que antes)
+     reservas: { idDelCliente: vencimientoMs }
+   Libres = cupo − ocupados − reservas vigentes de OTROS clientes. */
+const HOLD_MS = 10 * 60 * 1000;
+const HOLD_ID = (()=>{
   try{
-    const snap = await getDoc(doc(db(), 'cupos', k));
-    const n = snap.exists() ? (snap.data().ocupados || 0) : 0;
-    _cacheCupo[k] = n;
-    return n;
+    let h = localStorage.getItem('donsalo_hold');
+    if(!h){ h = Math.random().toString(36).slice(2,12); localStorage.setItem('donsalo_hold', h); }
+    return h;
+  }catch(e){ return Math.random().toString(36).slice(2,12); }
+})();
+
+// Los cupos se ESCUCHAN: si otro cliente reserva o paga, se ve al instante
+const _cupoDocs = {};
+const _cupoUnsubs = {};
+function escucharCupo(fecha, franja){
+  const k = claveCupo(fecha, franja);
+  if(_cupoUnsubs[k]) return;
+  _cupoUnsubs[k] = onSnapshot(doc(db(), 'cupos', k), snap=>{
+    _cupoDocs[k] = snap.exists() ? snap.data() : { ocupados: 0 };
+    if(state.step === 1) renderFranjas();
+  }, err=>{
+    console.error('cupo', err);
+    _cupoDocs[k] = { ocupados: 0 };   // ante un error de red no se bloquea al cliente
+    if(state.step === 1) renderFranjas();
+  });
+}
+function reservasDeOtros(d){
+  const ahora = Date.now();
+  return Object.entries((d && d.reservas) || {})
+    .filter(([id, exp]) => id !== HOLD_ID && exp > ahora).length;
+}
+function reservasVigentesSinMi(d){
+  const ahora = Date.now(), r = {};
+  Object.entries((d && d.reservas) || {}).forEach(([id, exp])=>{
+    if(id !== HOLD_ID && exp > ahora) r[id] = exp;
+  });
+  return r;
+}
+// null si todavía no llegó el dato
+function cupoUsado(fecha, franja){
+  const d = _cupoDocs[claveCupo(fecha, franja)];
+  if(!d) return null;
+  return (d.ocupados || 0) + reservasDeOtros(d);
+}
+function miReservaVence(fecha, franja){
+  const d = _cupoDocs[claveCupo(fecha, franja)];
+  const exp = d && d.reservas ? d.reservas[HOLD_ID] : null;
+  return (exp && exp > Date.now()) ? exp : null;
+}
+
+// Reserva la franja para este cliente. false si ya no queda lugar.
+async function reservarFranja(fecha, franja){
+  const ref = doc(db(), 'cupos', claveCupo(fecha, franja));
+  try{
+    return await runTransaction(db(), async (tx)=>{
+      const snap = await tx.get(ref);
+      const d = snap.exists() ? snap.data() : {};
+      const n = d.ocupados || 0;
+      if(n + reservasDeOtros(d) >= CONFIG.cupoPorFranja) return false;
+      const reservas = reservasVigentesSinMi(d);
+      reservas[HOLD_ID] = Date.now() + HOLD_MS;
+      tx.set(ref, { ocupados: n, fecha: fecha, franja: franja, reservas: reservas });
+      return true;
+    });
   }catch(e){
-    console.error('cupo', e);
-    return 0;   // ante un error de red no se bloquea al cliente
+    console.error('reservar franja', e);
+    return true;   // no se bloquea al cliente por un error de red
   }
 }
-/* Toma un lugar de la franja, de forma atómica. Devuelve false si ya se llenó
-   mientras el cliente estaba eligiendo: ahí hay que avisarle. */
+// Suelta la reserva (cuando el cliente cambia de franja)
+async function soltarFranja(fecha, franja){
+  const ref = doc(db(), 'cupos', claveCupo(fecha, franja));
+  try{
+    await runTransaction(db(), async (tx)=>{
+      const snap = await tx.get(ref);
+      if(!snap.exists()) return;
+      const d = snap.data();
+      tx.set(ref, { ocupados: d.ocupados || 0, fecha: fecha, franja: franja, reservas: reservasVigentesSinMi(d) });
+    });
+  }catch(e){ console.error('soltar franja', e); }
+}
+
 /* Devuelve el lugar a la franja. Se llama cuando vencen los 15 minutos sin
    que el cliente avise el pago. Sin esto, cada pedido abandonado se come uno
    de los tres lugares del día para siempre. */
@@ -1445,28 +1527,33 @@ async function devolverCupo(fecha, franja){
       const n = snap.exists() ? (snap.data().ocupados || 0) : 0;
       tx.set(ref, { ocupados: Math.max(0, n - 1), fecha: fecha, franja: franja }, { merge: true });
     });
-    if(_cacheCupo[k] !== undefined) _cacheCupo[k] = Math.max(0, _cacheCupo[k] - 1);
   }catch(e){ console.error('devolver cupo', e); }
 }
 
+/* Toma el lugar de verdad, de forma atómica, al generar el código. La reserva
+   propia se convierte en lugar ocupado. Las reservas de otros clientes se
+   respetan: si entre los ocupados y las reservas ajenas no queda lugar,
+   devuelve false y hay que avisarle al cliente. */
 async function tomarCupo(fecha, franja){
   const k = claveCupo(fecha, franja);
   try{
     const ref = doc(db(), 'cupos', k);
-    const ok = await runTransaction(db(), async (tx)=>{
+    return await runTransaction(db(), async (tx)=>{
       const snap = await tx.get(ref);
-      const n = snap.exists() ? (snap.data().ocupados || 0) : 0;
-      if(n >= CONFIG.cupoPorFranja) return false;
-      tx.set(ref, { ocupados: n + 1, fecha: fecha, franja: franja }, { merge: true });
+      const d = snap.exists() ? snap.data() : {};
+      const n = d.ocupados || 0;
+      if(n + reservasDeOtros(d) >= CONFIG.cupoPorFranja) return false;
+      tx.set(ref, { ocupados: n + 1, fecha: fecha, franja: franja, reservas: reservasVigentesSinMi(d) });
       return true;
     });
-    if(ok) _cacheCupo[k] = (_cacheCupo[k] || 0) + 1;
-    return ok;
   }catch(e){
     console.error('tomar cupo', e);
     return true;   // no se bloquea el pedido por un error de red
   }
 }
+
+// Las reservas vencen con el tiempo: se redibuja cada 20 segundos
+setInterval(()=>{ if(state.step === 1) renderFranjas(); }, 20000);
 
 // Junta las franjas de los turnos activos para ese día, sacando las de un turno
 // cuyo cutoff ya pasó si la fecha elegida es justamente hoy.
@@ -1485,7 +1572,7 @@ function franjasDisponiblesDelDia(fechaStr){
   return resultado;
 }
 
-async function renderFranjas(){
+function renderFranjas(){
   const list = document.getElementById('franjaList');
   list.innerHTML = '';
   if(!state.fecha) return;
@@ -1514,18 +1601,56 @@ async function renderFranjas(){
   if(box){ box.className = 'sin-franjas'; box.innerHTML = ''; }
 
   for(const f of franjas){
-    const ocupado = await getCupoOcupado(state.fecha, f);
-    const full = ocupado >= CONFIG.cupoPorFranja;
+    escucharCupo(state.fecha, f);
+    const usado = cupoUsado(state.fecha, f);
     const div = document.createElement('div');
+    if(usado === null){
+      // Todavía no llegó el dato de esta franja
+      div.className = 'franja-opt cargando';
+      div.innerHTML = `<span>${f}</span><span class="franja-cupo"><span class="badge">…</span></span>`;
+      list.appendChild(div);
+      continue;
+    }
+    const mia = state.franja === f && !!miReservaVence(state.fecha, f);
+    const full = usado >= CONFIG.cupoPorFranja && !mia;
     div.className = 'franja-opt' + (full ? ' full' : '') + (state.franja === f ? ' selected' : '');
-    const libres = Math.max(0, CONFIG.cupoPorFranja - ocupado);
+    const libres = Math.max(0, CONFIG.cupoPorFranja - usado);
     const txtCupo = full ? t('franja_full') : (libres === 1 ? t('cupo_disp_1') : t('cupo_disp'));
     div.innerHTML = `<span>${f}</span>`
       + `<span class="franja-cupo"><span class="franja-cupo-txt">${txtCupo}</span>`
       + `<span class="badge">${libres}/${CONFIG.cupoPorFranja}</span></span>`;
-    if(!full) div.onclick = () => { state.franja = f; renderFranjas(); updateMainButton(); saveSession(); };
+    if(!full) div.onclick = () => elegirFranja(f, div);
     list.appendChild(div);
   }
+
+  // Aviso de la reserva propia
+  if(state.franja){
+    const vence = miReservaVence(state.fecha, state.franja);
+    if(vence){
+      const d = new Date(vence);
+      const hh = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      const nota = document.createElement('div');
+      nota.className = 'franja-reserva';
+      nota.textContent = t('reserva_hasta') + hh;
+      list.appendChild(nota);
+    }
+  }
+}
+
+// Al tocar una franja se reserva. Si ya no hay lugar, se avisa.
+async function elegirFranja(f, div){
+  if(state.franja === f && miReservaVence(state.fecha, f)) return;
+  if(div) div.classList.add('cargando');
+  const ok = await reservarFranja(state.fecha, f);
+  if(!ok){
+    alert(t('cupo_lleno'));
+    renderFranjas();
+    return;
+  }
+  const anterior = state.franja;
+  state.franja = f;
+  if(anterior && anterior !== f) soltarFranja(state.fecha, anterior);
+  renderFranjas(); updateMainButton(); saveSession();
 }
 
 /* =====================================================================
@@ -1737,7 +1862,6 @@ async function crearSolicitud(){
   const hayLugar = await tomarCupo(state.fecha, state.franja);
   if(!hayLugar){
     alert(t('cupo_lleno'));
-    _cacheCupo[claveCupo(state.fecha, state.franja)] = CONFIG.cupoPorFranja;
     state.franja = null;
     showScreen(1);
     renderFranjas();
@@ -1747,6 +1871,7 @@ async function crearSolicitud(){
   state.pagoIntentado = false;
   document.getElementById('orderCode').textContent = state.orderCode;
   updateOrderSteps('pago'); // recién acá aparece toda la lista de 6 pasos
+  seguirPedido();           // y desde acá el cliente ve los pasos en vivo
   startTimer();
 
   // Los dos links son de importe libre: el cliente escribe el total él mismo
@@ -1933,7 +2058,26 @@ function restartOrder(){
    Don Salo · 5 En preparación · 6 En camino.
    Los pasos 4, 5 y 6 dependen de Firestore — todavía no se disparan solos.
    ===================================================================== */
-const ORDER_PHASES = ['pago','confirmado_cliente','confirmado_negocio','preparacion','camino'];
+const ORDER_PHASES = ['pago','confirmado_cliente','confirmado_negocio','preparacion','camino','entregado'];
+
+/* SEGUIMIENTO EN VIVO
+   Cuando Ra confirma el pago, el pedido aparece en 'pedidos' (de lectura
+   pública y SIN datos personales) con estadoDelivery. El cliente lo escucha
+   por su código y avanza los pasos solo, sin recargar. */
+const FASE_POR_ESTADO = { confirmado:'confirmado_negocio', preparacion:'preparacion', camino:'camino', entregado:'entregado' };
+let _seguimientoUnsub = null;
+function seguirPedido(){
+  if(_seguimientoUnsub || !state.orderCode) return;
+  _seguimientoUnsub = onSnapshot(doc(db(), 'pedidos', state.orderCode), snap=>{
+    if(!snap.exists()) return;
+    const p = snap.data();
+    // Por seguridad: un pedido de más de un día no es el de este cliente
+    const ts = p.timestamp && p.timestamp.toDate ? p.timestamp.toDate().getTime() : Date.now();
+    if(Date.now() - ts > 24*60*60*1000) return;
+    const fase = FASE_POR_ESTADO[p.estadoDelivery || 'confirmado'];
+    if(fase && fase !== state.orderPhase) updateOrderSteps(fase);
+  }, err=>{ console.error('seguimiento', err); });
+}
 function phaseToStepNumber(phase){
   const idx = ORDER_PHASES.indexOf(phase);
   return idx >= 0 ? idx + 2 : 2; // 'pago' = paso 2
@@ -1969,7 +2113,9 @@ function updateOrderSteps(phase){
 
   document.getElementById('step3-sub').textContent = t('step3_sub');
   document.getElementById('step5-sub').textContent = t('track_prep_sub');
-  document.getElementById('step6-sub').textContent = t('track_camino_sub') + '20:05'; // TODO: ETA real via Maps
+  document.getElementById('step6-sub').textContent = (phase === 'entregado')
+    ? t('track_entregado')
+    : t('track_camino_franja') + String(state.franja || '').replace('-', ' – ');
 
   saveSession();
 }
