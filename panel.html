@@ -1543,7 +1543,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc, addDoc, setDoc, query, orderBy, where, Timestamp, serverTimestamp, getDocs, runTransaction, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -4829,7 +4829,9 @@ let stockCargado=false;   // la colección 'stock' ya se leyó en esta sesión
 //  · Se leen solo los movimientos POSTERIORES a esa fecha.
 //  · El saldo entra al cálculo como un ajuste en la fecha del cierre, que es
 //    exactamente equivalente a sumar todo lo anterior (un ajuste fija el stock).
-//  · El cierre se corre solo, quedando siempre entre 14 y 21 días atrás.
+//  · El cierre se corre solo, quedando siempre entre 14 y 21 días atrás,
+//    y NUNCA después de la última consegna (DDT): el control de consegna
+//    necesita el detalle completo desde el DDT vigente.
 //  · Si alguien carga o corrige un movimiento con fecha anterior al cierre,
 //    el cierre se invalida y se recalcula con el historial completo.
 //  Además se ESCUCHA en vez de releer: después de la primera carga, Firebase
@@ -4837,7 +4839,7 @@ let stockCargado=false;   // la colección 'stock' ya se leyó en esta sesión
 // ═══════════════════════════════════════════════════════════════
 const CIERRE_ATRAS=14;    // el cierre se pone 14 días antes de hoy
 const CIERRE_RENUEVA=21;  // y se renueva cuando quedó más de 21 días atrás
-let stockListo=null, stockUnsub=null, stockCierreActivo=null;
+let stockListo=null, stockUnsub=null, stockCierreActivo=null, stockUltimoDdt=null;
 
 function stockFechaMenos(dias){
   const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-dias);
@@ -4859,6 +4861,13 @@ function stockEscuchar(){
       const d=sc.exists()?sc.data():null;
       if(d && !d.invalido && d.fecha && d.saldos) cierre=d;
     }catch(e){ console.error('leer cierre de stock',e); }
+    // La última consegna: el cierre tiene que quedar antes de ella (1 lectura)
+    try{
+      const sd=await getDocs(query(collection(db,'ddt'),orderBy('fecha','desc'),limit(1)));
+      stockUltimoDdt = sd.empty ? null : (String(sd.docs[0].data().fecha||'')||null);
+    }catch(e){ console.error('leer última consegna',e); stockUltimoDdt=null; }
+    // Un cierre en la fecha del último DDT o después no sirve: se rehace
+    if(cierre && stockUltimoDdt && cierre.fecha>=stockUltimoDdt) cierre=null;
     const filasCierre=stockFilasCierre(cierre);
     const q = cierre
       ? query(collection(db,'stock'), where('fecha','>',cierre.fecha))
@@ -4884,7 +4893,12 @@ function stockEscuchar(){
 // Corre el cierre hacia adelante cuando quedó viejo. Se calcula con lo que ya
 // está en memoria, sin leer nada de más.
 async function stockMantenerCierre(cierre){
-  const objetivo=stockFechaMenos(CIERRE_ATRAS);
+  let objetivo=stockFechaMenos(CIERRE_ATRAS);
+  if(stockUltimoDdt){
+    const d=new Date(stockUltimoDdt+'T00:00:00'); d.setDate(d.getDate()-1);
+    const antesDelDdt=cocFechaStr(d);
+    if(antesDelDdt<objetivo) objetivo=antesDelDdt;
+  }
   if(cierre && cierre.fecha>=stockFechaMenos(CIERRE_RENUEVA)) return;
   if(cierre && objetivo<=cierre.fecha) return;
   const datos=stockAllData.filter(e=>!e.fecha || String(e.fecha)<=objetivo);
