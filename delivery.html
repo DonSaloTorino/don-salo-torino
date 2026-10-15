@@ -345,6 +345,29 @@
   .franja-opt.selected .badge{ background: var(--accent); color:#fff; }
   /* Cupo: "2/3 CONSEGNE DISPONIBILI" — el número es lo que queda libre, no lo ocupado */
   .franja-cupo{ display:flex; align-items:center; gap:8px; }
+  /* Cartel de bienvenida con las reglas */
+  .info-card{ margin: 22px auto 0; max-width: 440px; background:#fff; border:1.5px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px; text-align:left; font-family: var(--font-hk); }
+  .info-tabs{ display:flex; gap:6px; justify-content:flex-end; margin-bottom:8px; }
+  .info-tab{ font-size:10px; font-weight:800; padding:4px 10px; border-radius:999px; border:1.5px solid var(--border);
+    background:transparent; color: var(--ink-soft); cursor:pointer; letter-spacing:1px; text-transform:uppercase; }
+  .info-tab.on{ background: var(--accent); border-color: var(--accent); color:#fff; }
+  .info-tit{ font-size:13px; font-weight:800; letter-spacing:1.5px; color: var(--ink); text-transform:uppercase; margin-bottom:8px; }
+  .info-ahora{ font-size:12px; font-weight:800; color: var(--accent-dark); background: var(--error-bg);
+    border-radius: var(--radius-sm); padding:8px 10px; margin-bottom:10px; text-transform:uppercase; }
+  .info-row{ display:flex; gap:10px; font-size:12px; line-height:1.45; color: var(--ink-soft); padding:5px 0;
+    border-top:1px solid #F0EADF; text-transform:uppercase; }
+  .info-ico{ flex:0 0 18px; text-align:center; }
+  .info-row b{ color: var(--ink); }
+  /* Aviso del día de entrega, arriba de la dirección */
+  .aviso-dia{ font-size:12px; font-weight:800; line-height:1.4; border-radius: var(--radius-sm);
+    padding: 10px 14px; margin: 0 0 14px; text-transform:uppercase; font-family: var(--font-hk); }
+  .aviso-dia.hoy{ background: var(--success-bg); color: var(--success); }
+  .aviso-dia.otro{ background: var(--error-bg); color: var(--accent-dark); }
+  /* Pedido rechazado o cancelado */
+  .pedido-anulado{ background: var(--error-bg); color: var(--error); border-radius: var(--radius);
+    padding: 16px 18px; font-size:13px; font-weight:700; line-height:1.45; text-transform:uppercase; margin-top:16px; }
+  .pedido-anulado a{ color: var(--error); }
   .franja-reserva{ font-size:11px; font-weight:700; color: var(--success); background: var(--success-bg);
     border-radius: var(--radius-sm); padding: 8px 12px; margin-top: 4px; text-transform: uppercase; }
   .franja-opt.cargando{ opacity:0.55; pointer-events:none; }
@@ -624,12 +647,16 @@
         <div class="lang-col-sub">REALIZÁ TU<br>PEDIDO</div>
       </div>
     </div>
+
+    <!-- Las reglas del delivery, antes de empezar. Se arma sola desde CONFIG. -->
+    <div class="info-card" id="infoCard"></div>
   </div>
 
   <!-- ===================== SCREEN 1: DIRECCION + FECHA/FRANJA ===================== -->
   <div class="screen" id="screen-1">
     <h1 class="title" id="s1-title">DOVE CONSEGNIAMO?</h1>
     <p class="subtitle" id="s1-sub">SCRIVI IL TUO INDIRIZZO COMPLETO</p>
+    <div class="aviso-dia hidden" id="avisoDia"></div>
     <p class="radius-note" id="radiusNote">🛵 PER ORA CONSEGNIAMO FINO A 4 KM DAL LOCALE. PRESTO AMPLIEREMO LA ZONA.</p>
 
     <label class="field-label" id="lbl-address">INDIRIZZO E CIVICO</label>
@@ -767,7 +794,7 @@
 
       <div class="track-step" id="step-4">
         <div class="track-dot">4</div>
-        <div><div class="track-label" id="step4-label">PAGAMENTO CONFERMATO</div></div>
+        <div><div class="track-label" id="step4-label">PAGAMENTO CONFERMATO</div><div class="track-sub" id="step4-sub"></div></div>
       </div>
 
       <div class="track-step" id="step-5">
@@ -779,8 +806,8 @@
         <div class="track-dot">6</div>
         <div><div class="track-label" id="step6-label">IN CONSEGNA</div><div class="track-sub" id="step6-sub"></div></div>
       </div>
-
     </div>
+    <div class="pedido-anulado hidden" id="pedidoAnulado"></div>
   </div>
 
   <div class="btn-fixed-wrap">
@@ -961,6 +988,15 @@ const I18N = {
     cupo_lleno: "QUESTA FASCIA ORARIA SI È APPENA RIEMPITA. SCEGLINE UN'ALTRA.",
     pay_amount: "IMPORTO DA PAGARE",
     reserva_hasta: "TI TENIAMO QUESTO ORARIO FINO ALLE ",
+    oggi: "OGGI", domani: "DOMANI",
+    aviso_hoy: "📅 IL TUO ORDINE È PER OGGI, ",
+    aviso_cutoff: "⚠️ SONO PASSATE LE {h}: IL TUO ORDINE È PER ",
+    aviso_cerrado: "⚠️ OGGI SIAMO CHIUSI: IL TUO ORDINE È PER ",
+    aviso_lleno: "⚠️ NON CI SONO PIÙ POSTI PER {base}: IL TUO ORDINE È PER ", chiuso: "CHIUSO",
+    aviso_hasta: " · ORDINI FINO ALLE {h}",
+    step4_futuro: "TI CONSEGNAMO {dia} TRA LE {franja}",
+    anulado_rechazada: "NON ABBIAMO POTUTO VERIFICARE IL TUO PAGAMENTO. SCRIVICI SU WHATSAPP E LO RISOLVIAMO.",
+    anulado_cancelada: "IL TUO ORDINE È STATO ANNULLATO. SCRIVICI SU WHATSAPP SE HAI DOMANDE.",
     track_camino_franja: "ARRIVO TRA LE ", track_entregado: "CONSEGNATO ✓",
     no_franjas_hoy: "PER OGGI NON CI SONO PIÙ FASCE DISPONIBILI. PROVA UN ALTRO GIORNO.",
     s2_title: "QUANTE EMPANADAS?", s2_sub: "MINIMO 3 EMPANADAS", s2_hint: "TOCCA + PER AGGIUNGERE",
@@ -1002,6 +1038,15 @@ const I18N = {
     cupo_lleno: "ESTA FRANJA HORARIA SE ACABA DE LLENAR. ELEGÍ OTRA.",
     pay_amount: "IMPORTE A PAGAR",
     reserva_hasta: "TE GUARDAMOS ESTE HORARIO HASTA LAS ",
+    oggi: "HOY", domani: "MAÑANA",
+    aviso_hoy: "📅 TU PEDIDO ES PARA HOY, ",
+    aviso_cutoff: "⚠️ YA PASARON LAS {h}: TU PEDIDO ES PARA ",
+    aviso_cerrado: "⚠️ HOY ESTAMOS CERRADOS: TU PEDIDO ES PARA ",
+    aviso_lleno: "⚠️ YA NO QUEDAN LUGARES PARA {base}: TU PEDIDO ES PARA ", chiuso: "CERRADO",
+    aviso_hasta: " · PEDIDOS HASTA LAS {h}",
+    step4_futuro: "TE LO ENTREGAMOS EL {dia} ENTRE LAS {franja}",
+    anulado_rechazada: "NO PUDIMOS VERIFICAR TU PAGO. ESCRIBINOS POR WHATSAPP Y LO RESOLVEMOS.",
+    anulado_cancelada: "TU PEDIDO FUE CANCELADO. ESCRIBINOS POR WHATSAPP SI TENÉS DUDAS.",
     track_camino_franja: "LLEGA ENTRE LAS ", track_entregado: "ENTREGADO ✓",
     no_franjas_hoy: "POR HOY NO QUEDAN FRANJAS DISPONIBLES. PROBÁ OTRO DÍA.",
     s2_title: "¿CUÁNTAS EMPANADAS?", s2_sub: "MÍNIMO 3 EMPANADAS", s2_hint: "TOCÁ + PARA SUMAR",
@@ -1066,7 +1111,7 @@ function saveSession(){
       qty: state.qty, flavors: state.flavors,
       name: state.name, phonePrefix: state.phonePrefix, phone: state.phone, details: state.details,
       orderCode: state.orderCode, timerEndTs: state.timerEndTs, orderPhase: state.orderPhase, pagoIntentado: state.pagoIntentado,
-      privacyAccepted: state.privacyAccepted
+      privacyAccepted: state.privacyAccepted, diaPorLleno: state.diaPorLleno || false
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(toSave));
   }catch(e){ /* modo privado o storage lleno: no es crítico, seguimos sin persistir */ }
@@ -1090,7 +1135,7 @@ function restoreSession(){
     return false;
   }
   // Fecha de entrega ya pasada (quedó abierta de otro día): tampoco tiene sentido resumirla.
-  if(saved.fecha && saved.fecha < new Date().toISOString().slice(0,10)){
+  if(saved.fecha && saved.fecha < hoyStr()){
     clearSession();
     return false;
   }
@@ -1102,7 +1147,7 @@ function restoreSession(){
     qty: saved.qty || 3, flavors: saved.flavors || {},
     name: saved.name || '', phonePrefix: saved.phonePrefix || '+39', phone: saved.phone || '', details: saved.details || '',
     orderCode: saved.orderCode, timerEndTs: saved.timerEndTs, pagoIntentado: saved.pagoIntentado || false,
-    privacyAccepted: saved.privacyAccepted || false
+    privacyAccepted: saved.privacyAccepted || false, diaPorLleno: saved.diaPorLleno || false
   });
 
   applyTexts();
@@ -1149,6 +1194,8 @@ function showScreen(n){
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
   document.getElementById('screen-'+n).classList.add('active');
   state.step = n;
+  // El aviso del día se ve apenas se entra, antes de escribir la dirección
+  if(n === 1) renderDateOptions();
 
   const topbar = document.getElementById('topbar');
   const back = document.getElementById('backBtn');
@@ -1407,16 +1454,183 @@ function hoyStr(){
          String(d.getDate()).padStart(2,'0');
 }
 
-/* Se entrega solo hoy. La fecha se muestra para que el cliente la vea,
-   pero no se elige. */
+/* ═══ DÍA DE ENTREGA ═══
+   El cliente no elige el día: se le asigna el PRIMERO en que todavía se puede
+   pedir. Hoy, si no pasó el corte; si no, mañana; el domingo se saltea.
+   Si todas las franjas de ese día están llenas, se pasa al siguiente.
+   Los pedidos para otro día se cobran al momento, pero el mostrador los
+   convierte en pedido (imprime y descuenta stock) recién el día de entrega. */
+function fechaMas(dias){
+  const d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate() + dias);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fechaDate(f){ return new Date(f + 'T12:00:00'); }
+// Días en que se puede pedir, en orden, empezando por el primero posible
+function diasPosibles(){
+  const r = [];
+  for(let i = 0; i <= 7 && r.length < 4; i++){
+    const f = fechaMas(i);
+    if(franjasDisponiblesDelDia(f).length) r.push(f);
+  }
+  return r;
+}
+// "HOY · MARTES 13/10", "MAÑANA · MIÉRCOLES 14/10", "LUNES 19/10"
+function nombreDia(f, lang){
+  const L = I18N[lang || state.lang];
+  const d = fechaDate(f);
+  const dm = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+  const nombre = L.day_names[d.getDay()] + ' ' + dm;
+  if(f === hoyStr()) return L.oggi + ' · ' + nombre;
+  if(f === fechaMas(1)) return L.domani + ' · ' + nombre;
+  return nombre;
+}
+// El próximo corte de hoy que todavía no pasó (para el aviso)
+function proximoCorteHoy(){
+  const h = new Date().getHours() + new Date().getMinutes()/60;
+  const cortes = ['mediodia','noche'].filter(tu => CONFIG.turnos[tu]).map(tu => CONFIG.cutoffPorTurno[tu]).sort((a,b)=>a-b);
+  const prox = cortes.find(c => h < c);
+  return prox === undefined ? null : prox;
+}
+function ultimoCorte(){
+  const cortes = ['mediodia','noche'].filter(tu => CONFIG.turnos[tu]).map(tu => CONFIG.cutoffPorTurno[tu]);
+  return cortes.length ? Math.max(...cortes) : 19;
+}
+function horaTxt(h){ return String(Math.floor(h)).padStart(2,'0') + ':' + String(Math.round((h%1)*60)).padStart(2,'0'); }
+
+// Por qué el pedido no es para hoy: 'hoy', 'lleno', 'cerrado' o 'cutoff'
+function motivoDia(){
+  if(state.fecha === hoyStr()) return 'hoy';
+  if(state.diaPorLleno) return 'lleno';
+  const delDia = FRANJAS_POR_DIA[new Date().getDay()] || {};
+  const abreHoy = ['mediodia','noche'].some(tu => CONFIG.turnos[tu] && (delDia[tu] || []).length);
+  return abreHoy ? 'cutoff' : 'cerrado';
+}
+function renderAvisoDia(){
+  const box = document.getElementById('avisoDia');
+  if(!box || !state.fecha) return;
+  const m = motivoDia();
+  let txt;
+  if(m === 'hoy'){
+    const prox = proximoCorteHoy();
+    txt = t('aviso_hoy') + nombreDia(state.fecha).split(' · ').slice(1).join(' · ')
+        + (prox !== null ? t('aviso_hasta').replace('{h}', horaTxt(prox)) : '');
+  } else if(m === 'lleno'){
+    const base = diasPosibles()[0] || state.fecha;
+    txt = t('aviso_lleno').replace('{base}', nombreDia(base).split(' · ')[0]) + nombreDia(state.fecha);
+  } else if(m === 'cerrado'){
+    txt = t('aviso_cerrado') + nombreDia(state.fecha);
+  } else {
+    txt = t('aviso_cutoff').replace('{h}', horaTxt(ultimoCorte())) + nombreDia(state.fecha);
+  }
+  // Días cerrados que se saltean en el medio (ej. el sábado a la noche, el domingo)
+  if(m !== 'hoy' && m !== 'lleno'){
+    const cerrados = [];
+    for(let i = 1; i <= 7; i++){
+      const f = fechaMas(i);
+      if(f >= state.fecha) break;
+      cerrados.push(t('day_names')[fechaDate(f).getDay()]);
+    }
+    if(cerrados.length) txt += ' · ' + cerrados.join(', ') + ': ' + t('chiuso');
+  }
+  box.textContent = txt;
+  box.className = 'aviso-dia ' + (m === 'hoy' ? 'hoy' : 'otro');
+}
+
+/* Asigna el día de entrega y lo muestra. Si el pedido ya tiene código, el
+   día quedó fijado y no se toca. */
 function renderDateOptions(){
-  state.fecha = hoyStr();
+  if(!state.orderCode){
+    const posibles = diasPosibles();
+    const base = posibles[0] || hoyStr();
+    // Si el cliente ya había pasado a un día posterior por falta de lugar, se respeta
+    const sigueValido = state.fecha && posibles.includes(state.fecha) && state.diaPorLleno;
+    const nueva = sigueValido ? state.fecha : base;
+    if(nueva !== state.fecha){ state.franja = null; }
+    if(!sigueValido) state.diaPorLleno = false;
+    state.fecha = nueva;
+  }
   const chip = document.getElementById('hoyChip');
-  if(!chip) return;
-  const d = new Date();
-  const dayName = t('day_names')[d.getDay()];
-  const etiqueta = state.lang === 'it' ? 'OGGI' : 'HOY';
-  chip.textContent = `📅 ${etiqueta} · ${dayName} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  if(chip) chip.textContent = '📅 ' + nombreDia(state.fecha);
+  renderAvisoDia();
+}
+// Si todas las franjas del día están llenas, se pasa al siguiente día posible
+function pasarAlDiaSiguiente(){
+  if(state.orderCode) return false;
+  const posibles = diasPosibles();
+  const i = posibles.indexOf(state.fecha);
+  if(i < 0 || i + 1 >= posibles.length) return false;
+  state.fecha = posibles[i + 1];
+  state.franja = null;
+  state.diaPorLleno = true;
+  const chip = document.getElementById('hoyChip');
+  if(chip) chip.textContent = '📅 ' + nombreDia(state.fecha);
+  renderAvisoDia();
+  saveSession();
+  return true;
+}
+
+/* ═══ CARTEL DE BIENVENIDA ═══
+   Se arma desde CONFIG y FRANJAS_POR_DIA: si cambian los horarios o se
+   prende el mediodía, el cartel cambia solo. */
+let _infoLang = null;
+function rangoFranjas(lista){
+  if(!lista.length) return '';
+  const ini = lista[0].split('-')[0], fin = lista[lista.length-1].split('-')[1];
+  return ini + '–' + fin;
+}
+function renderInfoCard(lang){
+  const box = document.getElementById('infoCard');
+  if(!box) return;
+  _infoLang = lang || _infoLang || ((navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'it');
+  const L = I18N[_infoLang], es = _infoLang === 'es';
+  const nombres = L.day_names;
+  const orden = [1,2,3,4,5,6,0];                 // de lunes a domingo
+  const turnosOn = ['mediodia','noche'].filter(tu => CONFIG.turnos[tu]);
+  const firma = d => turnosOn.map(tu => rangoFranjas((FRANJAS_POR_DIA[d]||{})[tu] || [])).filter(x=>x).join(' / ');
+  const cuenta = d => turnosOn.reduce((a,tu)=>a+(((FRANJAS_POR_DIA[d]||{})[tu]||[]).length),0);
+  // Días seguidos con el mismo horario van juntos
+  const grupos = [];
+  orden.forEach(d=>{
+    const g = grupos[grupos.length-1];
+    if(g && g.firma === firma(d)) g.dias.push(d); else grupos.push({ firma: firma(d), dias:[d], n: cuenta(d) });
+  });
+  const y = es ? ' Y ' : ' E ';
+  const nombreGrupo = g => g.dias.length === 1 ? nombres[g.dias[0]]
+    : g.dias.length === 2 ? nombres[g.dias[0]] + y + nombres[g.dias[1]]
+    : nombres[g.dias[0]] + ' – ' + nombres[g.dias[g.dias.length-1]];
+  const franjaTxt = n => n === 1 ? (es ? '1 FRANJA' : '1 FASCIA') : n + (es ? ' FRANJAS' : ' FASCE');
+  const horarios = grupos.map(g => g.n
+    ? `<b>${nombreGrupo(g)}:</b> ${g.firma} (${franjaTxt(g.n)})`
+    : `<b>${nombreGrupo(g)}:</b> ${es ? 'CERRADO' : 'CHIUSO'}`).join('<br>');
+  const cortes = turnosOn.map(tu => {
+    const h = horaTxt(CONFIG.cutoffPorTurno[tu]);
+    const nom = tu === 'noche' ? (es ? 'LA NOCHE' : 'LA SERA') : (es ? 'EL MEDIODÍA' : 'IL PRANZO');
+    return es ? `PARA ${nom} HASTA LAS <b>${h}</b> DEL MISMO DÍA` : `PER ${nom} FINO ALLE <b>${h}</b> DELLO STESSO GIORNO`;
+  }).join(' · ');
+  const despues = es
+    ? `DESPUÉS DE LAS ${horaTxt(ultimoCorte())}, EL PEDIDO ES PARA EL DÍA SIGUIENTE.`
+    : `DOPO LE ${horaTxt(ultimoCorte())}, L'ORDINE È PER IL GIORNO DOPO.`;
+  const ahora = diasPosibles()[0];
+  const fila = (ico, html) => `<div class="info-row"><span class="info-ico">${ico}</span><span>${html}</span></div>`;
+  const envio = '€' + CONFIG.envio.toFixed(2).replace('.',',');
+  box.innerHTML =
+    `<div class="info-tabs">
+       <button class="info-tab ${_infoLang==='it'?'on':''}" onclick="renderInfoCard('it')">IT</button>
+       <button class="info-tab ${_infoLang==='es'?'on':''}" onclick="renderInfoCard('es')">ES</button>
+     </div>
+     <div class="info-tit">${es ? 'ANTES DE PEDIR' : 'PRIMA DI ORDINARE'}</div>
+     ${ahora ? `<div class="info-ahora">${es ? 'SI PEDÍS AHORA, ES PARA: ' : 'SE ORDINI ORA, È PER: '}${nombreDia(ahora, _infoLang)}</div>` : ''}
+     ${fila('🕐', (es ? 'PEDIDOS ' : 'ORDINI ') + cortes + '. ' + despues)}
+     ${fila('🛵', (es ? '<b>ENTREGAS</b><br>' : '<b>CONSEGNE</b><br>') + horarios)}
+     ${fila('👥', es
+        ? `MÁXIMO <b>${CONFIG.cupoPorFranja} ENTREGAS POR FRANJA</b>. AL ELEGIRLA TE LA GUARDAMOS ${HOLD_MS/60000} MINUTOS.`
+        : `MASSIMO <b>${CONFIG.cupoPorFranja} CONSEGNE PER FASCIA</b>. QUANDO LA SCEGLI TE LA TENIAMO ${HOLD_MS/60000} MINUTI.`)}
+     ${fila('📍', es
+        ? `HASTA <b>${CONFIG.radioKmReal} KM</b> DEL LOCAL · MÍNIMO <b>${CONFIG.minEmpanadas} EMPANADAS</b> · ENVÍO <b>${envio}</b>`
+        : `FINO A <b>${CONFIG.radioKmReal} KM</b> DAL LOCALE · MINIMO <b>${CONFIG.minEmpanadas} EMPANADAS</b> · CONSEGNA <b>${envio}</b>`)}
+     ${fila('💳', es
+        ? `PAGO ANTICIPADO CON TARJETA O SATISPAY, DENTRO DE LOS <b>${CONFIG.vencimientoMin} MINUTOS</b>.`
+        : `PAGAMENTO ANTICIPATO CON CARTA O SATISPAY, ENTRO <b>${CONFIG.vencimientoMin} MINUTI</b>.`)}`;
 }
 
 function onDateChange(){ /* ya no se elige fecha */ }
@@ -1553,14 +1767,18 @@ async function tomarCupo(fecha, franja){
 }
 
 // Las reservas vencen con el tiempo: se redibuja cada 20 segundos
-setInterval(()=>{ if(state.step === 1) renderFranjas(); }, 20000);
+// y si en el medio pasa la hora de corte, se recalcula el día
+setInterval(()=>{
+  if(state.step === 1){ if(!state.orderCode) renderDateOptions(); renderFranjas(); }
+  if(state.step === 0) renderInfoCard();
+}, 20000);
 
 // Junta las franjas de los turnos activos para ese día, sacando las de un turno
 // cuyo cutoff ya pasó si la fecha elegida es justamente hoy.
 function franjasDisponiblesDelDia(fechaStr){
   const d = new Date(fechaStr + 'T00:00:00');
   const delDia = FRANJAS_POR_DIA[d.getDay()] || { mediodia: [], noche: [] };
-  const esHoy = fechaStr === new Date().toISOString().slice(0,10);
+  const esHoy = fechaStr === hoyStr();
   const horaActual = new Date().getHours() + new Date().getMinutes()/60;
 
   let resultado = [];
@@ -1622,6 +1840,12 @@ function renderFranjas(){
     if(!full) div.onclick = () => elegirFranja(f, div);
     list.appendChild(div);
   }
+
+  // Todas las franjas del día llenas (y con dato): se pasa al día siguiente
+  const todasConDato = franjas.every(f => cupoUsado(state.fecha, f) !== null);
+  const todasLlenas = todasConDato && franjas.every(f =>
+    cupoUsado(state.fecha, f) >= CONFIG.cupoPorFranja && !(state.franja === f && miReservaVence(state.fecha, f)));
+  if(todasLlenas && pasarAlDiaSiguiente()){ renderFranjas(); return; }
 
   // Aviso de la reserva propia
   if(state.franja){
@@ -1857,6 +2081,16 @@ async function generarCodigo(){
 }
 
 async function crearSolicitud(){
+  // Si mientras completaba los datos pasó la hora de corte, ese día ya no se
+  // puede pedir: vuelve a elegir con el día nuevo.
+  if(!diasPosibles().includes(state.fecha)){
+    alert(state.lang === 'it'
+      ? "È PASSATA L'ORA DI CHIUSURA DEGLI ORDINI PER QUESTO GIORNO. SCEGLI DI NUOVO LA FASCIA."
+      : 'PASÓ LA HORA DE CIERRE DE PEDIDOS PARA ESE DÍA. ELEGÍ DE NUEVO LA FRANJA.');
+    state.franja = null; state.diaPorLleno = false;
+    showScreen(1); renderFranjas(); updateMainButton(); saveSession();
+    return;
+  }
   // El cupo se toma ANTES de dar el código: si la franja se llenó mientras el
   // cliente elegía, se le avisa en vez de aceptarle un pedido que no entra.
   const hayLugar = await tomarCupo(state.fecha, state.franja);
@@ -2061,20 +2295,21 @@ function restartOrder(){
 const ORDER_PHASES = ['pago','confirmado_cliente','confirmado_negocio','preparacion','camino','entregado'];
 
 /* SEGUIMIENTO EN VIVO
-   Cuando Ra confirma el pago, el pedido aparece en 'pedidos' (de lectura
-   pública y SIN datos personales) con estadoDelivery. El cliente lo escucha
-   por su código y avanza los pasos solo, sin recargar. */
-const FASE_POR_ESTADO = { confirmado:'confirmado_negocio', preparacion:'preparacion', camino:'camino', entregado:'entregado' };
+   El mostrador escribe el estado de cada pedido en seguimiento_delivery/{código}:
+   un documento público que tiene SOLO el estado, la fecha y la franja, sin
+   ningún dato personal. El cliente lo escucha y avanza los pasos solo.
+   Incluye el rechazo y la cancelación, que antes el cliente no veía. */
+const FASE_POR_ESTADO = { confirmado:'confirmado_negocio', preparacion:'preparacion', camino:'camino',
+                          entregado:'entregado', rechazada:'rechazada', cancelada:'cancelada' };
 let _seguimientoUnsub = null;
 function seguirPedido(){
   if(_seguimientoUnsub || !state.orderCode) return;
-  _seguimientoUnsub = onSnapshot(doc(db(), 'pedidos', state.orderCode), snap=>{
+  _seguimientoUnsub = onSnapshot(doc(db(), 'seguimiento_delivery', state.orderCode), snap=>{
     if(!snap.exists()) return;
     const p = snap.data();
-    // Por seguridad: un pedido de más de un día no es el de este cliente
-    const ts = p.timestamp && p.timestamp.toDate ? p.timestamp.toDate().getTime() : Date.now();
-    if(Date.now() - ts > 24*60*60*1000) return;
-    const fase = FASE_POR_ESTADO[p.estadoDelivery || 'confirmado'];
+    // Por seguridad: tiene que ser el pedido de este cliente (misma fecha)
+    if(p.fecha && state.fecha && p.fecha !== state.fecha) return;
+    const fase = FASE_POR_ESTADO[p.estado];
     if(fase && fase !== state.orderPhase) updateOrderSteps(fase);
   }, err=>{ console.error('seguimiento', err); });
 }
@@ -2085,6 +2320,21 @@ function phaseToStepNumber(phase){
 
 function updateOrderSteps(phase){
   state.orderPhase = phase;
+  // Rechazado o cancelado: se reemplazan los pasos por el aviso
+  const anulado = document.getElementById('pedidoAnulado');
+  if(phase === 'rechazada' || phase === 'cancelada'){
+    document.getElementById('orderSteps').classList.add('hidden');
+    const wa = 'https://wa.me/' + CONFIG.waLocal + '?text=' + encodeURIComponent((state.orderCode || '') + ' ');
+    anulado.innerHTML = t(phase === 'rechazada' ? 'anulado_rechazada' : 'anulado_cancelada')
+      + `<br><br><a href="${wa}" target="_blank" rel="noopener">WHATSAPP · ${state.orderCode || ''}</a>`;
+    anulado.classList.remove('hidden');
+    clearInterval(state.timerInterval);
+    document.getElementById('pagoExtras').classList.add('hidden');
+    document.getElementById('mainBtn').style.visibility = 'hidden';
+    saveSession();
+    return;
+  }
+  if(anulado) anulado.classList.add('hidden');
   const currentStep = phaseToStepNumber(phase);
 
   document.getElementById('orderSteps').classList.remove('hidden');
@@ -2113,6 +2363,11 @@ function updateOrderSteps(phase){
 
   document.getElementById('step3-sub').textContent = t('step3_sub');
   document.getElementById('step5-sub').textContent = t('track_prep_sub');
+  // Pedido para otro día: el paso 4 dice cuándo se entrega
+  const s4 = document.getElementById('step4-sub');
+  if(s4) s4.textContent = (state.fecha && state.fecha !== hoyStr() && phaseToStepNumber(phase) >= 4)
+    ? t('step4_futuro').replace('{dia}', nombreDia(state.fecha)).replace('{franja}', String(state.franja||'').replace('-', ' – '))
+    : '';
   document.getElementById('step6-sub').textContent = (phase === 'entregado')
     ? t('track_entregado')
     : t('track_camino_franja') + String(state.franja || '').replace('-', ' – ');
@@ -2182,6 +2437,7 @@ function onMainBtn(){
    Las que usa el HTML con onclick hay que exponerlas a mano.
    ═══════════════════════════════════════════════════════════ */
 window.setLang = setLang;
+window.renderInfoCard = renderInfoCard;
 window.goBack = goBack;
 window.onMainBtn = onMainBtn;
 window.changeQty = changeQty;
@@ -2229,6 +2485,7 @@ document.getElementById('detailsInput').addEventListener('input', ()=>{ state.de
 
 /* Init */
 applyTexts();
+renderInfoCard();
 cargarDisponibilidad().then(()=>{ if(state.step === 2) renderFlavors(); });
 if(!restoreSession()){
   showScreen(0);
