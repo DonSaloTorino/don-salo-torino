@@ -863,7 +863,7 @@ const CONFIG = {
   // Interruptor por turno. Arranca con mediodía apagado y noche prendido.
   // TODO Ra: esto en producción va a vivir en Firestore (config/turnos) para que
   // lo prendas y apagues vos mismo sin tocar este archivo — por ahora es fijo acá.
-  turnos: { mediodia: false, noche: true },
+  turnos: { mediodia: true, noche: true },
   cutoffPorTurno: { mediodia: 12, noche: 19 }, // hora de corte de cada turno
   waLocal: "393514446737", // confirmado por Ra
   linkSumup: "https://pay.sumup.com/b2c/QZO129JM", // importe libre, con nota activada
