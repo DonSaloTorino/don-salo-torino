@@ -3082,9 +3082,14 @@ window.delCargar = async function(){
   const f = document.getElementById('del-fecha');
   if(f) f.textContent = '🛵 ' + delFechaLegible(hoy);
   try{
-    // Solo las de hoy: antes se leían TODAS las solicitudes de la historia
-    const snap = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','==',hoy)));
+    // Hoy y los días siguientes (pedidos programados). Nunca toda la historia.
+    const snap = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','>=',hoy)));
     delSolicitudes = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    // Los programados para hoy pasan a ser pedidos (una sola vez, ver abajo)
+    if(await delActivarProgramadas(delSolicitudes)){
+      const snap2 = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','>=',hoy)));
+      delSolicitudes = snap2.docs.map(d=>({id:d.id, ...d.data()}));
+    }
     // Los que ya pasaron a pedido: se leen de los pedidos de hoy en memoria
     delPedidos = soloPedidos(orders).filter(o => canalKey(o) === 'logistica');
   }catch(e){
@@ -3103,27 +3108,30 @@ window.delCargar = async function(){
 
 // Una solicitud vencida es la que pasó los 15 minutos sin avisar el pago
 function delVencida(s){
-  if(s.estado === 'vencida' || s.estado === 'rechazada') return true;
+  if(s.estado === 'vencida' || s.estado === 'rechazada' || s.estado === 'cancelada') return true;
+  if(s.estado === 'programada') return false;
   if(s.estado === 'confirmada') return false;
   if(s.estado === 'pago_avisado') return false;
   return s.vence && Date.now() > s.vence;
 }
 
-// ── CONFIRMAR EL PAGO ──
-// Es el momento en que la solicitud se convierte en un pedido real:
-// imprime, descuenta stock y entra en las estadísticas. Los datos del
-// cliente se copian a delivery_privado; a pedidos NO va ninguno.
-window.delConfirmar = async function(codigo){
-  const s = delSolicitudes.find(x => x.id === codigo);
-  if(!s) return;
-  if(!confirm(
-    `Confirmar el pago de ${codigo}?\n\n`+
-    `${s.name} · ${s.franja}\n`+
-    `${s.qty} empanadas · ${eur(s.subtotal||0)} + ${eur(s.envio||delEnvio)} de envío\n\n`+
-    `Se va a imprimir la comanda y se va a descontar del stock.`
-  )) return;
+// ── SEGUIMIENTO QUE VE EL CLIENTE ──
+// Documento público con SOLO el estado, la fecha y la franja. El cliente lo
+// escucha por su código: así ve en vivo el pago confirmado, la preparación,
+// el reparto, y también si se rechazó o se canceló.
+async function delSeguimiento(codigo, estado, s){
+  try{
+    const datos = { actualizadoMs: Date.now() };
+    if(estado) datos.estado = estado;
+    if(s && s.fecha) datos.fecha = s.fecha;
+    if(s && s.franja) datos.franja = s.franja;
+    await setDoc(doc(db,'seguimiento_delivery',codigo), datos, { merge:true });
+  }catch(e){ console.error('seguimiento', e); }
+}
 
-  // Ítems con el nombre interno y el prefijo, igual que el mostrador y el QR
+// Arma los ítems del pedido con el nombre interno y el prefijo, igual que el
+// mostrador y el QR. null si la solicitud no tiene empanadas.
+function delItemsDeSolicitud(s){
   const ei = [];
   let nCl = 0, nSp = 0;
   Object.entries(s.flavors || {}).forEach(([clave, q])=>{
@@ -3137,43 +3145,133 @@ window.delConfirmar = async function(codigo){
               curcuma: emp ? emp.curcuma === true : false,
               tipo: 'empanada', tipoEmp: tipo });
   });
-  if(!ei.length){ alert('La solicitud no tiene empanadas.'); return; }
-
+  if(!ei.length) return null;
   const resumen = [];
   if(nCl > 0) resumen.push({ nombre:'CLASSICHE', cantidad:nCl, tipo:'resumen' });
   if(nSp > 0) resumen.push({ nombre:'SPECIALI',  cantidad:nSp, tipo:'resumen' });
   resumen.push({ nombre:'CONSEGNA ' + s.franja, cantidad:1, tipo:'resumen' });
+  return [...ei, ...resumen];
+}
 
-  const items = [...ei, ...resumen];
+// Crea el pedido real: imprime, descuenta stock y entra en las estadísticas.
+// Sin nombre, sin dirección, sin teléfono.
+async function delCrearPedido(s, items){
+  await setDoc(doc(db,'pedidos',s.id), {
+    cliente: 'CONSEGNA ' + s.franja + ' · ' + s.id,
+    items,
+    total: contarPorTipo({items}).total,
+    estado: 'nuevo',
+    canalVenta: 'logistica',
+    consumo: 'delivery',
+    promos: {},
+    franja: s.franja,
+    envio: (typeof s.envio === 'number') ? s.envio : delEnvio,
+    estadoDelivery: 'confirmado',
+    timestamp: serverTimestamp()
+  });
+}
+// Los datos del cliente, aparte y cerrados
+async function delGuardarPrivado(s){
+  await setDoc(doc(db,'delivery_privado',s.id), {
+    name: s.name || '', phone: s.phone || '', address: s.address || '',
+    details: s.details || '', lat: s.lat || null, lng: s.lng || null,
+    distKm: s.distKm || null, franja: s.franja, fecha: s.fecha,
+    fechaCreacion: serverTimestamp()
+  });
+}
+
+// ── CONFIRMAR EL PAGO ──
+// Pedido para HOY: se convierte en pedido real al instante (imprime y
+// descuenta stock). Pedido para OTRO DÍA: queda PROGRAMADO, con el pago
+// confirmado; el pedido se crea recién el día de entrega (ver más abajo),
+// así el ticket, el stock y la cocción caen en el día correcto.
+window.delConfirmar = async function(codigo){
+  const s = delSolicitudes.find(x => x.id === codigo);
+  if(!s) return;
+  const esHoy = s.fecha === cocHoy();
+  if(!confirm(
+    `Confirmar el pago de ${codigo}?\n\n`+
+    `${s.name} · ${esHoy ? '' : delFechaLegible(s.fecha)+' · '}${s.franja}\n`+
+    `${s.qty} empanadas · ${eur(s.subtotal||0)} + ${eur(s.envio||delEnvio)} de envío\n\n`+
+    (esHoy
+      ? `Se va a imprimir la comanda y se va a descontar del stock.`
+      : `Es para el ${delFechaLegible(s.fecha)}: hoy queda el pago confirmado.\n`+
+        `La comanda se imprime y el stock se descuenta ESE DÍA, al abrir el panel.`)
+  )) return;
+
+  const items = delItemsDeSolicitud(s);
+  if(!items){ alert('La solicitud no tiene empanadas.'); return; }
 
   try{
-    // 1) El pedido. Sin nombre, sin dirección, sin teléfono.
-    await setDoc(doc(db,'pedidos',codigo), {
-      cliente: 'CONSEGNA ' + s.franja + ' · ' + codigo,
-      items,
-      total: contarPorTipo({items}).total,
-      estado: 'nuevo',
-      canalVenta: 'logistica',
-      consumo: 'delivery',
-      promos: {},
-      franja: s.franja,
-      envio: (typeof s.envio === 'number') ? s.envio : delEnvio,
-      estadoDelivery: 'confirmado',
-      timestamp: serverTimestamp()
-    });
-    // 2) Los datos del cliente, aparte y cerrados
-    await setDoc(doc(db,'delivery_privado',codigo), {
-      name: s.name || '', phone: s.phone || '', address: s.address || '',
-      details: s.details || '', lat: s.lat || null, lng: s.lng || null,
-      distKm: s.distKm || null, franja: s.franja, fecha: s.fecha,
-      fechaCreacion: serverTimestamp()
-    });
-    // 3) La solicitud queda marcada
-    await setDoc(doc(db,'solicitudes_delivery',codigo),
-      { estado:'confirmada', confirmadaMs: Date.now() }, { merge:true });
+    if(esHoy){
+      await delCrearPedido(s, items);
+      await delGuardarPrivado(s);
+      await setDoc(doc(db,'solicitudes_delivery',codigo),
+        { estado:'confirmada', confirmadaMs: Date.now() }, { merge:true });
+    } else {
+      await delGuardarPrivado(s);
+      await setDoc(doc(db,'solicitudes_delivery',codigo),
+        { estado:'programada', programadaMs: Date.now() }, { merge:true });
+    }
+    await delSeguimiento(codigo, 'confirmado', s);
     await delCargar();
   }catch(e){ alert('Error al confirmar: '+e.message); }
 };
+
+// ── PROGRAMADOS QUE LLEGAN A SU DÍA ──
+// El día de entrega, a partir de DEL_HORA_ACTIVACION, cada pedido programado
+// se convierte en pedido real: imprime, descuenta stock y cuenta como venta
+// de ESE día. Si el panel está abierto en dos equipos, una transacción
+// asegura que lo haga uno solo (si no, la comanda saldría dos veces).
+const DEL_HORA_ACTIVACION = 9;
+async function delActivarProgramadas(lista){
+  const hoy = cocHoy();
+  if(new Date().getHours() < DEL_HORA_ACTIVACION) return false;
+  const pendientes = (lista||[]).filter(s => s.estado === 'programada' && s.fecha === hoy);
+  let hechas = 0;
+  for(const s of pendientes){
+    const ref = doc(db,'solicitudes_delivery',s.id);
+    let gane = false;
+    try{
+      gane = await runTransaction(db, async (tx)=>{
+        const sn = await tx.get(ref);
+        if(!sn.exists() || sn.data().estado !== 'programada') return false;
+        tx.update(ref, { estado:'confirmada', confirmadaMs: Date.now(), activadaMs: Date.now() });
+        return true;
+      });
+    }catch(e){ console.error('activar programada', e); continue; }
+    if(!gane) continue;
+    const items = delItemsDeSolicitud(s);
+    try{
+      if(!items) throw new Error('sin empanadas');
+      await delCrearPedido(s, items);
+      hechas++;
+    }catch(e){
+      // No se pudo crear: vuelve a programada para reintentar
+      console.error('crear pedido programado', e);
+      await setDoc(ref, { estado:'programada' }, { merge:true }).catch(()=>{});
+    }
+  }
+  return hechas > 0;
+}
+// Revisa una vez por día (y por equipo) si hay programados para hoy, aunque
+// nadie abra la solapa DELIVERY. Lee solo las solicitudes de hoy.
+let delUltimaRevision = null;
+async function delRevisarProgramadas(){
+  const hoy = cocHoy();
+  if(delUltimaRevision === hoy) return;
+  if(new Date().getHours() < DEL_HORA_ACTIVACION) return;
+  delUltimaRevision = hoy;
+  try{
+    const snap = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','==',hoy)));
+    const lista = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    if(await delActivarProgramadas(lista)){
+      if(document.getElementById('del-pendientes')) await delCargar();
+    }
+  }catch(e){ console.error('revisar programadas', e); delUltimaRevision = null; }
+}
+setTimeout(()=>{ if(auth.currentUser) delRevisarProgramadas(); }, 4000);
+setInterval(()=>{ if(auth.currentUser) delRevisarProgramadas(); }, 5*60*1000);
 
 // ── RECHAZAR ──
 // El pago no llegó. Se libera el lugar de la franja para otro cliente.
@@ -3185,6 +3283,7 @@ window.delRechazar = async function(codigo){
     await setDoc(doc(db,'solicitudes_delivery',codigo),
       { estado:'rechazada', rechazadaMs: Date.now() }, { merge:true });
     await delLiberarCupo(s.fecha, s.franja);
+    await delSeguimiento(codigo, 'rechazada', s);
     await delCargar();
   }catch(e){ alert('Error: '+e.message); }
 };
@@ -3199,6 +3298,18 @@ async function delLiberarCupo(fecha, franja){
       tx.set(ref, { ocupados: Math.max(0, n-1), fecha, franja }, { merge:true });
     });
   }catch(e){ console.error('liberar cupo', e); }
+}
+
+async function delOcuparCupo(fecha, franja){
+  const k = String(fecha)+'_'+String(franja).replace(/[^0-9A-Za-z]/g,'');
+  try{
+    const ref = doc(db,'cupos',k);
+    await runTransaction(db, async (tx)=>{
+      const snap = await tx.get(ref);
+      const n = snap.exists() ? (snap.data().ocupados||0) : 0;
+      tx.set(ref, { ocupados: n+1, fecha, franja }, { merge:true });
+    });
+  }catch(e){ console.error('ocupar cupo', e); }
 }
 
 // ── LOS PASOS QUE VE EL CLIENTE ──
@@ -3236,6 +3347,7 @@ window.delVolverPaso = async function(codigo, estadoActual){
 window.delEstado = async function(codigo, estado){
   try{
     await updateDoc(doc(db,'pedidos',codigo), { estadoDelivery: estado });
+    await delSeguimiento(codigo, estado);
     await delCargar();
   }catch(e){ alert('Error: '+e.message); }
 };
@@ -3251,8 +3363,8 @@ function delOrdenarRuta(entregas, esUltima){
 }
 
 // Las franjas del día, en orden, para saber cuál es la última
-function delFranjasDelDia(){
-  const d = new Date().getDay();
+function delFranjasDelDia(fecha){
+  const d = fecha ? new Date(fecha+'T12:00:00').getDay() : new Date().getDay();
   const med = ['12:30-13:30','13:30-14:30'];
   const noche = (d===1||d===2) ? ['19:30-20:30']
               : (d===3||d===4) ? ['19:30-20:30','20:30-21:30']
@@ -3291,15 +3403,20 @@ window.delCopiarRuta = function(franja){
 };
 
 function delRender(){
-  const pend = delSolicitudes.filter(s => !delVencida(s) && s.estado !== 'confirmada');
+  // Hoy y días siguientes van separados: lo de otro día no se entrega hoy
+  const hoyD = cocHoy();
+  const delHoy = delSolicitudes.filter(s => s.fecha === hoyD);
+  const delFut = delSolicitudes.filter(s => s.fecha > hoyD);
+  const pend = delHoy.filter(s => !delVencida(s) && s.estado !== 'confirmada');
   const avisados = pend.filter(s => s.estado === 'pago_avisado');
   const esperando = pend.filter(s => s.estado !== 'pago_avisado');
 
-  // Badge rojo en la solapa: los que esperan que confirmes el pago
+  // Badge rojo en la solapa: los que esperan que confirmes el pago (de cualquier día)
+  const nAvisados = delSolicitudes.filter(s => s.estado === 'pago_avisado' && !delVencida(s)).length;
   const badge = document.getElementById('del-badge');
   if(badge){
-    badge.style.display = avisados.length ? 'inline-block' : 'none';
-    badge.textContent = avisados.length;
+    badge.style.display = nAvisados ? 'inline-block' : 'none';
+    badge.textContent = nAvisados;
   }
 
   // ── RESUMEN DEL DÍA ──
@@ -3349,7 +3466,7 @@ function delRender(){
   document.getElementById('del-pendientes').innerHTML = h;
 
   // ── CONFIRMADAS ──
-  const confirmadas = delSolicitudes.filter(s => s.estado === 'confirmada');
+  const confirmadas = delHoy.filter(s => s.estado === 'confirmada');
   if(confirmadas.length){
     let hc = '<div class="del-seccion">Confirmadas · ya son pedidos</div>';
     confirmadas.forEach(s=>{
@@ -3374,11 +3491,54 @@ function delRender(){
     document.getElementById('del-pendientes').innerHTML += hc;
   }
 
+  // ── PARA OTROS DÍAS ──
+  // Pedidos de mañana (o del lunes, si hoy es sábado). Se confirman igual que
+  // los de hoy, pero quedan PROGRAMADOS: se imprimen y descuentan stock ese día.
+  const futVivas = delFut.filter(s => !delVencida(s));
+  if(futVivas.length){
+    const fechas = [...new Set(futVivas.map(s => s.fecha))].sort();
+    let hf = '';
+    fechas.forEach(f=>{
+      const delDia = futVivas.filter(s => s.fecha === f);
+      const prog = delDia.filter(s => s.estado === 'programada');
+      const sinConf = delDia.filter(s => s.estado !== 'programada');
+      hf += `<div class="del-seccion">Para el ${delFechaLegible(f)} · ${prog.length} programado${prog.length===1?'':'s'}${sinConf.length ? ' · '+sinConf.length+' sin confirmar' : ''}</div>`;
+      [...sinConf.filter(s=>s.estado==='pago_avisado'), ...sinConf.filter(s=>s.estado!=='pago_avisado'), ...prog].forEach(s=>{
+        const av = s.estado === 'pago_avisado';
+        const esProg = s.estado === 'programada';
+        const items = Object.entries(s.flavors||{}).map(([k,q])=>`${delInterno(k)} ×${q}`).join(' · ');
+        const chip = esProg ? '<span class="del-chip ok">📅 Pago confirmado · se imprime ese día</span>'
+          : `<span class="del-chip ${av?'avisado':'esperando'}">${av?'💳 Avisó que pagó':'⏳ Esperando pago'}</span>`;
+        const botones = esProg
+          ? `<button class="del-btn est" onclick="delEditar('${s.id}')">✏️ Modificar</button>
+             <button class="del-btn no" onclick="delCancelarConfirmada('${s.id}')">🗑 Cancelar</button>`
+          : `<button class="del-btn ok" onclick="delConfirmar('${s.id}')">✓ Confirmar pago</button>
+             <button class="del-btn est" onclick="delEditar('${s.id}')">✏️ Modificar</button>
+             <button class="del-btn no" onclick="delRechazar('${s.id}')">✕ No llegó</button>
+             <button class="del-btn no" onclick="delBorrar('${s.id}')">🗑 Borrar</button>`;
+        hf += `<div class="del-ped ${esProg?'':(av?'avisado':'esperando')}">
+          <div class="del-ped-cab">
+            <span class="del-cod">${s.id}</span>
+            <span class="del-chip franja">${s.franja}</span>
+            ${chip}
+          </div>
+          <div class="del-dato"><b>${MAY(s.name||'—')}</b> · ${s.phone||'—'}</div>
+          <div class="del-dato">${MAY(s.address||'—')}${s.details?' · Timbre: '+MAY(s.details):''}${s.distKm?' · '+Number(s.distKm).toFixed(1)+' km':''}</div>
+          <div class="del-items">${s.qty} empanadas — ${items}</div>
+          <div class="del-dato">${dinero(eur(s.subtotal||0))} + ${dinero(eur(s.envio||delEnvio))} de envío = <b>${dinero(eur(s.total||0))}</b></div>
+          <div class="del-acciones">${botones}</div>
+          <div id="edit-${s.id}"></div>
+        </div>`;
+      });
+    });
+    document.getElementById('del-pendientes').innerHTML += hf;
+  }
+
   // ── RUTAS POR FRANJA ──
   const fr = delFranjasDelDia();
   const todas = [...fr.mediodia, ...fr.noche];
   const privados = {};
-  delSolicitudes.filter(s=>s.estado==='confirmada').forEach(s=>{ privados[s.id] = s; });
+  delHoy.filter(s=>s.estado==='confirmada').forEach(s=>{ privados[s.id] = s; });
 
   let r = '';
   todas.forEach((franja, idx)=>{
@@ -3419,6 +3579,28 @@ function delRender(){
 // lugar de la franja y borra los datos personales del cliente.
 window.delCancelarConfirmada = async function(codigo){
   const s = delSolicitudes.find(x => x.id === codigo);
+  if(s && s.estado === 'programada'){
+    if(!confirm(`⚠️ CANCELAR ${codigo} (programado para el ${delFechaLegible(s.fecha)})?
+
+`+
+                `· Todavía no es pedido: no toca ni stock ni caja
+`+
+                `· Se libera el lugar de la franja
+`+
+                `· Se borran los datos del cliente
+
+`+
+                `Si ya cobraste, acordate de devolver el pago.`)) return;
+    try{
+      await deleteDoc(doc(db,'delivery_privado',codigo)).catch(()=>{});
+      await setDoc(doc(db,'solicitudes_delivery',codigo),
+        { estado:'cancelada', canceladaMs: Date.now() }, { merge:true });
+      await delLiberarCupo(s.fecha, s.franja);
+      await delSeguimiento(codigo, 'cancelada', s);
+      await delCargar();
+    }catch(e){ alert('Error al cancelar: '+e.message); }
+    return;
+  }
   if(!confirm(
     `⚠️ CANCELAR LA ENTREGA ${codigo}?\n\n`+
     `· Se borra el pedido del mostrador\n`+
@@ -3442,6 +3624,7 @@ window.delCancelarConfirmada = async function(codigo){
     await setDoc(doc(db,'solicitudes_delivery',codigo),
       { estado:'cancelada', canceladaMs: Date.now() }, { merge:true });
     if(s) await delLiberarCupo(s.fecha, s.franja);
+    await delSeguimiento(codigo, 'cancelada', s);
     await syncDisponibilidadFromDB();
     await delCargar();
   }catch(e){ alert('Error al cancelar: '+e.message); }
@@ -3455,6 +3638,7 @@ window.delBorrar = async function(codigo){
   try{
     await deleteDoc(doc(db,'solicitudes_delivery',codigo));
     await delLiberarCupo(s.fecha, s.franja);
+    await delSeguimiento(codigo, 'cancelada', s);
     await delCargar();
   }catch(e){ alert('Error: '+e.message); }
 };
@@ -3468,7 +3652,8 @@ window.delEditar = function(codigo){
   const box = document.getElementById('edit-'+codigo);
   if(!box) return;
   if(box.innerHTML){ box.innerHTML=''; return; }
-  const franjas = [...delFranjasDelDia().mediodia, ...delFranjasDelDia().noche];
+  const frDia = delFranjasDelDia(s.fecha);
+  const franjas = [...frDia.mediodia, ...frDia.noche];
   box.innerHTML = `
     <div class="del-edit">
       <label>Nombre</label><input id="ed-name-${codigo}" value="${(s.name||'').replace(/"/g,'&quot;')}">
@@ -3503,15 +3688,20 @@ window.delGuardarEdit = async function(codigo){
   try{
     await setDoc(doc(db,'solicitudes_delivery',codigo), datos, { merge:true });
     // Si ya era un pedido, hay que actualizar también lo que ve el mostrador
-    if(s.estado === 'confirmada'){
+    if(s.estado === 'confirmada' || s.estado === 'programada'){
       await setDoc(doc(db,'delivery_privado',codigo), datos, { merge:true });
-      if(nuevaFranja !== s.franja){
-        await updateDoc(doc(db,'pedidos',codigo), {
-          franja: nuevaFranja,
-          cliente: 'CONSEGNA ' + nuevaFranja + ' · ' + codigo
-        });
-        await delLiberarCupo(s.fecha, s.franja);
-      }
+    }
+    if(s.estado === 'confirmada' && nuevaFranja !== s.franja){
+      await updateDoc(doc(db,'pedidos',codigo), {
+        franja: nuevaFranja,
+        cliente: 'CONSEGNA ' + nuevaFranja + ' · ' + codigo
+      });
+    }
+    // El lugar se mueve de franja: se libera el viejo y se ocupa el nuevo
+    if(nuevaFranja !== s.franja){
+      await delLiberarCupo(s.fecha, s.franja);
+      await delOcuparCupo(s.fecha, nuevaFranja);
+      if(s.estado === 'confirmada' || s.estado === 'programada') await delSeguimiento(codigo, null, { franja: nuevaFranja });
     }
     await delCargar();
   }catch(e){ alert('Error al guardar: '+e.message); }
