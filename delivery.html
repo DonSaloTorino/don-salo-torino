@@ -863,7 +863,9 @@ const CONFIG = {
   // Interruptor por turno. Arranca con mediodía apagado y noche prendido.
   // TODO Ra: esto en producción va a vivir en Firestore (config/turnos) para que
   // lo prendas y apagues vos mismo sin tocar este archivo — por ahora es fijo acá.
-  turnos: { mediodia: true, noche: true },
+  // Valor de respaldo: el que manda es el interruptor del mostrador
+  // (config/disponibilidad → _turnosDelivery), que se escucha en vivo.
+  turnos: { mediodia: false, noche: true },
   cutoffPorTurno: { mediodia: 12, noche: 19 }, // hora de corte de cada turno
   waLocal: "393514446737", // confirmado por Ra
   linkSumup: "https://pay.sumup.com/b2c/QZO129JM", // importe libre, con nota activada
@@ -917,14 +919,34 @@ function nombreInterno(key){ return NOMBRE_INTERNO[key] || key; }
 /* Disponibilidad real, leída del mostrador. Un sabor se oculta si está
    marcado como agotado o si el stock no supera el colchón de seguridad. */
 let DISPONIBILIDAD = null;
-async function cargarDisponibilidad(){
-  try{
-    const snap = await getDoc(doc(db(), 'config', 'disponibilidad'));
-    DISPONIBILIDAD = snap.exists() ? (snap.data() || {}) : {};
-  }catch(e){
-    console.error('disponibilidad', e);
-    DISPONIBILIDAD = {};   // ante un error se muestran todos: mejor que un menú vacío
-  }
+/* Se ESCUCHA en vivo: si el mostrador apaga un turno o se acaba un sabor,
+   el cliente lo ve al instante. */
+let _dispListo = null;
+function cargarDisponibilidad(){
+  if(_dispListo) return _dispListo;
+  _dispListo = new Promise(resolve=>{
+    let primera = true;
+    onSnapshot(doc(db(), 'config', 'disponibilidad'), snap=>{
+      DISPONIBILIDAD = snap.exists() ? (snap.data() || {}) : {};
+      const tu = DISPONIBILIDAD._turnosDelivery;
+      if(tu && typeof tu === 'object'){
+        CONFIG.turnos = { mediodia: tu.mediodia === true, noche: tu.noche === true };
+      }
+      aplicarCambioTurnos();
+      if(primera){ primera = false; resolve(); }
+    }, err=>{
+      console.error('disponibilidad', err);
+      DISPONIBILIDAD = {};   // ante un error se muestran todos: mejor que un menú vacío
+      if(primera){ primera = false; resolve(); }
+    });
+  });
+  return _dispListo;
+}
+// Redibuja lo que depende de los turnos
+function aplicarCambioTurnos(){
+  if(state.step === 0) renderInfoCard();
+  if(state.step === 1 && !state.orderCode){ renderDateOptions(); renderFranjas(); updateMainButton(); }
+  if(state.step === 2) renderFlavors();
 }
 /* El mostrador guarda en config/disponibilidad un número por sabor: las
    empanadas CRUDAS que quedan en stock. Acá se oculta el sabor si ese número
@@ -998,6 +1020,7 @@ const I18N = {
     anulado_rechazada: "NON ABBIAMO POTUTO VERIFICARE IL TUO PAGAMENTO. SCRIVICI SU WHATSAPP E LO RISOLVIAMO.",
     anulado_cancelada: "IL TUO ORDINE È STATO ANNULLATO. SCRIVICI SU WHATSAPP SE HAI DOMANDE.",
     track_camino_franja: "ARRIVO TRA LE ", track_entregado: "CONSEGNATO ✓",
+    track_eta: "ARRIVO STIMATO TRA LE {a} E LE {b}",
     no_franjas_hoy: "PER OGGI NON CI SONO PIÙ FASCE DISPONIBILI. PROVA UN ALTRO GIORNO.",
     s2_title: "QUANTE EMPANADAS?", s2_sub: "MINIMO 3 EMPANADAS", s2_hint: "TOCCA + PER AGGIUNGERE",
     fp_label: "SAPORI SCELTI", flavor_unavail: "NON DISPONIBILE", ingredients_pending: "INGREDIENTI DA CONFERMARE",
@@ -1048,6 +1071,7 @@ const I18N = {
     anulado_rechazada: "NO PUDIMOS VERIFICAR TU PAGO. ESCRIBINOS POR WHATSAPP Y LO RESOLVEMOS.",
     anulado_cancelada: "TU PEDIDO FUE CANCELADO. ESCRIBINOS POR WHATSAPP SI TENÉS DUDAS.",
     track_camino_franja: "LLEGA ENTRE LAS ", track_entregado: "ENTREGADO ✓",
+    track_eta: "LLEGADA ESTIMADA ENTRE LAS {a} Y LAS {b}",
     no_franjas_hoy: "POR HOY NO QUEDAN FRANJAS DISPONIBLES. PROBÁ OTRO DÍA.",
     s2_title: "¿CUÁNTAS EMPANADAS?", s2_sub: "MÍNIMO 3 EMPANADAS", s2_hint: "TOCÁ + PARA SUMAR",
     fp_label: "SABORES ELEGIDOS", flavor_unavail: "NO DISPONIBLE", ingredients_pending: "INGREDIENTES A CONFIRMAR",
@@ -1841,6 +1865,7 @@ function renderFranjas(){
     list.appendChild(div);
   }
 
+  if(state.franja && !state.orderCode && !franjas.includes(state.franja)){ state.franja = null; updateMainButton(); }
   // Todas las franjas del día llenas (y con dato): se pasa al día siguiente
   const todasConDato = franjas.every(f => cupoUsado(state.fecha, f) !== null);
   const todasLlenas = todasConDato && franjas.every(f =>
@@ -2083,7 +2108,7 @@ async function generarCodigo(){
 async function crearSolicitud(){
   // Si mientras completaba los datos pasó la hora de corte, ese día ya no se
   // puede pedir: vuelve a elegir con el día nuevo.
-  if(!diasPosibles().includes(state.fecha)){
+  if(!diasPosibles().includes(state.fecha) || !franjasDisponiblesDelDia(state.fecha).includes(state.franja)){
     alert(state.lang === 'it'
       ? "È PASSATA L'ORA DI CHIUSURA DEGLI ORDINI PER QUESTO GIORNO. SCEGLI DI NUOVO LA FASCIA."
       : 'PASÓ LA HORA DE CIERRE DE PEDIDOS PARA ESE DÍA. ELEGÍ DE NUEVO LA FRANJA.');
@@ -2310,7 +2335,10 @@ function seguirPedido(){
     // Por seguridad: tiene que ser el pedido de este cliente (misma fecha)
     if(p.fecha && state.fecha && p.fecha !== state.fecha) return;
     const fase = FASE_POR_ESTADO[p.estado];
-    if(fase && fase !== state.orderPhase) updateOrderSteps(fase);
+    const eta = (p.etaDesdeMs && p.etaHastaMs) ? [p.etaDesdeMs, p.etaHastaMs] : null;
+    const etaCambio = JSON.stringify(eta) !== JSON.stringify(state.eta || null);
+    state.eta = eta;
+    if(fase && (fase !== state.orderPhase || etaCambio)) updateOrderSteps(fase);
   }, err=>{ console.error('seguimiento', err); });
 }
 function phaseToStepNumber(phase){
@@ -2368,9 +2396,12 @@ function updateOrderSteps(phase){
   if(s4) s4.textContent = (state.fecha && state.fecha !== hoyStr() && phaseToStepNumber(phase) >= 4)
     ? t('step4_futuro').replace('{dia}', nombreDia(state.fecha)).replace('{franja}', String(state.franja||'').replace('-', ' – '))
     : '';
+  const hm = ms => { const d = new Date(ms); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
   document.getElementById('step6-sub').textContent = (phase === 'entregado')
     ? t('track_entregado')
-    : t('track_camino_franja') + String(state.franja || '').replace('-', ' – ');
+    : (phase === 'camino' && state.eta)
+      ? t('track_eta').replace('{a}', hm(state.eta[0])).replace('{b}', hm(state.eta[1]))
+      : t('track_camino_franja') + String(state.franja || '').replace('-', ' – ');
 
   saveSession();
 }
