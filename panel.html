@@ -745,6 +745,12 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .del-fecha{font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
 .del-cfg{display:flex;align-items:center;gap:7px;margin-left:auto;}
 .del-cfg-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#999;}
+/* Interruptores de turno del delivery */
+.del-turnos{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 14px;}
+.del-turno{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;padding:8px 16px;border-radius:20px;cursor:pointer;border:1.5px solid #d1d5db;background:#f3f4f6;color:#9ca3af;}
+.del-turno.on{background:#065f46;border-color:#065f46;color:#fff;}
+.del-turno.on::before{content:'● ';}
+.del-turno:not(.on)::before{content:'○ ';}
 .del-resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px;}
 .del-card{background:#fff;border:1px solid #eee;border-radius:10px;padding:14px 16px;}
 .del-card.rider{background:#111;color:#fff;border-color:#111;}
@@ -1358,6 +1364,14 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
     </div>
   </div>
 
+  <!-- Prender y apagar el delivery por turno. Frena solo los pedidos NUEVOS:
+       lo que ya está confirmado o programado sigue igual. -->
+  <div class="del-turnos" id="del-turnos">
+    <span class="del-cfg-lbl">Delivery abierto</span>
+    <button class="del-turno" id="del-turno-mediodia" onclick="delCambiarTurno('mediodia')">PRANZO</button>
+    <button class="del-turno" id="del-turno-noche" onclick="delCambiarTurno('noche')">CENA</button>
+  </div>
+
   <div class="del-resumen" id="del-resumen"></div>
   <div class="del-pendientes" id="del-pendientes"></div>
   <div class="del-franjas" id="del-franjas"></div>
@@ -1664,6 +1678,7 @@ onSnapshot(query(collection(db,'pedidos'),where('timestamp','>=',Timestamp.fromD
   });
   orders=no;knownIds=ni;isFirstLoad=false;renderOrders();updateStats();
   ordersListoOk();
+  if(delListo) delRefrescar();
 }, err=>{ console.error('listener pedidos de hoy',err); ordersListoErr(err); });
 }
 
@@ -3048,6 +3063,43 @@ async function delInit(){
   await delCargar();
 }
 
+/* ═══ TURNOS DEL DELIVERY ═══
+   Se guardan en config/disponibilidad, que la página del cliente ya escucha
+   en vivo. Si el campo no existe, el cliente usa lo que dice su archivo
+   (mediodía apagado, noche prendida). */
+const DEL_TURNOS_DEFAULT = { mediodia:false, noche:true };
+let delTurnos = { ...DEL_TURNOS_DEFAULT };
+function delPintarTurnos(){
+  ['mediodia','noche'].forEach(tu=>{
+    const b=document.getElementById('del-turno-'+tu);
+    if(b) b.classList.toggle('on', !!delTurnos[tu]);
+  });
+}
+async function delCargarTurnos(){
+  try{
+    const sn=await getDoc(doc(db,'config','disponibilidad'));
+    const t=sn.exists()?sn.data()._turnosDelivery:null;
+    delTurnos = t ? { mediodia: t.mediodia===true, noche: t.noche===true } : { ...DEL_TURNOS_DEFAULT };
+  }catch(e){ console.error('turnos delivery',e); }
+  delPintarTurnos();
+}
+window.delCambiarTurno = async function(tu){
+  const nombre = tu==='noche' ? 'CENA' : 'PRANZO';
+  const nuevo = !delTurnos[tu];
+  if(!confirm(nuevo
+    ? `¿ABRIR el delivery de ${nombre}?\n\nLos clientes van a poder pedir para ese turno.`
+    : `¿CERRAR el delivery de ${nombre}?\n\nLos clientes dejan de ver esas franjas al instante.\nLos pedidos ya confirmados o programados NO se tocan.`)) return;
+  const antes = { ...delTurnos };
+  delTurnos[tu] = nuevo;
+  delPintarTurnos();
+  try{
+    await setDoc(doc(db,'config','disponibilidad'), { _turnosDelivery: { ...delTurnos } }, { merge:true });
+  }catch(e){
+    delTurnos = antes; delPintarTurnos();
+    alert('No se pudo guardar: '+e.message);
+  }
+};
+
 async function delCargarCfg(){
   try{
     const s = await getDoc(doc(db,'config','settings'));
@@ -3060,6 +3112,7 @@ async function delCargarCfg(){
   const a=document.getElementById('del-envio'), b=document.getElementById('del-rider');
   if(a) a.value = delEnvio.toFixed(2);
   if(b) b.value = delRider.toFixed(2);
+  await delCargarTurnos();
 }
 
 window.delGuardarCfg = async function(){
@@ -3073,32 +3126,82 @@ window.delGuardarCfg = async function(){
   }catch(e){ alert('Error: '+e.message); }
 };
 
-window.delCargar = async function(){
-  // El botón avisa que está trabajando: antes parecía que no hacía nada
-  const btn = document.getElementById('del-refresh');
-  const txtOriginal = btn ? btn.textContent : '';
-  if(btn){ btn.textContent = '⏳ Buscando...'; btn.disabled = true; }
+/* ═══ SOLICITUDES EN VIVO ═══
+   Antes la solapa leía las solicitudes una vez y había que tocar ACTUALIZAR
+   para ver un "YA PAGUÉ". Ahora se escuchan: las nuevas y los avisos de pago
+   aparecen solos, suena un aviso y se prende el número rojo de la solapa,
+   aunque estés en otra. Son pocas por día: después de la primera carga,
+   Firebase solo cobra lo que cambia. */
+let delListo=null, delIniciado=false, delEstadosPrevios=null;
+function delSonido(){
+  // Dos tonos subiendo: distinto del pip-pip-pip de los pedidos del mostrador
+  try{
+    const c=new(window.AudioContext||window.webkitAudioContext)();
+    [[0,660],[180,880],[360,1100]].forEach(([d,f])=>{
+      const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);
+      o.frequency.value=f;o.type='triangle';
+      g.gain.setValueAtTime(0.5,c.currentTime+d/1000);
+      g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+d/1000+0.35);
+      o.start(c.currentTime+d/1000);o.stop(c.currentTime+d/1000+0.35);
+    });
+  }catch(e){}
+}
+// Si estás editando una solicitud, no se redibuja (se perdería lo que escribiste)
+function delEditando(){ return !!document.querySelector('#del-pendientes .del-edit'); }
+function delRefrescar(){
+  delPedidos = soloPedidos(orders).filter(o => canalKey(o) === 'logistica');
+  if(delEditando()) delActualizarBadge(); else delRender();
+}
+function delActualizarBadge(){
+  const n = delSolicitudes.filter(s => s.estado === 'pago_avisado' && !delVencida(s)).length;
+  const badge = document.getElementById('del-badge');
+  if(badge){ badge.style.display = n ? 'inline-block' : 'none'; badge.textContent = n; }
+}
+function delEscuchar(){
+  if(delListo) return delListo;
   const hoy = cocHoy();
   const f = document.getElementById('del-fecha');
   if(f) f.textContent = '🛵 ' + delFechaLegible(hoy);
-  try{
-    // Hoy y los días siguientes (pedidos programados). Nunca toda la historia.
-    const snap = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','>=',hoy)));
-    delSolicitudes = snap.docs.map(d=>({id:d.id, ...d.data()}));
-    // Los programados para hoy pasan a ser pedidos (una sola vez, ver abajo)
-    if(await delActivarProgramadas(delSolicitudes)){
-      const snap2 = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','>=',hoy)));
-      delSolicitudes = snap2.docs.map(d=>({id:d.id, ...d.data()}));
-    }
-    // Los que ya pasaron a pedido: se leen de los pedidos de hoy en memoria
-    delPedidos = soloPedidos(orders).filter(o => canalKey(o) === 'logistica');
-  }catch(e){
-    console.error('delCargar', e);
-    document.getElementById('del-pendientes').innerHTML =
-      '<div class="del-vacio">No se pudieron cargar las solicitudes.<br>'+e.message+'</div>';
+  delListo = new Promise((resolve,reject)=>{
+    let primera=true;
+    onSnapshot(query(collection(db,'solicitudes_delivery'), where('fecha','>=',hoy)), snap=>{
+      delSolicitudes = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      // Aviso sonoro: solicitud nueva o cliente que avisa que pagó
+      const ahora = {};
+      delSolicitudes.forEach(x=>{ ahora[x.id] = x.estado; });
+      if(delEstadosPrevios){
+        const hayNovedad = delSolicitudes.some(x =>
+          (!delEstadosPrevios[x.id] && x.estado === 'esperando_pago') ||
+          (x.estado === 'pago_avisado' && delEstadosPrevios[x.id] !== 'pago_avisado'));
+        if(hayNovedad) delSonido();
+      }
+      delEstadosPrevios = ahora;
+      delRefrescar();
+      // Los programados para hoy pasan a ser pedidos (una sola vez, con transacción)
+      delActivarProgramadas(delSolicitudes).catch(e=>console.error('activar',e));
+      if(primera){ primera=false; resolve(); }
+    }, err=>{
+      console.error('listener solicitudes', err);
+      delListo=null;
+      document.getElementById('del-pendientes').innerHTML =
+        '<div class="del-vacio">No se pudieron cargar las solicitudes.<br>'+err.message+'</div>';
+      if(primera){ primera=false; reject(err); }
+    });
+  });
+  delListo.catch(()=>{ delListo=null; });
+  return delListo;
+}
+
+// ACTUALIZAR ya no relee nada: redibuja con lo que llega en vivo
+window.delCargar = async function(){
+  const btn = document.getElementById('del-refresh');
+  const txtOriginal = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = '⏳ Buscando...'; btn.disabled = true; }
+  try{ await delEscuchar(); }catch(e){
     if(btn){ btn.textContent = txtOriginal; btn.disabled = false; }
     return;
   }
+  delPedidos = soloPedidos(orders).filter(o => canalKey(o) === 'logistica');
   delRender();
   if(btn){
     btn.textContent = '✓ Actualizado';
@@ -3263,14 +3366,13 @@ async function delRevisarProgramadas(){
   if(new Date().getHours() < DEL_HORA_ACTIVACION) return;
   delUltimaRevision = hoy;
   try{
-    const snap = await getDocs(query(collection(db,'solicitudes_delivery'), where('fecha','==',hoy)));
-    const lista = snap.docs.map(d=>({id:d.id, ...d.data()}));
-    if(await delActivarProgramadas(lista)){
-      if(document.getElementById('del-pendientes')) await delCargar();
-    }
+    await delEscuchar();
+    await delActivarProgramadas(delSolicitudes);   // el listener redibuja solo
   }catch(e){ console.error('revisar programadas', e); delUltimaRevision = null; }
 }
-setTimeout(()=>{ if(auth.currentUser) delRevisarProgramadas(); }, 4000);
+// Al entrar: se arranca la escucha de solicitudes (para el aviso sonoro y el
+// número rojo aunque no abras DELIVERY) y se revisan los programados
+setTimeout(()=>{ if(auth.currentUser){ delEscuchar().catch(()=>{}); delCargarTurnos(); delRevisarProgramadas(); } }, 4000);
 setInterval(()=>{ if(auth.currentUser) delRevisarProgramadas(); }, 5*60*1000);
 
 // ── RECHAZAR ──
@@ -3344,10 +3446,46 @@ window.delVolverPaso = async function(codigo, estadoActual){
 // ── ESTADO QUE VE EL CLIENTE ──
 // Vive en pedidos, que es de lectura pública, así que la pantalla de
 // seguimiento lo lee con el código y sin contraseña.
+/* ═══ LLEGADA ESTIMADA ═══
+   Al marcar EN CAMINO se calcula a qué hora llega ESE pedido, según su lugar
+   en el recorrido del rider: kilómetros hasta su casa más el tiempo de cada
+   entrega anterior. El cliente ve una ventana de 10 minutos, no la franja entera.
+   Si en la práctica el rider tarda más o menos, se ajustan estas constantes. */
+const DEL_MIN_POR_KM = 3;      // moto en ciudad: ~20 km/h
+const DEL_MIN_POR_ENTREGA = 4; // estacionar, timbre, entregar
+const DEL_MARGEN_MIN = 5;      // la ventana es ± este margen
+function delEtaMs(codigo){
+  const o = delPedidos.find(x => x.id === codigo);
+  if(!o || !o.franja) return null;
+  const fr = delFranjasDelDia();
+  const esUltima = (fr.mediodia.includes(o.franja) && fr.mediodia.indexOf(o.franja)===fr.mediodia.length-1)
+                || (fr.noche.includes(o.franja) && fr.noche.indexOf(o.franja)===fr.noche.length-1);
+  const privados = {};
+  delSolicitudes.forEach(s=>{ privados[s.id]=s; });
+  const entregas = delPedidos.filter(x => x.franja === o.franja).map(x=>({
+    codigo:x.id, distKm: typeof (privados[x.id]||{}).distKm==='number' ? privados[x.id].distKm : 0
+  }));
+  const ruta = delOrdenarRuta(entregas, esUltima);
+  let min = 0, anterior = 0;
+  for(let i=0;i<ruta.length;i++){
+    const tramo = i===0 ? ruta[i].distKm : Math.max(0.5, Math.abs(ruta[i].distKm - anterior));
+    min += tramo * DEL_MIN_POR_KM;
+    if(ruta[i].codigo === codigo) return Date.now() + Math.round(min)*60000;
+    min += DEL_MIN_POR_ENTREGA;
+    anterior = ruta[i].distKm;
+  }
+  return null;
+}
+
 window.delEstado = async function(codigo, estado){
   try{
     await updateDoc(doc(db,'pedidos',codigo), { estadoDelivery: estado });
     await delSeguimiento(codigo, estado);
+    if(estado === 'camino'){
+      const eta = delEtaMs(codigo);
+      if(eta) await setDoc(doc(db,'seguimiento_delivery',codigo),
+        { etaDesdeMs: eta - DEL_MARGEN_MIN*60000, etaHastaMs: eta + DEL_MARGEN_MIN*60000 }, { merge:true });
+    }
     await delCargar();
   }catch(e){ alert('Error: '+e.message); }
 };
@@ -3376,22 +3514,23 @@ function delFranjasDelDia(fecha){
 // El mensaje para copiar y pegarle al rider
 function delMensajeRuta(franja, entregas, esUltima){
   const lineas = [];
+  // El rider es italiano: todo el mensaje va en italiano
   lineas.push('🛵 DON SALO · ' + franja);
   lineas.push(esUltima
-    ? 'Orden: del más cerca al más lejos (última salida).'
-    : 'Orden: del más lejos al más cerca, para volver al local.');
+    ? 'Ordine: dal più vicino al più lontano (ultimo giro).'
+    : 'Ordine: dal più lontano al più vicino, per tornare al locale.');
   lineas.push('');
   delOrdenarRuta(entregas, esUltima).forEach((e,i)=>{
     lineas.push(`${i+1}) ${e.address}`);
     const extra = [];
-    if(e.details) extra.push('Timbre: ' + e.details);
-    if(e.distKm) extra.push(e.distKm.toFixed(1) + ' km');
+    if(e.details) extra.push('Citofono: ' + e.details);
+    if(e.distKm) extra.push(e.distKm.toFixed(1).replace('.',',') + ' km');
     if(extra.length) lineas.push('   ' + extra.join(' · '));
     lineas.push('   ' + e.name + ' · ' + e.phone);
-    lineas.push('   Pedido ' + e.codigo + ' · ' + e.qty + ' empanadas · PAGADO');
+    lineas.push('   Ordine ' + e.codigo + ' · ' + e.qty + ' empanadas · GIÀ PAGATO');
     lineas.push('');
   });
-  lineas.push(`Total: ${entregas.length} entregas · a cobrar: nada, ya está pago.`);
+  lineas.push(`Totale: ${entregas.length} ${entregas.length===1?'consegna':'consegne'} · da incassare: niente, è tutto già pagato.`);
   return lineas.join('\n');
 }
 
@@ -3412,12 +3551,7 @@ function delRender(){
   const esperando = pend.filter(s => s.estado !== 'pago_avisado');
 
   // Badge rojo en la solapa: los que esperan que confirmes el pago (de cualquier día)
-  const nAvisados = delSolicitudes.filter(s => s.estado === 'pago_avisado' && !delVencida(s)).length;
-  const badge = document.getElementById('del-badge');
-  if(badge){
-    badge.style.display = nAvisados ? 'inline-block' : 'none';
-    badge.textContent = nAvisados;
-  }
+  delActualizarBadge();
 
   // ── RESUMEN DEL DÍA ──
   const entregados = delPedidos.length;
@@ -7570,7 +7704,7 @@ async function syncDisponibilidad(){
     EMP.forEach(e=>{
       data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
     });
-    await setDoc(doc(db,'config','disponibilidad'),data);
+    await setDoc(doc(db,'config','disponibilidad'),data,{merge:true});   // merge: no borra _turnosDelivery
   }catch(e){console.error('syncDisponibilidad error',e);}
 }
 
@@ -7587,7 +7721,7 @@ async function syncDisponibilidadFromDB(){
     EMP.forEach(e=>{
       data[e.nombre]=Math.max(0,bySabor[e.nombre]?.stock||0);
     });
-    await setDoc(doc(db,'config','disponibilidad'),data);
+    await setDoc(doc(db,'config','disponibilidad'),data,{merge:true});   // merge: no borra _turnosDelivery
   }catch(e){console.error('syncDisponibilidadFromDB error',e);}
 }
 
