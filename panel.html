@@ -3454,6 +3454,16 @@ window.delVolverPaso = async function(codigo, estadoActual){
 const DEL_MIN_POR_KM = 3;      // moto en ciudad: ~20 km/h
 const DEL_MIN_POR_ENTREGA = 4; // estacionar, timbre, entregar
 const DEL_MARGEN_MIN = 5;      // la ventana es ± este margen
+// Hora de corte de pedidos de cada turno (la misma que usa la página del
+// cliente). Antes del corte todavía pueden entrar pedidos a la franja y el
+// recorrido puede cambiar: la hora estimada recién se calcula después.
+const DEL_CORTE = { mediodia: 12, noche: 19 };
+function delPasoElCorte(franja){
+  const esMediodia = delFranjasDelDia().mediodia.includes(franja);
+  const corte = esMediodia ? DEL_CORTE.mediodia : DEL_CORTE.noche;
+  const ahora = new Date();
+  return ahora.getHours() + ahora.getMinutes()/60 >= corte;
+}
 function delEtaMs(codigo){
   const o = delPedidos.find(x => x.id === codigo);
   if(!o || !o.franja) return null;
@@ -3486,7 +3496,17 @@ window.delEstado = async function(codigo, estado){
   try{
     await updateDoc(doc(db,'pedidos',codigo), { estadoDelivery: estado });
     await delSeguimiento(codigo, estado);
-    if(estado === 'camino'){
+    // Si se vuelve atrás o se marca antes del corte, no queda una hora vieja
+    if(estado !== 'camino' && estado !== 'entregado'){
+      await setDoc(doc(db,'seguimiento_delivery',codigo),
+        { etaDesdeMs: null, etaHastaMs: null }, { merge:true });
+    }
+    const oCam = delPedidos.find(x => x.id === codigo);
+    if(estado === 'camino' && oCam && !delPasoElCorte(oCam.franja)){
+      await setDoc(doc(db,'seguimiento_delivery',codigo),
+        { etaDesdeMs: null, etaHastaMs: null }, { merge:true });
+    }
+    if(estado === 'camino' && oCam && delPasoElCorte(oCam.franja)){
       const eta = delEtaMs(codigo);
       if(eta){
         // La ventana nunca empieza antes de la franja
