@@ -3466,11 +3466,16 @@ function delEtaMs(codigo){
     codigo:x.id, distKm: typeof (privados[x.id]||{}).distKm==='number' ? privados[x.id].distKm : 0
   }));
   const ruta = delOrdenarRuta(entregas, esUltima);
+  // El reparto no arranca antes del comienzo de la franja: si se marca EN
+  // CAMINO a las 11:08 para la franja 12:30-13:30, se cuenta desde las 12:30.
+  const [hh, mm] = String(o.franja).split('-')[0].split(':').map(Number);
+  const inicioFranja = new Date(); inicioFranja.setHours(hh||0, mm||0, 0, 0);
+  const base = Math.max(Date.now(), inicioFranja.getTime());
   let min = 0, anterior = 0;
   for(let i=0;i<ruta.length;i++){
     const tramo = i===0 ? ruta[i].distKm : Math.max(0.5, Math.abs(ruta[i].distKm - anterior));
     min += tramo * DEL_MIN_POR_KM;
-    if(ruta[i].codigo === codigo) return Date.now() + Math.round(min)*60000;
+    if(ruta[i].codigo === codigo) return base + Math.round(min)*60000;
     min += DEL_MIN_POR_ENTREGA;
     anterior = ruta[i].distKm;
   }
@@ -3483,8 +3488,15 @@ window.delEstado = async function(codigo, estado){
     await delSeguimiento(codigo, estado);
     if(estado === 'camino'){
       const eta = delEtaMs(codigo);
-      if(eta) await setDoc(doc(db,'seguimiento_delivery',codigo),
-        { etaDesdeMs: eta - DEL_MARGEN_MIN*60000, etaHastaMs: eta + DEL_MARGEN_MIN*60000 }, { merge:true });
+      if(eta){
+        // La ventana nunca empieza antes de la franja
+        const o = delPedidos.find(x => x.id === codigo);
+        const [hh, mm] = String(o && o.franja || '').split('-')[0].split(':').map(Number);
+        const inicio = new Date(); inicio.setHours(hh||0, mm||0, 0, 0);
+        const desde = Math.max(eta - DEL_MARGEN_MIN*60000, inicio.getTime());
+        await setDoc(doc(db,'seguimiento_delivery',codigo),
+          { etaDesdeMs: desde, etaHastaMs: Math.max(eta + DEL_MARGEN_MIN*60000, desde + 2*DEL_MARGEN_MIN*60000) }, { merge:true });
+      }
     }
     await delCargar();
   }catch(e){ alert('Error: '+e.message); }
