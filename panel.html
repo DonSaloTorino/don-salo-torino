@@ -162,6 +162,27 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   .hist-table-wrap, .stock-table-wrap, .coc-table-wrap{ overflow-x: auto; }
   .hist-table, .stock-table, .coc-table{ min-width: 720px; }
   .fab-btn{ bottom: calc(18px + env(safe-area-inset-bottom, 0px)); right: 18px; }
+
+  /* ── Celular sin "Sitio de escritorio" ──
+     Nada puede ser más ancho que la pantalla: si algo se pasa, Chrome achica
+     toda la página para que entre y queda el panel chiquito en un costado.
+     'clip' corta lo que sobre sin romper la cabecera fija. */
+  html, body{ max-width: 100%; overflow-x: clip; }
+  /* La cabecera con las solapas no queda pegada arriba: en el teléfono se
+     comería un tercio de la pantalla mientras scrolleás */
+  .header{ position: static; }
+  /* Las solapas en dos renglones, todas a la vista */
+  .header-tabs{ flex-wrap: wrap; width: 100%; gap: 6px !important; }
+  .header-tabs button{ padding: 7px 11px !important; font-size: 10.5px !important; letter-spacing: 0.5px !important; }
+  /* Las tarjetas de arriba, de a dos y con letra que entra */
+  .stats-bar{ display: grid; grid-template-columns: 1fr 1fr; }
+  .stat-label{ font-size: 9px; letter-spacing: 1.2px; }
+  /* Stock por sabor: el nombre arriba y la barra con los números abajo */
+  .stock-bar-row{ flex-wrap: wrap; gap: 4px 10px; }
+  .stock-bar-label{ min-width: 0; flex-basis: 100%; }
+  .stock-bar-cajas{ min-width: 92px; }
+  .stock-bar-head span:last-child{ min-width: 92px; }
+  .stock-fila-total .stock-total-box{ min-width: 0; }
 }
 
 @media print {
@@ -881,7 +902,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   <div class="header-right">
     <div class="live-dot"></div>
     <div class="live-label">EN VIVO</div>
-    <div style="display:flex;gap:6px;">
+    <div class="header-tabs" style="display:flex;gap:6px;">
       <button id="tab-pedidos" onclick="switchTab('pedidos')" style="background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">🫔 PEDIDOS</button>
       <button id="tab-delivery" onclick="switchTab('delivery')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🛵 DELIVERY <span id="del-badge" style="display:none;background:#dc2626;color:#fff;border-radius:9px;padding:1px 6px;font-size:10px;margin-left:3px;"></span></button>
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
