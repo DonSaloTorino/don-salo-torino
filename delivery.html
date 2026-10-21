@@ -952,7 +952,7 @@ function aplicarCambioTurnos(){
    empanadas CRUDAS que quedan en stock. Acá se oculta el sabor si ese número
    no supera el colchón, para no vender lo último que queda para el local. */
 function saborDisponible(sabor){
-  if(sabor.disponible === false) return false;          // apagado a mano (Entrecote)
+  if(sabor.disponible === false) return false;          // apagado a mano (hoy ninguno)
   if(!DISPONIBILIDAD) return true;                      // todavía no cargó
   const n = DISPONIBILIDAD[nombreInterno(sabor.key)];
   if(typeof n !== 'number') return true;                // sabor nuevo o sin dato
@@ -977,7 +977,10 @@ const SABORES = {
     { key:"Parmigiana", it:{name:"PARMIGIANA", ing:"MELANZANE, POMODORO, CIPOLLA, PEPERONI, ASIAGO MEZZANO", all:[1,7,9]}, es:{name:"PARMESANA", ing:"BERENJENA, TOMATE, CEBOLLA, MORRÓN, ASIAGO MEDIO", all:[1,7,9]} },
     { key:"Pollo e Curcuma", it:{name:"POLLO E CURCUMA", ing:"POLLO, CIPOLLA, PEPERONI", all:[1,9,12]}, es:{name:"POLLO Y CÚRCUMA", ing:"POLLO, CEBOLLA, MORRÓN", all:[1,9,12]} },
     { key:"Bondiola alla Birra", it:{name:"BONDIOLA ALLA BIRRA", ing:"COPPA DI MAIALE, CIPOLLA, SEDANO, PEPERONI, BIRRA NERA", all:[1,7,9]}, es:{name:"BONDIOLA A LA CERVEZA", ing:"BONDIOLA DE CERDO, CEBOLLA, APIO, MORRÓN, CERVEZA NEGRA", all:[1,7,9]} },
-    { key:"Entrecote + Chimichurri", disponible:false, it:{name:"ENTRECOTE + CHIMICHURRI", ing:null, all:[]}, es:{name:"ENTRECOTE + CHIMICHURRI", ing:null, all:[]} },
+    // Antes estaba apagado a mano (disponible:false) y no se podía pedir aunque
+    // hubiera stock. Ahora sigue al stock como los demás. Ingredientes y
+    // alérgenos tomados del menú QR, que ya los tenía cargados.
+    { key:"Entrecote + Chimichurri", it:{name:"ENTRECOTE E CHIMICHURRI", ing:"ENTRECOTE BLACK ANGUS, CIPOLLA, PEPERONI, VINO BIANCO, SPEZIE, AGLIO, PREZZEMOLO", all:[1,9,12]}, es:{name:"ENTRECOT Y CHIMICHURRI", ing:"ENTRECOT BLACK ANGUS, CEBOLLA, MORRÓN, VINO BLANCO, ESPECIAS, AJO, PEREJIL", all:[1,9,12]} },
     { key:"Prosciutto e Formaggio Senza Lattosio", it:{name:"PROSCIUTTO E FORMAGGIO SENZA LATTOSIO", ing:"PROSCIUTTO COTTO, MOZZARELLA SENZA LATTOSIO", all:[7]}, es:{name:"JAMÓN Y QUESO SIN LACTOSA", ing:"JAMÓN COCIDO, MOZZARELLA SIN LACTOSA", all:[7]} }
   ]
 };
