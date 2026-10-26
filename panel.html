@@ -6273,6 +6273,13 @@ window.openSaborModal=function(){
   document.getElementById('sabor-modal-nombre').value='';
   document.getElementById('sabor-modal-curcuma').checked=false;
   document.getElementById('sabor-modal-tipo').value='classica';
+  // Los precios del selector salen de la lista vigente HOY (antes estaban
+  // escritos a mano y habían quedado con la lista vieja, hasta el 13/09)
+  const L=listaEnFecha(new Date().toISOString().split('T')[0]);
+  const pr=t=>L.tramos.map(x=>x[t].toFixed(2).replace('.',',')+' ('+x.label+')').join(' · ');
+  const sel=document.getElementById('sabor-modal-tipo');
+  sel.options[0].text='🔵 Classica — '+pr('classica');
+  sel.options[1].text='🔴 Speciale — '+pr('speciale');
   document.getElementById('sabor-modal-overlay').classList.add('show');
 };
 window.closeSaborModal=function(){
