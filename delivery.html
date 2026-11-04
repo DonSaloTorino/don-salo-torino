@@ -991,10 +991,12 @@ const ALLERGEN_LEGEND = {
   es: {1:"GLUTEN",2:"CRUSTÁCEOS",3:"HUEVO",4:"PESCADO",5:"MANÍ",6:"SOJA",7:"LECHE",8:"FRUTOS SECOS",9:"APIO",10:"MOSTAZA",11:"SÉSAMO",12:"ANHÍDRIDO SULFUROSO Y SULFITOS",13:"ALTRAMUCES",14:"MOLUSCOS"}
 };
 
-// PRECIOS — vigentes desde 14/09/2026
+// PRECIOS — vigentes desde 04/11/2026
+// Desde 12 empanadas, TODAS a 4,00 (Promo 12). El descuento desde 9 ya no existe.
+const DESDE_PROMO12 = 12;
 const PRECIOS = {
-  bajo:  { classica: 4.00, speciale: 4.50 }, // 1 a 8
-  alto:  { classica: 3.80, speciale: 4.30 }  // 9 o más
+  bajo:  { classica: 4.00, speciale: 4.50 }, // 1 a 11
+  alto:  { classica: 4.00, speciale: 4.00 }  // 12 o más
 };
 
 /* =====================================================================
@@ -2038,7 +2040,7 @@ function validatePhone(){
    ===================================================================== */
 function calcularTotal(){
   const total = totalFlavorsChosen();
-  const tier = total >= 9 ? PRECIOS.alto : PRECIOS.bajo;
+  const tier = total >= DESDE_PROMO12 ? PRECIOS.alto : PRECIOS.bajo;
   let subtotal = 0;
   Object.entries(state.flavors).forEach(([key, qty])=>{
     subtotal += (isClassica(key) ? tier.classica : tier.speciale) * qty;
@@ -2050,7 +2052,7 @@ function renderSummary(){
   const card = document.getElementById('summaryCard');
   if(totalFlavorsChosen() === 0){ card.innerHTML=''; return; }
   const { envio, total } = calcularTotal();
-  const tier = totalFlavorsChosen() >= 9 ? PRECIOS.alto : PRECIOS.bajo;
+  const tier = totalFlavorsChosen() >= DESDE_PROMO12 ? PRECIOS.alto : PRECIOS.bajo;
 
   const lineFor = ([key,qty])=>{
     const sabor = findSabor(key);
