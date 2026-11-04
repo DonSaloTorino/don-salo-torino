@@ -1763,6 +1763,9 @@ function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esCons
 //  las listas anteriores quedan acá para siempre.
 //  Las listas van de la más nueva a la más vieja.
 // ═══════════════════════════════════════════════════════
+// Desde esta fecha, cada lista de precios cuenta sus promos y tramos aparte
+// en las estadísticas (las anteriores se siguen sumando juntas)
+const LISTA_PROMOS_SEPARADAS = '2026-11-04';
 const COSTO_EMPANADA = 2.20;   // costo por empanada de las listas viejas (antes del 04/11/2026)
 
 const LISTAS_PRECIOS = [
@@ -4668,7 +4671,7 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
              clPromo:0, spPromo:0, clSuelta:0, spSuelta:0},
       // Promos: aplicaciones, pedidos y empanadas, cada cosa por separado
       promos:{}, promoPedidos:par(), empEnPromo:0, empExtraEnPromo:0,
-      sinPromo:par(), sinPromoTramo:{corto:0, largo:0},
+      sinPromo:par(), sinPromoTramo:{corto:0, largo:0, corto12:0, largo12:0},
       // Entregas propias: cantidad, empanadas, venta y envíos cobrados
       consegne:{p:0,e:0,pz:0,cn:0, venta:0, envio:0, empPz:0, empCn:0},
       // Bebidas, con las de promo incluidas
@@ -4719,8 +4722,12 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       const L=listaDePedido(o);
       if(claves.length){
         let cubiertas=0;
+        // Desde el 04/11/2026 cada lista nueva cuenta sus promos aparte
+        // (clave|fecha), porque reusan claves con otro precio. Las listas
+        // anteriores se siguen sumando juntas, como siempre.
+        const suf = L.desde>=LISTA_PROMOS_SEPARADAS ? '|'+L.desde : '';
         claves.forEach(cl=>{
-          r.promos[cl]=(r.promos[cl]||0)+pr[cl];
+          r.promos[cl+suf]=(r.promos[cl+suf]||0)+pr[cl];
           const def=L.promos && L.promos[cl];
           if(def) cubiertas += def.cant*pr[cl];
         });
@@ -4728,15 +4735,24 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
         sum(r.promoPedidos);
         r.empEnPromo+=cubiertas;
         r.empExtraEnPromo+=Math.max(0, emp-cubiertas);
-        // Las promos se llenan primero con classiche, igual que el precio
-        const cPromo=Math.min(n.classicas, cubiertas);
-        const sPromo=Math.max(0, cubiertas-cPromo);
+        // Igual que el precio: en las listas viejas la promo se llena primero
+        // con classiche; desde el 04/11/2026, primero con speciali
+        let cPromo, sPromo;
+        if(L.promoLlenaEspeciales){
+          sPromo=Math.min(n.especiales, cubiertas); cPromo=Math.max(0, cubiertas-sPromo);
+        } else {
+          cPromo=Math.min(n.classicas, cubiertas); sPromo=Math.max(0, cubiertas-cPromo);
+        }
         r.tipos.clPromo+=cPromo; r.tipos.spPromo+=sPromo;
         r.tipos.clSuelta+=n.classicas-cPromo; r.tipos.spSuelta+=n.especiales-sPromo;
       }else if(esVenta && !CANALES[k].delivery && !CANALES[k].propio){
         sum(r.sinPromo);
         // Tramo de precio que le tocó: es el dato para saber si el 9+ se usa
-        if(emp>=9) r.sinPromoTramo.largo++; else r.sinPromoTramo.corto++;
+        if(L.desde>=LISTA_PROMOS_SEPARADAS){
+          if(emp>=12) r.sinPromoTramo.largo12++; else r.sinPromoTramo.corto12++;
+        } else {
+          if(emp>=9) r.sinPromoTramo.largo++; else r.sinPromoTramo.corto++;
+        }
         r.tipos.clSuelta+=n.classicas; r.tipos.spSuelta+=n.especiales;
       }else{
         r.tipos.clSuelta+=n.classicas; r.tipos.spSuelta+=n.especiales;
@@ -4789,10 +4805,9 @@ function sMesPintar(r){
     </div>`;
   };
   const L=listaHoy();
-  const nombrePromo=k=>{
-    if(L.promos && L.promos[k]) return L.promos[k].label;
-    return {duoAgua:'Promo 2 + A', duoBebida:'Promo 2 + B', pranzo:'Promo 3 Empanadas'}[k] || k;
-  };
+  // Nombres de las promos viejas (hasta el 03/11/2026)
+  const nombrePromo=k=>({duoAgua:'Promo 2 + A', duoBebida:'Promo 2 + B', pranzo:'Promo 3'}[k] || k);
+  const ddmm=f=>f.split('-').reverse().slice(0,2).join('/');
   const totPromos=Object.values(r.promos).reduce((a,b)=>a+b,0);
   const totLocal=r.consumo.mangia.p+r.consumo.take.p;
   const bebTot=r.beb.acqua+r.beb.gassata+r.beb.birra;
@@ -4813,11 +4828,24 @@ function sMesPintar(r){
 
   // ── Promos: tres cosas distintas, separadas ──
   h+='<div class="s-mini-sub-title">Promos · cada número mide algo distinto</div><div class="s-mini-grid">';
+  // Promos viejas (hasta el 03/11/2026): quedan para consultar períodos anteriores
   ['duoAgua','duoBebida','pranzo'].forEach(k=>{
     const n=r.promos[k]||0;
     h+=caja(nombrePromo(k), n, n>0?'veces aplicada':'ninguna','promo',pct(n,totPromos));
   });
-  h+='</div><div class="s-mini-grid">';
+  h+='</div>';
+  // Promos de las listas nuevas, con la fecha en que empezaron
+  LISTAS_PRECIOS.filter(Lx=>Lx.desde>=LISTA_PROMOS_SEPARADAS)
+    .sort((a,b)=>a.desde.localeCompare(b.desde))
+    .forEach(Lx=>{
+      h+='<div class="s-mini-grid">';
+      Object.entries(Lx.promos||{}).forEach(([k,d])=>{
+        const n=r.promos[k+'|'+Lx.desde]||0;
+        h+=caja(d.label+' ('+ddmm(Lx.desde)+')', n, n>0?'veces aplicada':'ninguna','promo',pct(n,totPromos));
+      });
+      h+='</div>';
+    });
+  h+='<div class="s-mini-grid">';
   h+=caja('Pedidos CON promo', r.promoPedidos.p, totPromos+' promos aplicadas en total','promo',pct(r.promoPedidos.p,r.vPedidos), r.promoPedidos);
   h+=caja('Pedidos SIN promo', r.sinPromo.p, r.sinPromo.e+' empanadas','',pct(r.sinPromo.p,r.vPedidos), r.sinPromo);
   h+=caja('Empanadas EN promo', r.empEnPromo, 'cubiertas por una promo','promo',pct(r.empEnPromo,r.vEmp));
@@ -4828,6 +4856,9 @@ function sMesPintar(r){
   h+='<div class="s-mini-sub-title">Pedidos sin promo · por tramo de precio</div><div class="s-mini-grid">';
   h+=caja('Tramo 1 a 8', r.sinPromoTramo.corto, 'pedidos','',pct(r.sinPromoTramo.corto,r.sinPromo.p));
   h+=caja('Tramo 9 o más', r.sinPromoTramo.largo, 'pedidos · el precio más bajo','deliv',pct(r.sinPromoTramo.largo,r.sinPromo.p));
+  h+='</div><div class="s-mini-grid">';
+  h+=caja('Tramo 1 a 11 (04/11)', r.sinPromoTramo.corto12, 'pedidos','',pct(r.sinPromoTramo.corto12,r.sinPromo.p));
+  h+=caja('12 o más (04/11)', r.sinPromoTramo.largo12, 'pedidos · todas a €4,00','deliv',pct(r.sinPromoTramo.largo12,r.sinPromo.p));
   h+='</div>';
 
   // ── Bebidas, con las de promo ──
