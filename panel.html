@@ -1763,9 +1763,40 @@ function soloVentas(arr){ return (arr||[]).filter(o=>!esDocCoccion(o) && !esCons
 //  las listas anteriores quedan acá para siempre.
 //  Las listas van de la más nueva a la más vieja.
 // ═══════════════════════════════════════════════════════
-const COSTO_EMPANADA = 2.20;   // costo por empanada, IVA incluido (igual para classiche y speciali)
+const COSTO_EMPANADA = 2.20;   // costo por empanada de las listas viejas (antes del 04/11/2026)
 
 const LISTAS_PRECIOS = [
+  {
+    desde: '2026-11-04',
+    nombre: 'Desde el 04/11/2026',
+    // Costo por empanada de esta lista (igual para classiche y speciali)
+    costoEmpanada: 2.07,
+    // Sueltas: 4,00 / 4,50. Desde 12 empanadas, TODAS a 4,00 (la "Promo 12":
+    // 12 = 48,00). El descuento desde 9 ya no existe.
+    tramos: [
+      {min:1,  max:11,       classica:4.00, speciale:4.50, label:'1–11'},
+      {min:12, max:Infinity, classica:4.00, speciale:4.00, label:'12+'}
+    ],
+    // En esta lista la promo cubre PRIMERO las especiales: la gracia de la
+    // promo es llevarse una especial a precio de clásica.
+    promoLlenaEspeciales: true,
+    // Promos del mediodía (lun a vie, 12:00 a 14:00). Se combinan y repiten.
+    // costoBebida: lo que cuesta la bebida incluida, para la ganancia.
+    promos: {
+      duo:        {label:'Promo 2',     corto:'2',   cant:2, precio:8.00},
+      duoAgua:    {label:'Promo 2 + A', corto:'2+A', cant:2, precio:9.50,  conBebida:true, costoBebida:0.22},
+      duoBebida:  {label:'Promo 2 + B', corto:'2+B', cant:2, precio:10.00, conBebida:true, costoBebida:0.55},
+      pranzo:     {label:'Promo 3',     corto:'3',   cant:3, precio:11.99},
+      trioAgua:   {label:'Promo 3 + A', corto:'3+A', cant:3, precio:13.50, conBebida:true, costoBebida:0.22},
+      trioBebida: {label:'Promo 3 + B', corto:'3+B', cant:3, precio:13.99, conBebida:true, costoBebida:0.55}
+    },
+    // Delivery por plataformas (Glovo, Just Eat, Deliveroo): sin cambios por ahora
+    combosDelivery: [
+      {n:6,  precio:38.00, label:'Per Due'},
+      {n:9,  precio:55.00, label:'Per Tre'},
+      {n:12, precio:72.00, label:'La Famiglia'}
+    ]
+  },
   {
     desde: '2026-09-14',
     nombre: 'Desde el 14/09/2026',
@@ -2001,8 +2032,15 @@ function precioMostrador(nClass, nSpec, promos, lista){
   if(cubiertas > c0+s0) return base;
 
   let c=c0, s=s0, quedan=cubiertas;
-  const usaC = Math.min(c, quedan); c -= usaC; quedan -= usaC;
-  const usaS = Math.min(s, quedan); s -= usaS; quedan -= usaS;
+  if(L.promoLlenaEspeciales){
+    // Desde el 04/11/2026: la promo cubre primero las especiales
+    const usaS = Math.min(s, quedan); s -= usaS; quedan -= usaS;
+    const usaC = Math.min(c, quedan); c -= usaC; quedan -= usaC;
+  } else {
+    // Listas viejas: primero las clásicas (así se cobraron esos pedidos)
+    const usaC = Math.min(c, quedan); c -= usaC; quedan -= usaC;
+    const usaS = Math.min(s, quedan); s -= usaS; quedan -= usaS;
+  }
   const conPromo = precioPromos + precioSinPromo(c, s, L);
 
   // Salvaguarda: sacar empanadas del conteo puede empujar al resto a un tramo
@@ -2047,8 +2085,17 @@ function empDePedido(o){ return contarPorTipo(o).total; }
 function costoPedido(o){
   const k=canalKey(o);
   if(CANALES[k].sinCosto) return 0;
-  return empDePedido(o)*COSTO_EMPANADA;
+  const L=listaDePedido(o);
+  let costo=empDePedido(o)*(L.costoEmpanada||COSTO_EMPANADA);
+  // Las promos con bebida incluyen el costo de esa bebida
+  Object.entries(promosDePedido(o)).forEach(([k2,n])=>{
+    const d=L.promos&&L.promos[k2];
+    if(d&&d.costoBebida) costo+=d.costoBebida*n;
+  });
+  return costo;
 }
+// Costo por empanada vigente hoy (para consumo interno, pérdidas y exportes)
+function costoEmpanadaHoy(){ return listaHoy().costoEmpanada || COSTO_EMPANADA; }
 // Con qué tipo entra la salida al stock, según el origen del pedido.
 // Así en la solapa STOCK se distingue una venta real de un consumo interno
 // o de una devolución, en vez de que aparezca todo como VENTA.
@@ -4053,7 +4100,7 @@ window.exportSerieDiaria=function(){
     ['DON SALO — SERIE DIARIA'],
     ['Generado', fechaHoraLegible()],
     ['Período', fechas[0]+' → '+fechas[fechas.length-1]],
-    ['Costo por empanada', COSTO_EMPANADA],
+    ['Costo por empanada', costoEmpanadaHoy()],
     [],
     ['Fecha','Día','Empanadas','Pedidos','Almuerzo','Cena','Facturación','Costo','Ganancia','Ticket medio','Emp. por pedido','Consumo interno']
   ];
@@ -4176,7 +4223,7 @@ window.exportHistorial=function(){
     ['Rango', `${desde} → ${hasta}`],
     ['Búsqueda por cliente', busq||'(sin filtro)'],
     ['Pedidos encontrados', hCurrentList.length],
-    ['Costo por empanada', COSTO_EMPANADA],
+    ['Costo por empanada', costoEmpanadaHoy()],
     [],
     ['Fecha','Hora','Cliente / N° pedido','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Costo','Venta','Ganancia','Promos','Estado','Detalle']
   ];
@@ -4226,8 +4273,8 @@ window.exportHistorial=function(){
 
   // Resumen por tipo de empanada
   const resumenTipo=[['Tipo','Empanadas','Costo','Venta total','Ganancia total']];
-  resumenTipo.push(['Classiche', tCla, r2(tCla*COSTO_EMPANADA), '', '']);
-  resumenTipo.push(['Speciali',  tSpe, r2(tSpe*COSTO_EMPANADA), '', '']);
+  resumenTipo.push(['Classiche', tCla, r2(tCla*costoEmpanadaHoy()), '', '']);
+  resumenTipo.push(['Speciali',  tSpe, r2(tSpe*costoEmpanadaHoy()), '', '']);
   resumenTipo.push(['TOTAL',     tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto)]);
 
   // Detalle por ítem
@@ -4822,7 +4869,7 @@ function sMesPintar(r){
 
   // ── Lo que no factura y la plata ──
   h+='<div class="s-mini-sub-title">No son ventas · aparte del resto</div><div class="s-mini-grid">';
-  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.interno.e*COSTO_EMPANADA))+' de costo','interno',pct(r.interno.e,r.salieron), r.interno);
+  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.interno.e*costoEmpanadaHoy()))+' de costo','interno',pct(r.interno.e,r.salieron), r.interno);
   h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.salieron), r.devol);
   h+=caja('Ticket promedio', dinero(r.vPedidos?eur(r.venta/r.vPedidos):'—'), r.vPedidos?(r.vEmp/r.vPedidos).toFixed(2)+' empanadas por pedido vendido':'');
   h+=caja('Facturación', dinero(eur(r.venta)), r.vPedidos+' pedidos vendidos','');
@@ -7724,7 +7771,7 @@ window.exportCoccion=function(){
   // Hoja 4: solo las pérdidas — cuánto se cocinó y no se pudo vender
   const per=[
     ['COTTA NON VENDUTA — empanadas cocinadas que no se vendieron'],
-    ['Costo por empanada', COSTO_EMPANADA],
+    ['Costo por empanada', costoEmpanadaHoy()],
     [],
     ['Fecha vencimiento','Sabor','Cantidad','Fecha cocción','Costo perdido']
   ];
@@ -7733,10 +7780,10 @@ window.exportCoccion=function(){
     .sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)))
     .forEach(c=>{
       const q=parseInt(c.cantidad)||0; totPer+=q;
-      per.push([c.fecha,c.sabor,q,c.fechaCoccion||'',r2(q*COSTO_EMPANADA)]);
+      per.push([c.fecha,c.sabor,q,c.fechaCoccion||'',r2(q*costoEmpanadaHoy())]);
     });
   per.push([]);
-  per.push(['TOTAL PERDIDO','',totPer,'',r2(totPer*COSTO_EMPANADA)]);
+  per.push(['TOTAL PERDIDO','',totPer,'',r2(totPer*costoEmpanadaHoy())]);
 
   descargarExcel(`DonSalo_Coccion_${selloArchivo()}.xlsx`,[
     {nombre:'Disponibles por edad',filas:disp},
