@@ -464,10 +464,15 @@ let stockDisponibilidad = {};
 //  Cada promo obliga a una cantidad exacta: si elegís la de 3, no podés mandar
 //  el pedido hasta tener 3 empanadas. Las bebidas de promo también se cuentan.
 // ═══════════════════════════════════════════════════════
+// Desde el 04/11/2026. Las claves tienen que coincidir con las del panel
+// (LISTAS_PRECIOS), que es el que cobra. Clásicas y especiales al mismo precio.
 const PROMOS = [
-  { clave:'duoAgua',   nom:'2 Empanadas + Acqua',    corto:'2+A',    emp:2, precio:9.50,  bebida:'acqua'   },
-  { clave:'duoBebida', nom:'2 Empanadas + Bibita',   corto:'2+B',    emp:2, precio:9.99,  bebida:'gassata' },
-  { clave:'pranzo',    nom:'Promo 3 Empanadas', corto:'PROMOX3', emp:3, precio:11.50, bebida:null }
+  { clave:'duo',        nom:'Promo 2 Empanadas',     corto:'2',   emp:2, precio:8.00,  bebida:null      },
+  { clave:'duoAgua',    nom:'2 Empanadas + Acqua',   corto:'2+A', emp:2, precio:9.50,  bebida:'acqua'   },
+  { clave:'duoBebida',  nom:'2 Empanadas + Bibita',  corto:'2+B', emp:2, precio:10.00, bebida:'gassata' },
+  { clave:'pranzo',     nom:'Promo 3 Empanadas',     corto:'3',   emp:3, precio:11.99, bebida:null      },
+  { clave:'trioAgua',   nom:'3 Empanadas + Acqua',   corto:'3+A', emp:3, precio:13.50, bebida:'acqua'   },
+  { clave:'trioBebida', nom:'3 Empanadas + Bibita',  corto:'3+B', emp:3, precio:13.99, bebida:'gassata' }
 ];
 let promoQtys = {};              // {clave: cantidad}
 let extrasAbiertos = false;      // el cliente dijo que quiere agregar algo más
@@ -541,9 +546,9 @@ function renderPromos(){
   sec.style.display='block';
   document.getElementById('promo-cards').innerHTML = PROMOS.map(p => {
     const q = promoQtys[p.clave]||0;
-    const det = p.bebida==='acqua' ? '2 empanadas a scelta + 1 acqua'
-              : p.bebida==='gassata' ? '2 empanadas a scelta + 1 bibita'
-              : '3 empanadas a scelta';
+    // Classiche e speciali allo stesso prezzo dentro la promo
+    const det = p.emp + ' empanadas a scelta, anche speciali'
+              + (p.bebida==='acqua' ? ' + 1 acqua' : p.bebida==='gassata' ? ' + 1 bibita' : '');
     return `<div class="promo-card${q>0?' on':''}">
       <div class="promo-card-info">
         <div class="promo-card-nom">${p.nom}</div>
