@@ -1793,7 +1793,21 @@ const LISTAS_PRECIOS = [
       trioAgua:   {label:'Promo 3 + A', corto:'3+A', cant:3, precio:13.50, conBebida:true, costoBebida:0.22},
       trioBebida: {label:'Promo 3 + B', corto:'3+B', cant:3, precio:13.99, conBebida:true, costoBebida:0.55}
     },
-    // Delivery por plataformas (Glovo, Just Eat, Deliveroo): sin cambios por ahora
+    // Plataformas con precios propios (sueltas + combos), desde el 04/11/2026.
+    // Los combos se eligen a mano al cargar el pedido, copiando el ticket.
+    // comision: lo que se queda la plataforma sobre el precio cobrado.
+    plataformas: {
+      deliveroo: {
+        comision: 0.30,
+        sueltas: { classica: 5.50, speciale: 5.75 },
+        combos: {
+          dueTavola: { label:'Due A Tavola', n:6,  precio:33.00 },
+          treTavola: { label:'Tre A Tavola', n:9,  precio:49.50 },
+          tavolata:  { label:'Tavolata',     n:12, precio:66.00 }
+        }
+      }
+    },
+    // Glovo y Just Eat: solo combos, sin cambios
     combosDelivery: [
       {n:6,  precio:38.00, label:'Per Due'},
       {n:9,  precio:55.00, label:'Per Tre'},
@@ -1856,6 +1870,33 @@ function listaEnFecha(fecha){
 function listaDePedido(o){ return listaEnFecha(fechaDePedido(o)); }
 // Lista vigente hoy (la que se usa al cargar un pedido nuevo)
 function listaHoy(){ return listaEnFecha(new Date().toISOString().split('T')[0]); }
+
+// ── PLATAFORMAS CON PRECIOS PROPIOS (Deliveroo desde el 04/11/2026) ──
+function platDe(canal, L){ return (L && L.plataformas && L.plataformas[canal]) || null; }
+// Combos del pedido. Si es un pedido sin combos guardados (cargado antes del
+// cambio), se arma la mayor cantidad posible de combos, de mayor a menor.
+function combosDePedido(o, plat){
+  if(o && o.combos && typeof o.combos==='object'){
+    const r={}; Object.entries(o.combos).forEach(([k,v])=>{ const n=parseInt(v)||0; if(n>0) r[k]=n; }); return r;
+  }
+  const r={}; let resto=contarPorTipo(o).total;
+  Object.entries(plat.combos).sort((a,b)=>b[1].n-a[1].n).forEach(([k,d])=>{
+    const n=Math.floor(resto/d.n); if(n>0){ r[k]=n; resto-=n*d.n; }
+  });
+  return r;
+}
+// Precio: combos a su precio + el resto suelto. Los combos se llenan primero
+// con especiales (el cliente las pone en el combo porque sueltas son más caras).
+function precioPlataforma(c, s, combos, plat){
+  let precio=0, cub=0;
+  Object.entries(combos||{}).forEach(([k,n])=>{
+    const d=plat.combos[k]; if(!d) return;
+    precio+=d.precio*n; cub+=d.n*n;
+  });
+  const usaS=Math.min(s,cub); s-=usaS; cub-=usaS;
+  const usaC=Math.min(c,cub); c-=usaC;
+  return precio + c*plat.sueltas.classica + s*plat.sueltas.speciale;
+}
 
 // Tramo que corresponde a una cantidad, dentro de una lista
 function tramoPara(qty, lista){
@@ -2090,6 +2131,9 @@ function costoPedido(o){
   if(CANALES[k].sinCosto) return 0;
   const L=listaDePedido(o);
   let costo=empDePedido(o)*(L.costoEmpanada||COSTO_EMPANADA);
+  // Comisión de la plataforma sobre lo cobrado (Deliveroo 30%)
+  const plat=CANALES[k].delivery ? platDe(k, L) : null;
+  if(plat && plat.comision) costo+=ventaPedido(o)*plat.comision;
   // Las promos con bebida incluyen el costo de esa bebida
   Object.entries(promosDePedido(o)).forEach(([k2,n])=>{
     const d=L.promos&&L.promos[k2];
@@ -2118,6 +2162,8 @@ function ventaPedido(o){
   if(CANALES[k].esVenta===false) return 0;
   // Cada pedido se cobra con la lista que regía el día que entró
   const L = listaDePedido(o);
+  const plat = CANALES[k].delivery ? platDe(k, L) : null;
+  if(plat) return precioPlataforma(n.classicas, n.especiales, combosDePedido(o, plat), plat);
   if(CANALES[k].delivery){
     if(L.combosDelivery){
       const comb=combinacionCombos(n.total, L);
@@ -2605,7 +2651,14 @@ window.setCanal=function(c){
     inp.placeholder='Ej: 4821';
   }
   // Promo y takeaway: en mostrador, QR y web. En delivery e interno no aplican.
-  document.getElementById('modal-promo-row').style.display = conPrecioLocal ? 'block' : 'none';
+  const platModal = platDe(c, listaHoy());
+  document.getElementById('modal-promo-row').style.display = (conPrecioLocal || platModal) ? 'block' : 'none';
+  const lblPromo=document.querySelector('#modal-promo-row .modal-label');
+  if(lblPromo) lblPromo.innerHTML = platModal
+    ? 'Combos '+CANALES[c].label+' <span style="text-transform:none;letter-spacing:0;color:#bbb;">(copiá el ticket · el resto va suelto)</span>'
+    : 'Promos <span style="text-transform:none;letter-spacing:0;color:#bbb;">(se pueden combinar)</span>';
+  comboQ={};
+  if(platModal) renderPromos();
   document.getElementById('modal-consumo-row').style.display = conPrecioLocal ? 'flex' : 'none';
   // Aviso de que no factura
   const av=document.getElementById('modal-interno-aviso');
@@ -2625,9 +2678,33 @@ window.setCanal=function(c){
 // ── PROMOS DEL MODAL ──
 // Se pueden combinar y repetir: 2 DUO, o un DUO más un PRANZO.
 let promoQ={};
+let comboQ={};   // combos de plataforma elegidos en el modal (Deliveroo)
+window.chgCombo=function(clave,d){
+  comboQ[clave]=Math.max(0,(comboQ[clave]||0)+d);
+  if(comboQ[clave]===0) delete comboQ[clave];
+  renderPromos();
+  actualizarContadorModal();
+};
 function renderPromos(){
   const cont=document.getElementById('promo-btns');
   const L=listaHoy();
+  const plat=platDe(canalActivo, L);
+  if(plat && cont){
+    cont.innerHTML=Object.entries(plat.combos).map(([clave,d])=>{
+      const n=comboQ[clave]||0;
+      return `<div class="promo-item${n>0?' on':''}">
+        <div class="promo-item-top">${d.label} (${d.n})</div>
+        <div class="promo-item-precio">${eur(d.precio)}</div>
+        <div class="promo-item-ctrl">
+          <button onclick="chgCombo('${clave}',-1)">−</button>
+          <span class="promo-item-num">${n}</span>
+          <button onclick="chgCombo('${clave}',1)">+</button>
+        </div>
+      </div>`;
+    }).join('')
+    + `<div style="font-size:11px;color:#999;margin-top:6px;">Sueltas: clásica ${eur(plat.sueltas.classica)} · especial ${eur(plat.sueltas.speciale)}</div>`;
+    return;
+  }
   // Cartelito con la lista de precios que rige hoy, y cuándo entra la próxima
   const av=document.getElementById('lista-vigente');
   if(av){
@@ -2670,6 +2747,12 @@ function precioEnVivo(){
   const total=c+s;
   const L=listaHoy();
   if(total===0) return {texto:'', aviso:''};
+  const platV=platDe(canalActivo, L);
+  if(platV){
+    const cub=Object.entries(comboQ).reduce((a,[k,n])=>a+((platV.combos[k]||{}).n||0)*n,0);
+    const aviso = cub>total ? `⚠️ los combos cubren ${cub} y hay ${total}` : '';
+    return {texto:eur(precioPlataforma(c,s,comboQ,platV)), aviso};
+  }
   if(CANALES[canalActivo] && CANALES[canalActivo].delivery && L.combosDelivery){
     const comb=combinacionCombos(total,L);
     if(comb){
@@ -2863,7 +2946,11 @@ window.editOrder=function(id){
   // Antes se pasaba a Mostrador y se perdía el origen en las estadísticas.
   setCanal(ckEdit);
   setConsumo(o.consumo==='takeaway' ? 'takeaway' : 'mostrador');
-  promoQ = {...promosDePedido(o)}; renderPromos();
+  promoQ = {...promosDePedido(o)};
+  // Combos de plataforma (Deliveroo): los guardados, o los que se deducen
+  const platE=platDe(ckEdit, listaDePedido(o));
+  comboQ = platE ? {...combosDePedido(o, platE)} : {};
+  renderPromos();
   // Actualizar contador con valores cargados
   actualizarContadorModal();
   // Reset tab a Empanadas al editar
@@ -2883,7 +2970,16 @@ window.confirmarManual=async function(){
 
   // El delivery se vende SOLO por combos: 6, 9 o 12 empanadas, ni más ni menos.
   // Si el número no es uno de esos, se avisa antes de guardar.
-  if(esDelivery){
+  const platG = esDelivery ? platDe(canalActivo, listaHoy()) : null;
+  if(platG){
+    let totalEmp=0; EMP.forEach(e=>{ totalEmp += (eQ[e.id]||0); });
+    const cub=Object.entries(comboQ).reduce((a,[k,n])=>a+((platG.combos[k]||{}).n||0)*n,0);
+    if(cub>totalEmp){
+      alert(`Los combos cubren ${cub} empanadas y cargaste ${totalEmp}. Revisá el pedido.`);
+      return;
+    }
+  }
+  if(esDelivery && !platG){
     const L=listaHoy();
     if(L.combosDelivery){
       let totalEmp=0;
@@ -2964,7 +3060,8 @@ window.confirmarManual=async function(){
       await updateDoc(doc(db,'pedidos',editId),{
         cliente:nombre, items, total:contarPorTipo({items}).total,
         estado:estadoPrevio, modificado:true,
-        canalVenta:canalActivo, promos:promosSel, consumo
+        canalVenta:canalActivo, promos:promosSel, consumo,
+        combos: platG ? {...comboQ} : null
       });
       await ventasDiaInvalidar(orig);
       // El stock se rehace de cero para este pedido. Sin esto, cambiar las
@@ -2975,7 +3072,7 @@ window.confirmarManual=async function(){
       // que el cambio se vea al instante.
       if(document.getElementById('hist-panel').style.display==='block') await histLoad();
     }
-    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:contarPorTipo({items}).total,estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,timestamp:serverTimestamp()});
+    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:contarPorTipo({items}).total,estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,combos: platG ? {...comboQ} : null,timestamp:serverTimestamp()});
     closeModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;editId=null;btn.textContent='Confirmar →';document.getElementById('modal-title').textContent='🫔 Pedido Manual';}
