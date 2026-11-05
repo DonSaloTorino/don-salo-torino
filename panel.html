@@ -3027,7 +3027,9 @@ window.confirmarManual=async function(){
   const items=[...ei,...bi,...itemsResumen(ei, promosSel)];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
   // Delivery: solo combos exactos. Una cantidad que no arma combo es un error de carga.
-  if(esDelivery){
+  // Excepto las plataformas con sueltas (Deliveroo desde el 04/11): ahí se puede
+  // vender cualquier cantidad, combos más sueltas.
+  if(esDelivery && !platG){
     const L=listaHoy();
     if(L.combosDelivery){
       const totalEmp=ei.reduce((a,i)=>a+i.cantidad,0);
