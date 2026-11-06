@@ -2666,7 +2666,7 @@ window.setCanal=function(c){
     av.style.display = (esInterno||esDevol) ? 'block' : 'none';
     const txt=document.getElementById('modal-interno-texto');
     if(txt) txt.innerHTML = esDevol
-      ? '<strong>No es una venta ni un costo.</strong> La empanada se devuelve, así que no se factura y tampoco se cuenta como gasto. Sí baja del stock y de las cocinadas.'
+      ? '<strong>No es una venta ni un costo.</strong> La empanada se devuelve, así que no se factura y tampoco se cuenta como gasto. Baja del stock, pero no de las cocinadas: es mercadería cruda que vuelve al proveedor.'
       : '<strong>No cuenta como venta.</strong> Descuenta del stock y de las cocinadas, pero no suma ingreso. En el historial aparece con venta € 0,00.';
   }
   if(!conPrecioLocal){
@@ -6557,12 +6557,19 @@ const VENTAS_DIA_VERSION=1;
 let ventasDiaMem={}, ventasDiaListo=null;
 
 // La MISMA lógica que usaba cocción sobre los pedidos, en un solo lugar
+// Desde esta fecha, una devolución al proveedor NO sale de la vitrina: es
+// mercadería cruda que vuelve, no una empanada cocinada. Antes se contaba
+// como venta para cocción y el control automático cocinaba una de más.
+// Las devoluciones anteriores quedan como estaban para no alterar las
+// cocciones y pérdidas ya registradas.
+const DEVOLUCION_FUERA_DE_COCCION_DESDE = '2026-11-06';
 function ventasEventosDe(lista){
   const ev=[];
   lista.forEach(o=>{
     if(esDocCoccion(o)) return;   // el ticket de cocina no es una venta
     const ts=o.timestamp&&o.timestamp.toDate?o.timestamp.toDate():null;
     if(!ts) return;
+    if(esDevolucionProveedor(o) && cocFechaStr(ts) >= DEVOLUCION_FUERA_DE_COCCION_DESDE) return;
     const t=turnoDePedido(o);
     const m=ts.getHours()*60+ts.getMinutes();
     const f=cocFechaStr(ts);
