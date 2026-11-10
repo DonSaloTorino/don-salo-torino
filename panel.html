@@ -3074,7 +3074,18 @@ window.confirmarManual=async function(){
       // que el cambio se vea al instante.
       if(document.getElementById('hist-panel').style.display==='block') await histLoad();
     }
-    else await addDoc(collection(db,'pedidos'),{cliente:nombre,items,total:contarPorTipo({items}).total,estado:'nuevo',fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,combos: platG ? {...comboQ} : null,timestamp:serverTimestamp()});
+    else {
+      // Consumo interno y devolución NO se imprimen: entran ya como 'completado'
+      // (la Munbyn solo imprime los 'nuevo'). Como el descuento de stock
+      // automático también depende de 'nuevo', acá se registra a mano.
+      const sinImprimir = (canalActivo==='interno' || canalActivo==='devolucion');
+      const datosNuevo = {cliente:nombre,items,total:contarPorTipo({items}).total,
+        estado: sinImprimir ? 'completado' : 'nuevo',
+        fecha:new Date().toISOString().split('T')[0],manual:true,canalVenta:canalActivo,promos:promosSel,consumo,
+        combos: platG ? {...comboQ} : null,timestamp:serverTimestamp()};
+      const refNuevo = await addDoc(collection(db,'pedidos'), datosNuevo);
+      if(sinImprimir) await autoRegisterVentas({id:refNuevo.id, ...datosNuevo});
+    }
     closeModal();
   }catch(err){alert('Error: '+err.message);}
   finally{btn.disabled=false;editId=null;btn.textContent='Confirmar →';document.getElementById('modal-title').textContent='🫔 Pedido Manual';}
