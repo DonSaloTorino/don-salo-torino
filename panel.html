@@ -1805,6 +1805,19 @@ const LISTAS_PRECIOS = [
           treTavola: { label:'Tre A Tavola', n:9,  precio:49.50 },
           tavolata:  { label:'Tavolata',     n:12, precio:66.00 }
         }
+      },
+      // Just Eat: mismos precios que Deliveroo desde el 10/11/2026.
+      // TODO Ra: falta el % de comisión de Just Eat (hasta tenerlo, la
+      // ganancia de Just Eat no descuenta comisión).
+      justeat: {
+        desde: '2026-11-10',
+        comision: null,
+        sueltas: { classica: 5.50, speciale: 5.75 },
+        combos: {
+          dueTavola: { label:'Due A Tavola', n:6,  precio:33.00 },
+          treTavola: { label:'Tre A Tavola', n:9,  precio:49.50 },
+          tavolata:  { label:'Tavolata',     n:12, precio:66.00 }
+        }
       }
     },
     // Glovo y Just Eat: solo combos, sin cambios
@@ -1872,7 +1885,15 @@ function listaDePedido(o){ return listaEnFecha(fechaDePedido(o)); }
 function listaHoy(){ return listaEnFecha(new Date().toISOString().split('T')[0]); }
 
 // ── PLATAFORMAS CON PRECIOS PROPIOS (Deliveroo desde el 04/11/2026) ──
-function platDe(canal, L){ return (L && L.plataformas && L.plataformas[canal]) || null; }
+// fecha: la del pedido (por defecto hoy). Una plataforma con 'desde' recién
+// usa estos precios a partir de esa fecha; antes, los combos de siempre.
+function platDe(canal, L, fecha){
+  const p = (L && L.plataformas && L.plataformas[canal]) || null;
+  if(!p) return null;
+  const f = fecha || new Date().toISOString().split('T')[0];
+  if(p.desde && String(f) < p.desde) return null;
+  return p;
+}
 // Combos del pedido. Si es un pedido sin combos guardados (cargado antes del
 // cambio), se arma la mayor cantidad posible de combos, de mayor a menor.
 function combosDePedido(o, plat){
@@ -2132,7 +2153,7 @@ function costoPedido(o){
   const L=listaDePedido(o);
   let costo=empDePedido(o)*(L.costoEmpanada||COSTO_EMPANADA);
   // Comisión de la plataforma sobre lo cobrado (Deliveroo 30%)
-  const plat=CANALES[k].delivery ? platDe(k, L) : null;
+  const plat=CANALES[k].delivery ? platDe(k, L, fechaDePedido(o)) : null;
   if(plat && plat.comision) costo+=ventaPedido(o)*plat.comision;
   // Las promos con bebida incluyen el costo de esa bebida
   Object.entries(promosDePedido(o)).forEach(([k2,n])=>{
@@ -2162,7 +2183,7 @@ function ventaPedido(o){
   if(CANALES[k].esVenta===false) return 0;
   // Cada pedido se cobra con la lista que regía el día que entró
   const L = listaDePedido(o);
-  const plat = CANALES[k].delivery ? platDe(k, L) : null;
+  const plat = CANALES[k].delivery ? platDe(k, L, fechaDePedido(o)) : null;
   if(plat) return precioPlataforma(n.classicas, n.especiales, combosDePedido(o, plat), plat);
   if(CANALES[k].delivery){
     if(L.combosDelivery){
@@ -2948,7 +2969,7 @@ window.editOrder=function(id){
   setConsumo(o.consumo==='takeaway' ? 'takeaway' : 'mostrador');
   promoQ = {...promosDePedido(o)};
   // Combos de plataforma (Deliveroo): los guardados, o los que se deducen
-  const platE=platDe(ckEdit, listaDePedido(o));
+  const platE=platDe(ckEdit, listaDePedido(o), fechaDePedido(o));
   comboQ = platE ? {...combosDePedido(o, platE)} : {};
   renderPromos();
   // Actualizar contador con valores cargados
@@ -3027,9 +3048,9 @@ window.confirmarManual=async function(){
   const items=[...ei,...bi,...itemsResumen(ei, promosSel)];
   if(!items.length){alert('Elegí al menos una empanada o bebida.');return;}
   // Delivery: solo combos exactos. Una cantidad que no arma combo es un error de carga.
-  // Excepto las plataformas con sueltas (Deliveroo desde el 04/11): ahí se puede
-  // vender cualquier cantidad, combos más sueltas.
-  if(esDelivery && !platG){
+  // Desde el 10/11/2026 la cantidad es libre en las tres plataformas: ya no se
+  // bloquea el guardado (Glovo sigue con sus combos hasta que cambie sus precios).
+  if(false && esDelivery && !platG){
     const L=listaHoy();
     if(L.combosDelivery){
       const totalEmp=ei.reduce((a,i)=>a+i.cantidad,0);
