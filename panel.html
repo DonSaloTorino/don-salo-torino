@@ -3749,10 +3749,8 @@ function delFranjasDelDia(fecha){
 function delMensajeRuta(franja, entregas, esUltima){
   const lineas = [];
   // El rider es italiano: todo el mensaje va en italiano
+  // El orden de las entregas ya va numerado: no hace falta explicarlo
   lineas.push('🛵 DON SALO · ' + franja);
-  lineas.push(esUltima
-    ? 'Ordine: dal più vicino al più lontano (ultimo giro).'
-    : 'Ordine: dal più lontano al più vicino, per tornare al locale.');
   lineas.push('');
   delOrdenarRuta(entregas, esUltima).forEach((e,i)=>{
     lineas.push(`${i+1}) ${e.address}`);
@@ -3761,10 +3759,10 @@ function delMensajeRuta(franja, entregas, esUltima){
     if(e.distKm) extra.push(e.distKm.toFixed(1).replace('.',',') + ' km');
     if(extra.length) lineas.push('   ' + extra.join(' · '));
     lineas.push('   ' + e.name + ' · ' + e.phone);
-    lineas.push('   Ordine ' + e.codigo + ' · ' + e.qty + ' empanadas · GIÀ PAGATO');
+    lineas.push('   Ordine ' + e.codigo);
     lineas.push('');
   });
-  lineas.push(`Totale: ${entregas.length} ${entregas.length===1?'consegna':'consegne'} · da incassare: niente, è tutto già pagato.`);
+  lineas.push(`Totale: ${entregas.length} ${entregas.length===1?'consegna':'consegne'}`);
   return lineas.join('\n');
 }
 
