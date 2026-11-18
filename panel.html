@@ -815,6 +815,25 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .del-paso-fin{display:inline-block;padding:8px 15px;border-radius:7px;background:#d1fae5;
   color:#065f46;font-size:12px;font-weight:600;letter-spacing:.5px;}
 .del-vacio{text-align:center;color:#ccc;padding:34px;font-size:13px;}
+/* ── TAVOLO EMPANADAS ── usa las mismas tarjetas del delivery */
+.tav-entrega{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+.tav-ent-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+.tav-ent-tit{font-size:16px;font-weight:700;letter-spacing:1px;}
+.tav-cont{font-size:13px;font-weight:700;padding:6px 12px;border-radius:20px;background:#fef3c7;color:#92400e;}
+.tav-cont.ok{background:#d1fae5;color:#065f46;}
+.tav-tot{background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:11px 14px;font-size:12px;line-height:1.7;margin:10px 0 12px;}
+.tav-tot b{color:#111;}
+.tav-alerta{font-size:11px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:6px;padding:3px 8px;display:inline-block;margin-left:6px;}
+.del-chip.rech{background:#f3f4f6;color:#9ca3af;}
+.del-ped.rech{opacity:.55;}
+.del-ped.pagado{border-left:4px solid #065f46;}
+.tav-emp{background:#fff;border:1px solid #eee;border-radius:10px;padding:13px 16px;margin-bottom:10px;}
+.tav-emp.off{opacity:.55;}
+.tav-link{font-size:11px;color:#2563eb;word-break:break-all;margin:6px 0;text-transform:none;}
+.tav-form{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+.tav-form label{display:block;margin-bottom:4px;}
+.tav-form input,.tav-form select{width:100%;box-sizing:border-box;}
+.tav-detalle summary{cursor:pointer;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin:12px 0 8px;font-weight:600;}
 .coc-auto-box{background:#fff;border:1px solid #eee;border-radius:10px;padding:11px 16px;max-width:290px;}
 .coc-auto-top{display:flex;align-items:center;gap:10px;}
 .coc-auto-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#666;font-weight:600;}
@@ -905,6 +924,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
     <div class="header-tabs" style="display:flex;gap:6px;">
       <button id="tab-pedidos" onclick="switchTab('pedidos')" style="background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">🫔 PEDIDOS</button>
       <button id="tab-delivery" onclick="switchTab('delivery')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🛵 DELIVERY <span id="del-badge" style="display:none;background:#dc2626;color:#fff;border-radius:9px;padding:1px 6px;font-size:10px;margin-left:3px;"></span></button>
+      <button id="tab-tavolo" onclick="switchTab('tavolo')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">🍽 TAVOLO <span id="tav-badge" style="display:none;background:#dc2626;color:#fff;border-radius:9px;padding:1px 6px;font-size:10px;margin-left:3px;"></span></button>
       <button id="tab-stats" onclick="switchTab('stats')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 STATS</button>
       <button id="tab-hist" onclick="switchTab('hist')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 HISTORIAL</button>
       <button id="tab-stock" onclick="switchTab('stock')" style="background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">📦 STOCK</button>
@@ -1396,6 +1416,23 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   <div class="del-resumen" id="del-resumen"></div>
   <div class="del-pendientes" id="del-pendientes"></div>
   <div class="del-franjas" id="del-franjas"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     TAVOLO — pedidos de empresas (página tavolo.html)
+     Nombre, apellido y teléfono del empleado viven solo en
+     tavolo_pedidos, que se lee con sesión. Nunca pasan a "pedidos".
+     ═══════════════════════════════════════════════════════ -->
+<div class="beb-panel" id="tav-panel" style="display:none;">
+  <div class="del-top">
+    <div class="del-fecha" id="tav-fecha"></div>
+    <button class="stock-btn stock-btn-sec" id="btn-dinero-tav" onclick="toggleDinero()">👁 Ver importes</button>
+    <button class="stock-btn" style="margin-left:auto;" onclick="tavNuevaEmpresa()">+ Nueva empresa</button>
+  </div>
+  <div id="tav-form"></div>
+  <div id="tav-entregas"></div>
+  <div class="del-seccion">Empresas</div>
+  <div id="tav-empresas"></div>
 </div>
 
 <div class="beb-panel" id="beb-panel">
@@ -3207,7 +3244,7 @@ document.getElementById('beb-modal-overlay').addEventListener('click',e=>{if(e.t
 // ── TABS PANEL ──
 const TS={a:'background:#fff;color:#111;border:none;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:600;',i:'background:transparent;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:"DM Sans",sans-serif;'};
 window.switchTab=function(tab){
-  ['pedidos','delivery','stats','hist','stock','coccion','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
+  ['pedidos','delivery','tavolo','stats','hist','stock','coccion','bebidas'].forEach(t=>document.getElementById('tab-'+t).style.cssText=t===tab?TS.a:TS.i);
   document.getElementById('main').style.display=tab==='pedidos'?'block':'none';
   document.getElementById('stats-panel').style.display=tab==='stats'?'block':'none';
   document.getElementById('hist-panel').style.display=tab==='hist'?'block':'none';
@@ -3215,9 +3252,11 @@ window.switchTab=function(tab){
   document.getElementById('coc-panel').style.display=tab==='coccion'?'block':'none';
   document.getElementById('beb-panel').style.display=tab==='bebidas'?'block':'none';
   document.getElementById('del-panel').style.display=tab==='delivery'?'block':'none';
-  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas',delivery:'Entregas propias'}[tab];
+  document.getElementById('tav-panel').style.display=tab==='tavolo'?'block':'none';
+  document.getElementById('header-sub').textContent={pedidos:'Panel en tiempo real',stats:'Dashboard ventas',hist:'Historial pedidos',stock:'Control de stock',coccion:'Control de cocción',bebidas:'Gestión de bebidas',delivery:'Entregas propias',tavolo:'Pedidos de empresas'}[tab];
   if(tab==='stats'){sLoadFixed();sLoadData();pintarDinero();}if(tab==='hist')histLoad();if(tab==='stock'){stockInitFilters();loadUmbral();ddtLoad();stockSyncToday().then(()=>stockLoadAll());}if(tab==='coccion'){cocCargarLimite().then(()=>cocCargarAuto()).then(()=>cocLoadAll());}if(tab==='bebidas')bebInit();
   if(tab==='delivery'){delInit();pintarDinero();}
+  if(tab==='tavolo'){tavInit();pintarDinero();}
 };
 
 // ═══════════════════════════════════════════════════════
@@ -3576,6 +3615,403 @@ async function delRevisarProgramadas(){
 // número rojo aunque no abras DELIVERY) y se revisan los programados
 setTimeout(()=>{ if(auth.currentUser){ delEscuchar().catch(()=>{}); delCargarTurnos(); delRevisarProgramadas(); } }, 4000);
 setInterval(()=>{ if(auth.currentUser) delRevisarProgramadas(); }, 5*60*1000);
+
+// ═══════════════════════════════════════════════════════
+//  TAVOLO EMPANADAS — pedidos de empresas (página tavolo.html?e=<código>)
+//  · Cada empresa vive en tavolo_empresas/<código>. El código va en el link
+//    y no se puede cambiar después de creada (se perdería el vínculo).
+//  · Los pedidos viven en tavolo_pedidos: tienen nombre, apellido y teléfono,
+//    así que solo se leen con sesión. Nunca pasan a "pedidos".
+//  · El contador público de colegas (tavolo_contador/<código>_<fecha>) cuenta
+//    los que avisaron que pagaron más los que confirmaste vos. Cada acción de
+//    acá lo corrige sumando o restando 1, nunca pisándolo con un número.
+//  · PARTE 2 de 3. Confirmar un pago todavía NO imprime, NO descuenta stock y
+//    NO entra en estadísticas: eso es la parte 3 (comanda de las 12:30).
+// ═══════════════════════════════════════════════════════
+const TAV_PRECIO = { classica:4.00, speciale:4.50 };   // igual que tavolo.html
+const TAV_MINIMO = 5;                                  // colegas para entrega gratis
+const TAV_CUTOFF = 12.5;                               // 12:30
+const TAV_EXTRAS = {
+  acquaNaturale:{n:'ACQUA NATURALE',p:1.20}, acquaFrizzante:{n:'ACQUA FRIZZANTE',p:1.20},
+  cocaCola:{n:'COCA-COLA',p:1.70}, cocaColaLight:{n:'COCA-COLA LIGHT',p:1.70},
+  sevenUp:{n:'7UP',p:1.70}, fanta:{n:'FANTA',p:1.70},
+  alfajorBianco:{n:'ALFAJOR BIANCO',p:1.50}, alfajorNero:{n:'ALFAJOR NERO',p:1.50}
+};
+const TAV_DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+// Estados que suman en el contador de colegas
+const TAV_CUENTA = { pago_avisado:true, pagado:true };
+
+let tavEmpresas = [], tavPedidos = [];
+let tavListoEmp = null, tavListoPed = null, tavEstadosPrevios = null;
+let tavFormAbierto = null;          // código de la empresa que se edita, o '__nueva'
+
+// Todo lo que escribe el empleado se escapa: el panel no ejecuta nada ajeno
+const tavEsc = s => String(s==null?'':s).replace(/[&<>"']/g,
+  c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function tavLink(cod){
+  return new URL('tavolo.html', location.href).href.split('?')[0] + '?e=' + encodeURIComponent(cod);
+}
+function tavSlug(txt){
+  return String(txt||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
+}
+function tavEmpresa(cod){ return tavEmpresas.find(e=>e.id===cod); }
+
+// ── ESCUCHAS (una vez por sesión) ──
+function tavEscucharEmpresas(){
+  if(tavListoEmp) return tavListoEmp;
+  tavListoEmp = new Promise((resolve,reject)=>{
+    let primera=true;
+    onSnapshot(collection(db,'tavolo_empresas'), snap=>{
+      tavEmpresas = snap.docs.map(d=>({id:d.id, ...d.data()}))
+        .sort((a,b)=>String(a.nombre||a.id).localeCompare(String(b.nombre||b.id)));
+      tavRefrescar();
+      if(primera){ primera=false; resolve(); }
+    }, err=>{
+      console.error('listener tavolo_empresas', err);
+      tavListoEmp=null;
+      const el=document.getElementById('tav-empresas');
+      if(el) el.innerHTML='<div class="del-vacio">No se pudieron cargar las empresas.<br>'+tavEsc(err.message)+'</div>';
+      if(primera){ primera=false; reject(err); }
+    });
+  });
+  tavListoEmp.catch(()=>{ tavListoEmp=null; });
+  return tavListoEmp;
+}
+// Solo los pedidos de hoy en adelante: la colección crece y no se lee entera
+function tavEscucharPedidos(){
+  if(tavListoPed) return tavListoPed;
+  const hoy = cocHoy();
+  tavListoPed = new Promise((resolve,reject)=>{
+    let primera=true;
+    onSnapshot(query(collection(db,'tavolo_pedidos'), where('fecha','>=',hoy)), snap=>{
+      tavPedidos = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      // Aviso sonoro cuando un empleado avisa que pagó
+      const ahora={};
+      tavPedidos.forEach(p=>{ ahora[p.id]=p.estado; });
+      if(tavEstadosPrevios){
+        const nuevo = tavPedidos.some(p => p.estado==='pago_avisado' && tavEstadosPrevios[p.id]!=='pago_avisado');
+        if(nuevo) delSonido();
+      }
+      tavEstadosPrevios = ahora;
+      tavRefrescar();
+      if(primera){ primera=false; resolve(); }
+    }, err=>{
+      console.error('listener tavolo_pedidos', err);
+      tavListoPed=null;
+      const el=document.getElementById('tav-entregas');
+      if(el) el.innerHTML='<div class="del-vacio">No se pudieron cargar los pedidos.<br>'+tavEsc(err.message)+'</div>';
+      if(primera){ primera=false; reject(err); }
+    });
+  });
+  tavListoPed.catch(()=>{ tavListoPed=null; });
+  return tavListoPed;
+}
+async function tavInit(){
+  const f=document.getElementById('tav-fecha');
+  if(f) f.textContent='🍽 '+delFechaLegible(cocHoy());
+  try{ await Promise.all([tavEscucharEmpresas(), tavEscucharPedidos()]); }catch(e){}
+  tavRender();
+}
+function tavActualizarBadge(){
+  const n = tavPedidos.filter(p=>p.estado==='pago_avisado').length;
+  const b = document.getElementById('tav-badge');
+  if(b){ b.style.display = n?'inline-block':'none'; b.textContent = n; }
+}
+// Mientras escribís en el formulario no se redibuja (se perdería lo escrito)
+function tavRefrescar(){
+  tavActualizarBadge();
+  const p=document.getElementById('tav-panel');
+  if(!p || p.style.display!=='block') return;
+  if(tavFormAbierto){ tavRenderEntregas(); return; }
+  tavRender();
+}
+
+// ── CUENTAS DE UN PEDIDO ──
+// El total lo calcula la página del empleado; acá se recalcula con los precios
+// para que un total tocado a mano no pase sin que lo veas.
+function tavCuentas(p){
+  let cl=0, sp=0, emp=0, ext=0;
+  Object.entries(p.empanadas||{}).forEach(([sabor,q])=>{
+    q = parseInt(q)||0;
+    if(tipoDeSabor(sabor)==='speciale'){ sp+=q; emp+=q*TAV_PRECIO.speciale; }
+    else { cl+=q; emp+=q*TAV_PRECIO.classica; }
+  });
+  const extras=[];
+  [p.bibite||{}, p.dolci||{}].forEach(obj=>Object.entries(obj).forEach(([k,q])=>{
+    q = parseInt(q)||0; if(!q) return;
+    const x = TAV_EXTRAS[k];
+    if(x) ext += q*x.p;
+    extras.push({ nombre: x?x.n:k, q, conocido: !!x });
+  }));
+  const calc = Math.round((emp+ext)*100)/100;
+  const declarado = Math.round((Number(p.total)||0)*100)/100;
+  return { cl, sp, n:cl+sp, extras, calc, declarado, difiere: Math.abs(calc-declarado)>=0.01 };
+}
+
+// ── DIBUJO ──
+function tavRender(){
+  tavRenderEntregas();
+  tavRenderEmpresas();
+  tavRenderForm();
+}
+
+function tavCerrado(fecha){
+  const a=new Date();
+  return fecha===cocHoy() && (a.getHours()+a.getMinutes()/60) >= TAV_CUTOFF;
+}
+
+function tavPedidoHTML(p){
+  const c = tavCuentas(p);
+  const cls = {pago_avisado:'avisado', esperando_pago:'esperando', pagado:'pagado', rechazado:'rech'}[p.estado] || 'esperando';
+  const chip = {
+    pago_avisado:'<span class="del-chip avisado">💳 Avisó que pagó</span>',
+    esperando_pago:'<span class="del-chip esperando">⏳ No avisó el pago</span>',
+    pagado:'<span class="del-chip ok">✓ Pagado</span>',
+    rechazado:'<span class="del-chip rech">✕ Anulado</span>'
+  }[p.estado] || `<span class="del-chip esperando">${tavEsc(p.estado)}</span>`;
+  const emp = Object.entries(p.empanadas||{}).map(([s,q])=>`${tavEsc(s)} ×${parseInt(q)||0}`).join(' · ');
+  const ext = c.extras.map(x=>`${tavEsc(x.nombre)} ×${x.q}`).join(' · ');
+  const tel = String(p.phone||'').replace(/[^0-9+]/g,'');
+  const telWa = tel.replace(/^\+/,'');
+  const id = tavEsc(p.id);
+  let botones='';
+  if(p.estado==='pago_avisado' || p.estado==='esperando_pago'){
+    botones = `<button class="del-btn ok" data-id="${id}" onclick="tavConfirmar(this.dataset.id)">✓ Confirmar pago</button>
+      <button class="del-btn no" data-id="${id}" onclick="tavAnular(this.dataset.id)">✕ ${p.estado==='pago_avisado'?'No llegó':'No pagó'}</button>`;
+  } else if(p.estado==='pagado'){
+    botones = `<button class="del-btn no" data-id="${id}" onclick="tavAnular(this.dataset.id)">✕ Anular</button>`;
+  } else if(p.estado==='rechazado'){
+    botones = `<button class="del-btn est" data-id="${id}" onclick="tavRestaurar(this.dataset.id)">↺ Volver a pendiente</button>`;
+  }
+  return `<div class="del-ped ${cls}">
+    <div class="del-ped-cab"><span class="del-cod">${id}</span>${chip}</div>
+    <div class="del-dato"><b>${tavEsc(MAY(p.nome))} ${tavEsc(MAY(p.cognome))}</b> · ${tel?`<a href="https://wa.me/${tavEsc(telWa)}" target="_blank" rel="noopener">${tavEsc(tel)}</a>`:'—'}</div>
+    <div class="del-items">${c.n} empanadas — ${emp||'—'}${ext?'<br>'+ext:''}</div>
+    <div class="del-dato">Total <b>${dinero(eur(c.declarado))}</b>${c.difiere?`<span class="tav-alerta">⚠️ Con los precios da ${eur(c.calc)}: revisá antes de confirmar</span>`:''}</div>
+    <div class="del-acciones">${botones}</div>
+  </div>`;
+}
+
+function tavRenderEntregas(){
+  const cont=document.getElementById('tav-entregas');
+  if(!cont) return;
+  // Se agrupan por empresa y fecha de entrega
+  const grupos={};
+  tavPedidos.forEach(p=>{ const k=p.empresa+'|'+p.fecha; (grupos[k]=grupos[k]||[]).push(p); });
+  const claves=Object.keys(grupos).sort((a,b)=>{
+    const [ea,fa]=a.split('|'), [eb,fb]=b.split('|');
+    return fa!==fb ? fa.localeCompare(fb) : ea.localeCompare(eb);
+  });
+  if(!claves.length){
+    cont.innerHTML='<div class="del-seccion">Próximas entregas</div><div class="del-vacio">Todavía no hay pedidos de empresas.</div>';
+    return;
+  }
+  let h='<div class="del-seccion">Próximas entregas</div>';
+  claves.forEach(k=>{
+    const [cod,fecha]=k.split('|');
+    const e=tavEmpresa(cod);
+    const lista=grupos[k];
+    const cuentan=lista.filter(p=>TAV_CUENTA[p.estado]);
+    const colegas=cuentan.length;
+    const falta=Math.max(0, TAV_MINIMO-colegas);
+    // Totales de lo que cuenta (pagado + avisado): lo que habría que preparar
+    const porSabor={}, porExtra={}; let nEmp=0, tot=0, totPagado=0, nPagado=0;
+    cuentan.forEach(p=>{
+      const c=tavCuentas(p);
+      Object.entries(p.empanadas||{}).forEach(([s,q])=>{ porSabor[s]=(porSabor[s]||0)+(parseInt(q)||0); });
+      c.extras.forEach(x=>{ porExtra[x.nombre]=(porExtra[x.nombre]||0)+x.q; });
+      nEmp+=c.n; tot+=c.declarado;
+      if(p.estado==='pagado'){ totPagado+=c.declarado; nPagado++; }
+    });
+    const sabores=Object.entries(porSabor).sort((a,b)=>b[1]-a[1]).map(([s,q])=>`${tavEsc(s)} <b>${q}</b>`).join(' · ');
+    const extras=Object.entries(porExtra).map(([s,q])=>`${tavEsc(s)} <b>${q}</b>`).join(' · ');
+    const orden={pago_avisado:0, esperando_pago:1, pagado:2, rechazado:3};
+    const ord=[...lista].sort((a,b)=>(orden[a.estado]??9)-(orden[b.estado]??9) || String(a.id).localeCompare(String(b.id)));
+    const activos=ord.filter(p=>p.estado==='pago_avisado'||p.estado==='pagado');
+    const sinAviso=ord.filter(p=>p.estado==='esperando_pago');
+    const anulados=ord.filter(p=>p.estado==='rechazado');
+    const otros=ord.filter(p=>!['pago_avisado','pagado','esperando_pago','rechazado'].includes(p.estado));
+
+    h+=`<div class="tav-entrega">
+      <div class="tav-ent-cab">
+        <span class="tav-ent-tit">${tavEsc(MAY(e?e.nombre:cod))}</span>
+        <span class="del-chip franja">${delFechaLegible(fecha)}</span>
+        ${e&&e.franja?`<span class="del-chip franja">${tavEsc(e.franja)}</span>`:''}
+        ${tavCerrado(fecha)?'<span class="del-chip rech">🔒 Cerrado 12:30</span>':''}
+        <span class="tav-cont ${falta?'':'ok'}">👥 ${colegas}/${TAV_MINIMO} colegas${falta?` · faltan ${falta}`:' · mínimo alcanzado'}</span>
+      </div>
+      ${e&&e.direccion?`<div class="del-dato">🛵 ${tavEsc(MAY(e.direccion))}</div>`:''}
+      <div class="tav-tot">
+        <div><b>${nEmp}</b> empanadas${sabores?' — '+sabores:''}</div>
+        ${extras?`<div>${extras}</div>`:''}
+        <div>Total ${dinero(eur(tot))} · confirmado por vos ${dinero(eur(totPagado))} (${nPagado} de ${colegas})</div>
+      </div>
+      ${activos.map(tavPedidoHTML).join('')}
+      ${otros.map(tavPedidoHTML).join('')}
+      ${sinAviso.length?`<details class="tav-detalle"><summary>Sin avisar el pago (${sinAviso.length})</summary>${sinAviso.map(tavPedidoHTML).join('')}</details>`:''}
+      ${anulados.length?`<details class="tav-detalle"><summary>Anulados (${anulados.length})</summary>${anulados.map(tavPedidoHTML).join('')}</details>`:''}
+    </div>`;
+  });
+  cont.innerHTML=h;
+}
+
+function tavRenderEmpresas(){
+  const cont=document.getElementById('tav-empresas');
+  if(!cont) return;
+  if(!tavEmpresas.length){
+    cont.innerHTML='<div class="del-vacio">No hay empresas cargadas. Tocá “+ Nueva empresa”.</div>';
+    return;
+  }
+  cont.innerHTML=tavEmpresas.map(e=>{
+    const on = e.activa!==false;
+    const link = tavLink(e.id);
+    const id = tavEsc(e.id);
+    return `<div class="tav-emp ${on?'':'off'}">
+      <div class="del-ped-cab">
+        <span class="del-cod">${tavEsc(MAY(e.nombre||e.id))}</span>
+        <span class="del-chip franja">${TAV_DIAS[Number(e.dia)]||'—'}</span>
+        <span class="del-chip franja">${tavEsc(e.franja||'—')}</span>
+        <span class="del-chip ${on?'ok':'rech'}">${on?'● Activa':'○ Pausada'}</span>
+      </div>
+      <div class="del-dato">🛵 ${tavEsc(MAY(e.direccion||'—'))}</div>
+      <div class="tav-link">${tavEsc(link)}</div>
+      <div class="del-acciones">
+        <button class="del-btn" data-id="${id}" onclick="tavCopiarLink(this.dataset.id,this)">📋 Copiar link</button>
+        <button class="del-btn" data-id="${id}" onclick="tavWhatsapp(this.dataset.id)">📲 Mandar por WhatsApp</button>
+        <button class="del-btn est" data-id="${id}" onclick="tavEditarEmpresa(this.dataset.id)">✏️ Modificar</button>
+        <button class="del-btn ${on?'no':'ok'}" data-id="${id}" onclick="tavActivar(this.dataset.id,${on?'false':'true'})">${on?'⏸ Pausar':'▶ Activar'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function tavRenderForm(){
+  const cont=document.getElementById('tav-form');
+  if(!cont) return;
+  if(!tavFormAbierto){ cont.innerHTML=''; return; }
+  const nueva = tavFormAbierto==='__nueva';
+  const e = nueva ? {nombre:'', dia:2, franja:'13:00-13:30', direccion:''} : (tavEmpresa(tavFormAbierto)||{});
+  const opDias=[1,2,3,4,5,6].map(d=>`<option value="${d}" ${Number(e.dia)===d?'selected':''}>${TAV_DIAS[d]}</option>`).join('');
+  cont.innerHTML=`<div class="del-edit tav-form" style="margin:0 0 18px;">
+    <div style="grid-column:1/-1;font-size:13px;font-weight:700;letter-spacing:1px;">${nueva?'NUEVA EMPRESA':'MODIFICAR '+tavEsc(MAY(e.nombre||tavFormAbierto))}</div>
+    <div><label>Nombre</label><input id="tav-f-nombre" value="${tavEsc(e.nombre||'')}" maxlength="60" oninput="tavSugerirCodigo()"></div>
+    <div><label>Código del link ${nueva?'':'(no se cambia)'}</label><input id="tav-f-cod" value="${tavEsc(nueva?'':tavFormAbierto)}" maxlength="40" oninput="this.dataset.tocado=1" ${nueva?'':'disabled'}></div>
+    <div><label>Día de entrega</label><select id="tav-f-dia">${opDias}</select></div>
+    <div><label>Franja (ej. 13:00-13:30)</label><input id="tav-f-franja" value="${tavEsc(e.franja||'')}" maxlength="20"></div>
+    <div style="grid-column:1/-1;"><label>Dirección de entrega</label><input id="tav-f-dir" value="${tavEsc(e.direccion||'')}" maxlength="120" style="width:100%;box-sizing:border-box;"></div>
+    <div class="del-acciones">
+      <button class="del-btn ok" id="tav-f-guardar" onclick="tavGuardarEmpresa()">Guardar</button>
+      <button class="del-btn" onclick="tavCerrarForm()">Cancelar</button>
+    </div>
+  </div>`;
+}
+
+// ── EMPRESAS ──
+window.tavNuevaEmpresa=function(){ tavFormAbierto='__nueva'; tavRenderForm(); document.getElementById('tav-f-nombre')?.focus(); };
+window.tavEditarEmpresa=function(cod){ tavFormAbierto=cod; tavRenderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
+window.tavCerrarForm=function(){ tavFormAbierto=null; tavRender(); };
+window.tavSugerirCodigo=function(){
+  if(tavFormAbierto!=='__nueva') return;
+  const c=document.getElementById('tav-f-cod');
+  if(c && !c.dataset.tocado) c.value=tavSlug(document.getElementById('tav-f-nombre').value);
+};
+window.tavGuardarEmpresa=async function(){
+  const nueva = tavFormAbierto==='__nueva';
+  const nombre=(document.getElementById('tav-f-nombre').value||'').trim();
+  const cod = nueva ? tavSlug(document.getElementById('tav-f-cod').value) : tavFormAbierto;
+  const dia=Number(document.getElementById('tav-f-dia').value);
+  const franja=(document.getElementById('tav-f-franja').value||'').trim().replace(/\s+/g,'');
+  const direccion=(document.getElementById('tav-f-dir').value||'').trim();
+  if(!nombre){ alert('Falta el nombre de la empresa.'); return; }
+  if(!cod || cod.length<2){ alert('El código del link tiene que tener al menos 2 letras o números.'); return; }
+  if(!(dia>=1 && dia<=6)){ alert('Elegí el día de entrega.'); return; }
+  if(!/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(franja)){ alert('La franja va así: 13:00-13:30'); return; }
+  if(!direccion){ alert('Falta la dirección de entrega.'); return; }
+  const btn=document.getElementById('tav-f-guardar');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    const ref=doc(db,'tavolo_empresas',cod);
+    if(nueva){
+      // Nunca se pisa una empresa que ya existe con el mismo código
+      const ya=await getDoc(ref);
+      if(ya.exists()){ alert(`Ya existe una empresa con el código "${cod}". Usá otro.`); btn.disabled=false; btn.textContent='Guardar'; return; }
+      await setDoc(ref,{ nombre, dia, franja, direccion, activa:true, creadaMs:Date.now() });
+    } else {
+      // Cambiar el día no toca los pedidos ya hechos: conservan su fecha
+      await setDoc(ref,{ nombre, dia, franja, direccion, modificadaMs:Date.now() },{ merge:true });
+    }
+    tavFormAbierto=null;
+    tavRender();
+    // El link no va en el cartel: los carteles salen en mayúsculas y el link las distingue
+    if(nueva) alert('✅ Empresa creada. El link para los empleados lo copiás con “📋 Copiar link” en la lista de empresas.');
+  }catch(err){ alert('Error: '+err.message); btn.disabled=false; btn.textContent='Guardar'; }
+};
+// Pausar: la página muestra "link non valido" hasta que la actives de nuevo
+window.tavActivar=async function(cod, activa){
+  const e=tavEmpresa(cod); if(!e) return;
+  if(!activa && !confirm(`Pausar ${MAY(e.nombre||cod)}?\n\nLos empleados no van a poder pedir hasta que la actives de nuevo. Los pedidos ya hechos no se tocan.`)) return;
+  try{ await setDoc(doc(db,'tavolo_empresas',cod),{ activa },{ merge:true }); }
+  catch(err){ alert('Error: '+err.message); }
+};
+window.tavCopiarLink=async function(cod, btn){
+  const link=tavLink(cod);
+  try{ await navigator.clipboard.writeText(link); if(btn){ const t=btn.textContent; btn.textContent='✓ Copiado'; setTimeout(()=>btn.textContent=t,1500); } }
+  catch(e){ prompt('Copiá el link:', link); }
+};
+window.tavWhatsapp=function(cod){
+  const e=tavEmpresa(cod); if(!e) return;
+  const dia=['DOMENICA','LUNEDÌ','MARTEDÌ','MERCOLEDÌ','GIOVEDÌ','VENERDÌ','SABATO'][Number(e.dia)]||'';
+  const txt=`🥟 TAVOLO EMPANADAS con Don Salo!\nOgni ${dia} le empanadas arrivano in ufficio tra le ${String(e.franja||'').replace('-',' e le ')}.\nOrdina entro le 12:30: ${tavLink(cod)}`;
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank','noopener');
+};
+
+// ── PEDIDOS ──
+// Suma o resta en el contador público de colegas. Con transacción, para no
+// pisar a un empleado que avisa que pagó en el mismo segundo.
+async function tavAjustarContador(cod, fecha, delta){
+  if(!delta) return;
+  const ref=doc(db,'tavolo_contador', cod+'_'+fecha);
+  await runTransaction(db, async tx=>{
+    const s=await tx.get(ref);
+    const v=Math.max(0,(s.exists()?(s.data().pagati||0):0)+delta);
+    tx.set(ref,{ pagati:v, empresa:cod, fecha });
+  });
+}
+async function tavCambiarEstado(p, nuevo, extra){
+  const delta = (TAV_CUENTA[nuevo]?1:0) - (TAV_CUENTA[p.estado]?1:0);
+  await updateDoc(doc(db,'tavolo_pedidos',p.id), { estado:nuevo, ...(extra||{}) });
+  try{ await tavAjustarContador(p.empresa, p.fecha, delta); }
+  catch(e){ console.error('contador tavolo', e); alert('El pedido se guardó, pero no se pudo corregir el contador de colegas: '+e.message); }
+}
+window.tavConfirmar=async function(id){
+  const p=tavPedidos.find(x=>x.id===id); if(!p) return;
+  const c=tavCuentas(p);
+  const aviso = c.difiere ? `\n\n⚠️ El total del pedido (${eur(c.declarado)}) no coincide con los precios (${eur(c.calc)}).` : '';
+  if(!confirm(`Confirmar el pago de ${id}?\n\n${MAY(p.nome)} ${MAY(p.cognome)} · ${eur(c.declarado)}${aviso}`)) return;
+  try{ await tavCambiarEstado(p,'pagado',{ pagadoMs:Date.now() }); }
+  catch(err){ alert('Error: '+err.message); }
+};
+window.tavAnular=async function(id){
+  const p=tavPedidos.find(x=>x.id===id); if(!p) return;
+  const txt = p.estado==='pagado'
+    ? `Anular ${id}, que ya estaba PAGADO?\n\nLa devolución de la plata la hacés vos aparte.`
+    : `Anular ${id}?\n\nEl pago no llegó.`;
+  if(!confirm(txt)) return;
+  try{ await tavCambiarEstado(p,'rechazado',{ rechazadoMs:Date.now(), estadoAnterior:p.estado }); }
+  catch(err){ alert('Error: '+err.message); }
+};
+// Por si anulaste uno por error: vuelve a "avisó que pagó" para que lo revises
+window.tavRestaurar=async function(id){
+  const p=tavPedidos.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Volver ${id} a pendiente?`)) return;
+  try{ await tavCambiarEstado(p,'pago_avisado',{ restauradoMs:Date.now() }); }
+  catch(err){ alert('Error: '+err.message); }
+};
+
+// Al entrar se escuchan los pedidos aunque no abras TAVOLO: número rojo y sonido
+setTimeout(()=>{ if(auth.currentUser){ tavEscucharEmpresas().catch(()=>{}); tavEscucharPedidos().catch(()=>{}); } }, 4500);
 
 // ── RECHAZAR ──
 // El pago no llegó. Se libera el lugar de la franja para otro cliente.
@@ -4748,6 +5184,10 @@ function pintarDinero(){
   // Si la solapa de entregas está abierta, se vuelve a dibujar con los importes
   const dp=document.getElementById('del-panel');
   if(dp && dp.style.display==='block' && typeof delRender==='function') delRender();
+  const bt=document.getElementById('btn-dinero-tav');
+  if(bt) bt.textContent = dineroVisible ? '🙈 Ocultar importes' : '👁 Ver importes';
+  const tp=document.getElementById('tav-panel');
+  if(tp && tp.style.display==='block' && typeof tavRender==='function') tavRender();
   if(sMesCache) sMesPintar(sMesCache);
   const cont=document.getElementById('s-turnos');
   if(cont && sTurnosCache) pintarTurnos(sTurnosCache);
