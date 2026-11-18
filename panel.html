@@ -833,6 +833,12 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .tav-form{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
 .tav-form label{display:block;margin-bottom:4px;}
 .tav-form input,.tav-form select{width:100%;box-sizing:border-box;}
+.tav-sug{display:none;position:absolute;left:0;right:0;z-index:30;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-top:2px;flex-direction:column;}
+.tav-sug.show{display:flex;}
+.tav-sug-item{padding:9px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f3f3f3;}
+.tav-sug-item:hover{background:#f3f4f6;}
+.tav-sug-msg{padding:9px 12px;font-size:11px;color:#999;}
+.tav-dir-ok{font-size:11px;color:#065f46;margin-top:5px;min-height:14px;}
 .tav-detalle summary{cursor:pointer;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin:12px 0 8px;font-weight:600;}
 .coc-auto-box{background:#fff;border:1px solid #eee;border-radius:10px;padding:11px 16px;max-width:290px;}
 .coc-auto-top{display:flex;align-items:center;gap:10px;}
@@ -3657,6 +3663,18 @@ function tavSlug(txt){
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
 }
 function tavEmpresa(cod){ return tavEmpresas.find(e=>e.id===cod); }
+// WhatsApp necesita el número con el prefijo del país. Si el empleado escribió
+// un celular italiano sin +39 (3xx xxx xxxx), se lo agrega: si no, wa.me lo
+// lee como si fuera de otro país (351… es Portugal).
+function tavTelWa(tel){
+  let t=String(tel||'').trim();
+  if(t.startsWith('+')) return t.replace(/[^0-9]/g,'');
+  t=t.replace(/[^0-9]/g,'');
+  if(t.startsWith('00')) return t.slice(2);
+  if(t.startsWith('39') && t.length>=11) return t;
+  if(/^3\d{8,9}$/.test(t) || /^0\d{5,10}$/.test(t)) return '39'+t;
+  return t;
+}
 
 // ── ESCUCHAS (una vez por sesión) ──
 function tavEscucharEmpresas(){
@@ -3774,7 +3792,7 @@ function tavPedidoHTML(p){
   const emp = Object.entries(p.empanadas||{}).map(([s,q])=>`${tavEsc(s)} ×${parseInt(q)||0}`).join(' · ');
   const ext = c.extras.map(x=>`${tavEsc(x.nombre)} ×${x.q}`).join(' · ');
   const tel = String(p.phone||'').replace(/[^0-9+]/g,'');
-  const telWa = tel.replace(/^\+/,'');
+  const telWa = tavTelWa(tel);
   const id = tavEsc(p.id);
   let botones='';
   if(p.estado==='pago_avisado' || p.estado==='esperando_pago'){
@@ -3784,6 +3802,10 @@ function tavPedidoHTML(p){
     botones = `<button class="del-btn no" data-id="${id}" onclick="tavAnular(this.dataset.id)">✕ Anular</button>`;
   } else if(p.estado==='rechazado'){
     botones = `<button class="del-btn est" data-id="${id}" onclick="tavRestaurar(this.dataset.id)">↺ Volver a pendiente</button>`;
+  }
+  // Borrar: para pruebas o duplicados. Un pedido PAGADO primero se anula.
+  if(p.estado!=='pagado'){
+    botones += `<button class="del-btn no" data-id="${id}" onclick="tavBorrar(this.dataset.id)">🗑 Borrar</button>`;
   }
   return `<div class="del-ped ${cls}">
     <div class="del-ped-cab"><span class="del-cod">${id}</span>${chip}</div>
@@ -3900,7 +3922,9 @@ function tavRenderForm(){
     <div><label>Código del link ${nueva?'':'(no se cambia)'}</label><input id="tav-f-cod" value="${tavEsc(nueva?'':tavFormAbierto)}" maxlength="40" oninput="this.dataset.tocado=1" ${nueva?'':'disabled'}></div>
     <div><label>Día de entrega</label><select id="tav-f-dia">${opDias}</select></div>
     <div><label>Franja (ej. 13:00-13:30)</label><input id="tav-f-franja" value="${tavEsc(e.franja||'')}" maxlength="20"></div>
-    <div style="grid-column:1/-1;"><label>Dirección de entrega</label><input id="tav-f-dir" value="${tavEsc(e.direccion||'')}" maxlength="120" style="width:100%;box-sizing:border-box;"></div>
+    <div style="grid-column:1/-1;position:relative;"><label>Dirección de entrega (escribí y elegí de la lista)</label><input id="tav-f-dir" value="${tavEsc(e.direccion||'')}" maxlength="120" autocomplete="off" oninput="tavDirEscrita()" style="width:100%;box-sizing:border-box;">
+      <div class="tav-sug" id="tav-f-sug"></div>
+      <div class="tav-dir-ok" id="tav-f-dirok">${e.lat?'✓ Dirección verificada':''}</div></div>
     <div class="del-acciones">
       <button class="del-btn ok" id="tav-f-guardar" onclick="tavGuardarEmpresa()">Guardar</button>
       <button class="del-btn" onclick="tavCerrarForm()">Cancelar</button>
@@ -3909,8 +3933,65 @@ function tavRenderForm(){
 }
 
 // ── EMPRESAS ──
-window.tavNuevaEmpresa=function(){ tavFormAbierto='__nueva'; tavRenderForm(); document.getElementById('tav-f-nombre')?.focus(); };
-window.tavEditarEmpresa=function(cod){ tavFormAbierto=cod; tavRenderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
+window.tavNuevaEmpresa=function(){ tavFormAbierto='__nueva'; tavDir=null; tavRenderForm(); document.getElementById('tav-f-nombre')?.focus(); };
+window.tavEditarEmpresa=function(cod){
+  tavFormAbierto=cod;
+  // Si la dirección guardada ya estaba verificada y no la tocás, sigue valiendo
+  const e=tavEmpresa(cod);
+  tavDir = (e && e.lat) ? { direccion:e.direccion, completa:e.direccionCompleta||e.direccion, lat:e.lat, lng:e.lng, numero:true } : null;
+  tavRenderForm(); window.scrollTo({top:0,behavior:'smooth'});
+};
+
+// ── DIRECCIÓN VERIFICADA ──
+// Mismo buscador que la página de delivery (OpenStreetMap, solo Torino).
+// La dirección vale únicamente si se elige de la lista: así queda siempre
+// completa, con calle, número, código postal y ciudad, y con su ubicación.
+let tavDir=null, tavDirTimer=null;
+const TAV_VIEWBOX="7.55,45.15,7.78,44.98";
+function tavDirCorta(it){
+  const a=it.address||{};
+  const calle=a.road||a.pedestrian||a.square||a.footway||a.neighbourhood||'';
+  const ciudad=a.city||a.town||a.village||a.municipality||'Torino';
+  if(!calle) return String(it.display_name||'').split(',').slice(0,3).join(',').trim();
+  return `${calle}${a.house_number?' '+a.house_number:''}, ${a.postcode?a.postcode+' ':''}${ciudad}`;
+}
+window.tavDirEscrita=function(){
+  tavDir=null;
+  const ok=document.getElementById('tav-f-dirok'); if(ok) ok.textContent='';
+  clearTimeout(tavDirTimer);
+  const box=document.getElementById('tav-f-sug');
+  const val=(document.getElementById('tav-f-dir').value||'').trim();
+  if(val.length<4){ box.classList.remove('show'); box.replaceChildren(); return; }
+  box.classList.add('show');
+  const cargando=document.createElement('div'); cargando.className='tav-sug-msg'; cargando.textContent='Buscando direcciones…';
+  box.replaceChildren(cargando);
+  tavDirTimer=setTimeout(()=>tavDirBuscar(val),400);
+};
+async function tavDirBuscar(q){
+  const box=document.getElementById('tav-f-sug'); if(!box) return;
+  const msg=t=>{ const d=document.createElement('div'); d.className='tav-sug-msg'; d.textContent=t; box.replaceChildren(d); };
+  try{
+    const params=new URLSearchParams({ format:'json', limit:'5', countrycodes:'it', addressdetails:'1', viewbox:TAV_VIEWBOX, bounded:'1', q });
+    const res=await fetch('https://nominatim.openstreetmap.org/search?'+params.toString(),{ headers:{'Accept-Language':'it'} });
+    const data=await res.json();
+    if(!data || !data.length){ msg('Sin resultados: probá escribirla distinto (calle y número).'); return; }
+    box.replaceChildren();
+    data.forEach(it=>{
+      const d=document.createElement('div');
+      d.className='tav-sug-item';
+      d.textContent=tavDirCorta(it);
+      d.title=it.display_name||'';
+      d.onclick=()=>{
+        tavDir={ direccion:tavDirCorta(it), completa:it.display_name||'', lat:parseFloat(it.lat), lng:parseFloat(it.lon), numero:!!(it.address&&it.address.house_number) };
+        document.getElementById('tav-f-dir').value=tavDir.direccion;
+        box.classList.remove('show'); box.replaceChildren();
+        const ok=document.getElementById('tav-f-dirok');
+        if(ok) ok.textContent = tavDir.numero ? '✓ Dirección verificada' : '⚠️ Verificada, pero sin número de calle';
+      };
+      box.appendChild(d);
+    });
+  }catch(e){ console.error('buscar dirección', e); msg('Error al buscar: '+(e.message||e)); }
+}
 window.tavCerrarForm=function(){ tavFormAbierto=null; tavRender(); };
 window.tavSugerirCodigo=function(){
   if(tavFormAbierto!=='__nueva') return;
@@ -3929,6 +4010,8 @@ window.tavGuardarEmpresa=async function(){
   if(!(dia>=1 && dia<=6)){ alert('Elegí el día de entrega.'); return; }
   if(!/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(franja)){ alert('La franja va así: 13:00-13:30'); return; }
   if(!direccion){ alert('Falta la dirección de entrega.'); return; }
+  if(!tavDir){ alert('Elegí la dirección de la lista que aparece al escribirla. Así queda verificada y completa.'); return; }
+  if(!tavDir.numero && !confirm('La dirección elegida no tiene número de calle. ¿Guardarla igual?')) return;
   const btn=document.getElementById('tav-f-guardar');
   btn.disabled=true; btn.textContent='Guardando...';
   try{
@@ -3937,10 +4020,10 @@ window.tavGuardarEmpresa=async function(){
       // Nunca se pisa una empresa que ya existe con el mismo código
       const ya=await getDoc(ref);
       if(ya.exists()){ alert(`Ya existe una empresa con el código "${cod}". Usá otro.`); btn.disabled=false; btn.textContent='Guardar'; return; }
-      await setDoc(ref,{ nombre, dia, franja, direccion, activa:true, creadaMs:Date.now() });
+      await setDoc(ref,{ nombre, dia, franja, direccion:tavDir.direccion, direccionCompleta:tavDir.completa, lat:tavDir.lat, lng:tavDir.lng, activa:true, creadaMs:Date.now() });
     } else {
       // Cambiar el día no toca los pedidos ya hechos: conservan su fecha
-      await setDoc(ref,{ nombre, dia, franja, direccion, modificadaMs:Date.now() },{ merge:true });
+      await setDoc(ref,{ nombre, dia, franja, direccion:tavDir.direccion, direccionCompleta:tavDir.completa, lat:tavDir.lat, lng:tavDir.lng, modificadaMs:Date.now() },{ merge:true });
     }
     tavFormAbierto=null;
     tavRender();
@@ -4008,6 +4091,20 @@ window.tavRestaurar=async function(id){
   if(!confirm(`Volver ${id} a pendiente?`)) return;
   try{ await tavCambiarEstado(p,'pago_avisado',{ restauradoMs:Date.now() }); }
   catch(err){ alert('Error: '+err.message); }
+};
+
+// Borra el pedido de la base. No llegó a ser una venta: no toca stock ni caja.
+window.tavBorrar=async function(id){
+  const p=tavPedidos.find(x=>x.id===id); if(!p) return;
+  if(p.estado==='pagado'){ alert('Este pedido está pagado: primero anulalo.'); return; }
+  if(!confirm(`Borrar el pedido ${id}?\n\n${MAY(p.nome)} ${MAY(p.cognome)}\nNo llegó a ser una venta: no toca stock ni caja. No se puede deshacer.`)) return;
+  try{
+    await deleteDoc(doc(db,'tavolo_pedidos',p.id));
+    if(TAV_CUENTA[p.estado]){
+      try{ await tavAjustarContador(p.empresa, p.fecha, -1); }
+      catch(e){ console.error('contador tavolo', e); alert('Se borró, pero no se pudo corregir el contador de colegas: '+e.message); }
+    }
+  }catch(err){ alert('Error: '+err.message); }
 };
 
 // Al entrar se escuchan los pedidos aunque no abras TAVOLO: número rojo y sonido
