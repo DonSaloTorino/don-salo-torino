@@ -93,6 +93,11 @@
   .gc-btn.sec{ background:#fff; color:var(--ink); border:1.5px solid var(--border); padding:14px 17px; }
   .gc-btn:disabled{ background:#D8CDBF; cursor:not-allowed; }
   .gc-hidden{ display:none !important; }
+  .gc-cerca{ display:flex; gap:8px; }
+  .gc-cerca .gc-input{ letter-spacing:2px; font-weight:800; }
+  .gc-cerca .gc-btn{ padding:0 18px; margin:5px 0 4px; }
+  a.gc-row{ color:var(--ink); text-decoration:none; align-items:center; }
+  a.gc-row .vai{ margin-left:auto; font-weight:800; color:var(--accent); }
   .gc-pie{ font-size:10.5px; color:var(--ink-soft); text-align:center; text-transform:uppercase; line-height:1.6; margin-top:22px; }
 </style>
 </head>
@@ -162,6 +167,18 @@ const NUEVO = () => ({ step:0, diseno:1, importe:null, para:'', de:'', mensaje:'
 let st = NUEVO();
 try{ const g = JSON.parse(localStorage.getItem(SKEY)||'null'); if(g) st = Object.assign(st, g); }catch(e){}
 function guardar(){ try{ localStorage.setItem(SKEY, JSON.stringify(st)); }catch(e){} }
+// Las gift card compradas en este dispositivo, para encontrarlas después
+const MKEY = 'donsalo_giftcard_mie';
+function leerMie(){ try{ const a = JSON.parse(localStorage.getItem(MKEY)||'[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function recordar(c){
+  if(!c || !c.codigo) return;
+  const a = leerMie().filter(x=>x.codigo!==c.codigo);
+  a.unshift({ codigo:c.codigo, para:c.para||'', importe:c.importe||c.importePedido||0, ms:c.activadaMs||c.creadoMs||Date.now() });
+  try{ localStorage.setItem(MKEY, JSON.stringify(a.slice(0,20))); }catch(e){}
+}
+function olvidar(cod){ try{ localStorage.setItem(MKEY, JSON.stringify(leerMie().filter(x=>x.codigo!==cod))); }catch(e){} }
+// Compra terminada (o gift card que ya no existe): se vuelve al inicio, guardando nombre y teléfono
+function compraTerminada(){ const keep = { nome:st.nome, tel:st.tel }; st = Object.assign(NUEVO(), keep); guardar(); }
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const eur = G.eur;
@@ -215,7 +232,8 @@ function render(){
         <div class="gc-row">🥟<span>VALE PER EMPANADAS E PRODOTTI NEL LOCALE, <b>ANCHE IN PIÙ VOLTE</b>: IL SALDO RESTA SULLA CARD</span></div>
         <div class="gc-row">📅<span>VALIDA <b>${G.VALIDEZ_MESES} MESI</b> DALL'ATTIVAZIONE</span></div>
         <div class="gc-row">📲<span>LA RICEVI SUBITO COME IMMAGINE CON QR, PRONTA DA MANDARE SU WHATSAPP</span></div>
-      </div>`;
+      </div>
+      ${cercaHTML()}`;
     st.importe = st.importe || 30;
     previa();
     barra('', 'CREA LA TUA GIFT CARD', true, false); return;
@@ -301,6 +319,25 @@ function render(){
   }
   if(st.step === 4){ sinBarra(); seguirTarjeta(); return; }
 }
+function cercaHTML(titulo){
+  const mie = leerMie();
+  return `<div class="gc-card">
+    <div class="gc-lbl" style="margin-top:4px">${titulo||'HAI GIÀ UNA GIFT CARD?'}</div>
+    <div class="gc-cerca"><input class="gc-input" id="fCerca" placeholder="XXXX-XXXX-XXXX" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="gcCercaInput(this)" onkeydown="if(event.key==='Enter')gcCerca()"><button class="gc-btn" onclick="gcCerca()">VEDI</button></div>
+    <div class="gc-err" id="fCercaErr">CODICE NON VALIDO: CONTROLLALO LETTERA PER LETTERA</div>
+    ${mie.length ? `<div class="gc-lbl">LE TUE GIFT CARD</div>${mie.map(m=>`<a class="gc-row" href="${location.pathname}?c=${encodeURIComponent(m.codigo)}">🎁<span>${m.para?'PER <b>'+esc(m.para)+'</b> · ':''}${eur(m.importe)} · ${G.fecha(m.ms)}</span><span class="vai">→</span></a>`).join('')}` : ''}
+  </div>`;
+}
+window.gcCercaInput = el => {
+  const v = G.normalizar(el.value).slice(0,12), f = G.formato(v);
+  if(el.value !== f) el.value = f;
+  document.getElementById('fCercaErr').style.display = 'none';
+};
+window.gcCerca = () => {
+  const cod = G.normalizar(document.getElementById('fCerca').value);
+  if(!G.valido(cod)){ document.getElementById('fCercaErr').style.display = 'block'; return; }
+  location.href = location.pathname + '?c=' + cod;
+};
 let gcUpdDatos = null;
 function mensajeElegido(){
   if(st.msgSel === 'propio'){ const t = document.getElementById('fMsg'); return t ? t.value.replace(/\s+/g,' ').slice(0,90) : st.mensaje; }
@@ -421,10 +458,18 @@ async function pintarTarjeta(esCompra){
   const c = CARD;
   const top = esCompra ? puntos(4) : '';
   if(!c){
-    SCR.innerHTML = `${top}<h1 class="centro">GIFT CARD NON TROVATA</h1><p class="sub" style="text-align:center">CONTROLLA IL CODICE O SCRIVICI SU WHATSAPP.</p>
+    // si era la compra de este dispositivo y ya no existe, se olvida y se vuelve a empezar
+    if(esCompra && st.codigo){ olvidar(st.codigo); compraTerminada(); if(escucha){ escucha(); escucha = null; } }
+    const cq = G.normalizar(new URLSearchParams(location.search).get('c')||'');
+    if(cq) olvidar(cq);
+    sinBarra();
+    SCR.innerHTML = `<h1 class="centro">GIFT CARD NON TROVATA</h1><p class="sub" style="text-align:center">CONTROLLA IL CODICE O SCRIVICI SU WHATSAPP.</p>
+      ${cercaHTML('CERCA UN ALTRO CODICE')}
+      <a class="gc-pay prim" href="${location.pathname}">🎁 CREA UNA GIFT CARD</a>
       <a class="gc-pay" href="${waLink('Ciao! Ho un problema con una gift card')}" target="_blank" rel="noopener">💬 SCRIVICI</a>`;
     return;
   }
+  if(esCompra && c.estado === 'activa') recordar(c);
   const ahora = Date.now();
   if(c.estado === 'pendiente'){
     SCR.innerHTML = `${top}
@@ -518,6 +563,16 @@ window.gcCopiaLink = () => {
     pintarTarjeta(false); return;
   }
   if(st.step >= 3 && !st.codigo) st.step = 2;   // estado roto: vuelve a los datos
+  // Esperando la confirmación: se retoma. Ya activa (o borrada): la compra terminó,
+  // se guarda en "le tue gift card" y se abre el inicio para buscar o comprar otra.
+  if(st.step === 4 && st.codigo){
+    SCR.innerHTML = `<div class="gc-spin"></div>`;
+    let c = null, ok = true;
+    try{ const sn = await getDoc(doc(db,'giftcards',st.codigo)); c = sn.exists() ? sn.data() : null; }
+    catch(e){ console.error(e); ok = false; }
+    if(ok && !c){ olvidar(st.codigo); compraTerminada(); }
+    else if(ok && c.estado !== 'pendiente' && c.estado !== 'rechazada'){ recordar(c); compraTerminada(); }
+  }
   render();
 })();
 </script>
