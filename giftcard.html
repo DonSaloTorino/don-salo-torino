@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gift Card · Don Salo Torino</title>
+<meta name="description" content="Regala Don Salo: la gift card per empanadas e prodotti nel locale di Torino.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@500;600;700&family=Merriweather:wght@700;900&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F0DF; --ink:#191512; --ink-soft:#55504A; --accent:#C1502E; --accent-dark:#9C3E22;
+    --success:#4F7942; --success-bg:#E4EDE0; --error:#B23A2E; --error-bg:#F6E3E0;
+    --border:#E3DCCF; --radius:14px; --radius-sm:8px;
+    --font-display:'League Spartan', system-ui, sans-serif;
+    --font-serif:'Merriweather', Georgia, serif;
+    --font-hk:'Hanken Grotesk', system-ui, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-hk); -webkit-font-smoothing:antialiased; }
+  button{ text-transform:uppercase; }
+  .gc{ max-width:480px; margin:0 auto; padding:16px 18px 130px; }
+  .gc-brand{ text-align:center; margin:8px 0 4px; }
+  .gc-brand img{ width:96px; height:auto; }
+  .gc-brand .t1{ font-family:var(--font-serif); font-weight:900; font-size:26px; letter-spacing:1px; margin-top:2px; }
+  .gc-brand .t2{ font-size:12px; letter-spacing:5px; color:var(--ink-soft); margin-top:2px; }
+  .gc-dots{ display:flex; justify-content:center; gap:7px; margin:12px 0 2px; }
+  .gc-dots i{ width:8px; height:8px; border-radius:5px; background:var(--border); }
+  .gc-dots i.on{ width:22px; background:var(--accent); }
+  .gc-dots i.ok{ background:var(--accent-dark); }
+  .gc h1{ font-family:var(--font-display); font-size:27px; line-height:1.1; margin:18px 0 6px; text-transform:uppercase; }
+  .gc h1.centro{ text-align:center; }
+  .gc .sub{ font-size:13px; color:var(--ink-soft); text-transform:uppercase; margin:0 0 14px; line-height:1.45; }
+  .gc-card{ background:#fff; border:1.5px solid var(--border); border-radius:var(--radius); padding:12px 16px; margin:12px 0; }
+  .gc-row{ display:flex; gap:10px; font-size:13px; line-height:1.45; padding:7px 0; border-top:1px solid #F0EADF; text-transform:uppercase; }
+  .gc-row:first-child{ border-top:none; }
+  .gc-prev{ width:100%; height:auto; aspect-ratio:1200/750; display:block; border-radius:12px; box-shadow:0 8px 24px rgba(25,21,18,.18); background:#E9E0CC; }
+  .gc-lbl{ font-size:11px; font-weight:800; letter-spacing:1px; color:var(--ink-soft); text-transform:uppercase; margin-top:14px; }
+  .gc-input{ width:100%; font:inherit; font-size:16px; padding:12px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm); margin:5px 0 4px; background:#fff; text-transform:uppercase; color:var(--ink); }
+  textarea.gc-input{ resize:none; min-height:70px; text-transform:none; }
+  .gc-input:focus{ outline:none; border-color:var(--accent); }
+  .gc-cont{ font-size:10.5px; color:var(--ink-soft); text-align:right; }
+  .gc-err{ color:var(--error); font-size:12px; font-weight:700; margin:2px 0 6px; display:none; text-transform:uppercase; }
+  .gc-dis{ display:grid; grid-template-columns:repeat(5,1fr); gap:7px; margin:6px 0 4px; }
+  .gc-dis button{ padding:0; border:2.5px solid transparent; border-radius:9px; background:none; cursor:pointer; overflow:hidden; line-height:0; }
+  .gc-dis button img{ width:100%; aspect-ratio:1200/750; object-fit:cover; display:block; border-radius:6px; background:#E9E0CC; }
+  .gc-dis button.on{ border-color:var(--ink); }
+  .gc-dis-nom{ font-size:11px; font-weight:800; letter-spacing:1px; text-align:center; text-transform:uppercase; color:var(--ink-soft); }
+  .gc-imp{ display:flex; align-items:center; gap:8px; background:#fff; border:1.5px solid var(--border); border-radius:var(--radius); padding:6px 16px; margin:6px 0; }
+  .gc-imp:focus-within{ border-color:var(--accent); }
+  .gc-imp span{ font-family:var(--font-display); font-size:34px; font-weight:700; }
+  .gc-imp input{ flex:1; min-width:0; border:none; outline:none; font-family:var(--font-display); font-size:38px; font-weight:700; background:transparent; color:var(--ink); padding:6px 0; }
+  .gc-chips{ display:flex; gap:8px; flex-wrap:wrap; }
+  .gc-chips button{ flex:1; border:1.5px solid var(--border); background:#fff; border-radius:999px; padding:9px 0; font:inherit; font-size:14px; font-weight:800; cursor:pointer; color:var(--ink); }
+  .gc-chips button.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .gc-msgs{ display:flex; flex-direction:column; gap:7px; margin:6px 0 4px; }
+  .gc-msgs button{ text-align:left; text-transform:none; border:1.5px solid var(--border); background:#fff; border-radius:var(--radius-sm); padding:11px 14px; font:inherit; font-size:14px; font-style:italic; color:var(--ink); cursor:pointer; }
+  .gc-msgs button.on{ border-color:var(--ink); background:var(--ink); color:#fff; }
+  .gc-msgs button.esp{ font-style:normal; font-weight:800; font-size:12.5px; letter-spacing:.5px; text-transform:uppercase; }
+  .gc-priv{ font-size:11.5px; color:var(--ink-soft); line-height:1.45; text-transform:uppercase; }
+  .gc-check{ display:flex; gap:9px; align-items:center; margin-top:10px; font-size:12px; font-weight:800; text-transform:uppercase; }
+  .gc-check input{ width:20px; height:20px; accent-color:var(--accent); }
+  .gc-code{ background:var(--ink); color:#fff; border-radius:var(--radius); padding:16px; text-align:center; }
+  .gc-code .l{ font-size:11px; letter-spacing:2px; opacity:.7; text-transform:uppercase; }
+  .gc-code .c{ font-family:var(--font-display); font-size:38px; font-weight:700; letter-spacing:2px; }
+  .gc-code button{ margin-top:4px; background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.5); border-radius:999px; padding:6px 14px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+  .gc-amount{ text-align:center; margin:14px 0 8px; }
+  .gc-amount .l{ font-size:11px; letter-spacing:1px; color:var(--ink-soft); text-transform:uppercase; }
+  .gc-amount .v{ font-family:var(--font-display); font-size:40px; font-weight:700; }
+  .gc-pay{ display:block; width:100%; text-decoration:none; text-align:center; background:#fff; border:1.5px solid var(--border); border-radius:var(--radius); padding:14px; margin:8px 0; color:var(--ink); font:inherit; font-weight:800; text-transform:uppercase; cursor:pointer; }
+  .gc-pay small{ display:block; font-weight:500; font-size:11px; color:var(--ink-soft); margin-top:3px; }
+  .gc-pay.tocado{ border-color:var(--success); }
+  .gc-pay.prim{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .gc-pay.prim small{ color:rgba(255,255,255,.85); }
+  .gc-ok{ background:var(--success-bg); color:var(--success); font-weight:800; font-size:13px; border-radius:var(--radius-sm); padding:10px 12px; text-transform:uppercase; line-height:1.45; }
+  .gc-warn{ background:var(--error-bg); color:var(--accent-dark); font-weight:800; font-size:13px; border-radius:var(--radius-sm); padding:10px 12px; text-transform:uppercase; line-height:1.45; }
+  .gc-saldo{ display:flex; justify-content:space-between; align-items:flex-end; margin:14px 2px 4px; }
+  .gc-saldo .l{ font-size:11px; font-weight:800; letter-spacing:1px; color:var(--ink-soft); text-transform:uppercase; }
+  .gc-saldo .v{ font-family:var(--font-display); font-size:38px; font-weight:700; line-height:1; }
+  .gc-saldo .r{ text-align:right; font-size:12px; color:var(--ink-soft); text-transform:uppercase; line-height:1.5; }
+  .gc-bar{ height:8px; border-radius:4px; background:var(--border); overflow:hidden; margin:6px 2px 12px; }
+  .gc-bar i{ display:block; height:100%; background:var(--success); }
+  .gc-spin{ width:42px; height:42px; border-radius:50%; border:4px solid var(--border); border-top-color:var(--accent); margin:18px auto 6px; animation:gcgira 1s linear infinite; }
+  @keyframes gcgira{ to{ transform:rotate(360deg); } }
+  .gc-link{ display:block; text-align:center; font-size:12px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; margin:16px 0 0; background:none; border:none; width:100%; cursor:pointer; text-decoration:underline; font-family:inherit; }
+  .gc-fbar{ position:fixed; left:0; right:0; bottom:0; padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px)); background:var(--bg); border-top:1px solid var(--border); z-index:30; }
+  .gc-fbar .in{ max-width:480px; margin:0 auto; display:flex; gap:10px; align-items:center; }
+  .gc-fbar .info{ flex:1; font-size:12px; font-weight:800; text-transform:uppercase; color:var(--ink-soft); }
+  .gc-fbar .in.centro{ justify-content:center; }
+  .gc-fbar .in.centro .info{ display:none; }
+  .gc-btn{ border:none; border-radius:999px; padding:14px 22px; font:inherit; font-size:14px; font-weight:800; letter-spacing:.5px; background:var(--accent); color:#fff; cursor:pointer; }
+  .gc-btn.sec{ background:#fff; color:var(--ink); border:1.5px solid var(--border); padding:14px 17px; }
+  .gc-btn:disabled{ background:#D8CDBF; cursor:not-allowed; }
+  .gc-hidden{ display:none !important; }
+  .gc-pie{ font-size:10.5px; color:var(--ink-soft); text-align:center; text-transform:uppercase; line-height:1.6; margin-top:22px; }
+</style>
+</head>
+<body>
+<div class="gc">
+  <div class="gc-brand">
+    <img src="data:image/png;base64,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" alt="Don Salo">
+    <div class="t1">DON SALO</div>
+    <div class="t2">TORINO</div>
+  </div>
+  <div id="gcScreen"></div>
+</div>
+<div class="gc-fbar gc-hidden" id="gcBar"><div class="in">
+  <button class="gc-btn sec gc-hidden" id="gcBack" onclick="gcIndietro()">←</button>
+  <div class="info" id="gcBarInfo"></div>
+  <button class="gc-btn" id="gcNext" onclick="gcAvanti()">AVANTI</button>
+</div></div>
+
+<script src="giftcard-arte.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ═══════════════════════════════════════════════════════════════
+   GIFT CARD DON SALO — página del cliente
+   · giftcard.html          → comprar una gift card
+   · giftcard.html?c=CÓDIGO → ver la gift card y su saldo (lo abre el QR)
+   La gift card nace "pendiente" con saldo 0. Solo el mostrador, con sesión,
+   la activa cuando confirma el pago: ahí recibe importe, saldo y vencimiento.
+   Nombre y teléfono del que compra van a giftcards_privado, que solo se lee
+   con sesión. En giftcards queda solo lo que se ve en la tarjeta.
+   Los dibujos y el generador de códigos están en giftcard-arte.js.
+   ═══════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  firebase: {
+    apiKey: "AIzaSyAEbONRQcbm3eRAJIeFmyQSSBTg3QOnd_g",
+    authDomain: "don-salo-torino.firebaseapp.com",
+    projectId: "don-salo-torino",
+    storageBucket: "don-salo-torino.firebasestorage.app",
+    messagingSenderId: "520992510695",
+    appId: "1:520992510695:web:c9c26dad5fa3f954384842"
+  },
+  minimo: 10,            // importe mínimo en euros (las reglas de Firestore usan los mismos)
+  maximo: 500,           // importe máximo
+  sugeridos: [20, 30, 50, 100],
+  // Mensajes listos para elegir con un toque (máximo 90 caracteres, sin emojis:
+  // la regla de Firestore cuenta el largo y en la tarjeta se ven mal)
+  mensajes: [
+    "Buon Natale e felice anno nuovo!",
+    "Buone feste! Goditi empanadas e tante altre bontà argentine.",
+    "Tanti auguri di buon compleanno!",
+    "Grazie di cuore!",
+    "Un pensiero per te, con affetto.",
+    "Un assaggio di Argentina, per te."
+  ],
+  linkSumup: "https://pay.sumup.com/b2c/QZO129JM",
+  linkSatispay: "https://www.satispay.com/app/pay/shops/a0c469b9-5625-41f3-831e-a10d8fb23a95",
+  waLocal: "393514446737"
+};
+const G = window.GC;
+const app = initializeApp(CONFIG.firebase, 'giftcard');
+const db = getFirestore(app);
+
+const SKEY = 'donsalo_giftcard';
+const NUEVO = () => ({ step:0, diseno:1, importe:null, para:'', de:'', mensaje:'', msgSel:'ninguno', nome:'', tel:'', privacy:false, codigo:null, ref:null, pagoTocado:false, avisado:false });
+let st = NUEVO();
+try{ const g = JSON.parse(localStorage.getItem(SKEY)||'null'); if(g) st = Object.assign(st, g); }catch(e){}
+function guardar(){ try{ localStorage.setItem(SKEY, JSON.stringify(st)); }catch(e){} }
+
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = G.eur;
+const SCR = document.getElementById('gcScreen');
+// El link que va dentro del QR: la misma carpeta donde está esta página
+const linkTarjeta = cod => new URL('giftcard.html', location.href).href.split('?')[0].split('#')[0] + '?c=' + cod;
+
+// ── Barra de abajo ──
+function barra(info, txt, ok, conBack){
+  document.getElementById('gcBar').classList.remove('gc-hidden');
+  document.getElementById('gcBarInfo').innerHTML = info||'';
+  const b = document.getElementById('gcNext'); b.textContent = txt; b.disabled = !ok;
+  document.getElementById('gcBack').classList.toggle('gc-hidden', !conBack);
+  document.querySelector('#gcBar .in').classList.toggle('centro', !info && !conBack);
+}
+function sinBarra(){ document.getElementById('gcBar').classList.add('gc-hidden'); }
+const puntos = n => `<div class="gc-dots">${[1,2,3,4].map(i=>`<i class="${i===n?'on':i<n?'ok':''}"></i>`).join('')}</div>`;
+
+// ── Vista previa en vivo y miniaturas de los diseños ──
+let MINI = null;   // data URL de cada diseño, se dibujan una sola vez
+async function miniaturas(){
+  if(MINI) return MINI;
+  const c = document.createElement('canvas'); MINI = {};
+  for(const d of G.DISENOS){
+    await G.dibujar(c, { diseno:d.id, importe: importeValido() ? st.importe : 0 });
+    MINI[d.id] = c.toDataURL('image/jpeg', 0.7);
+  }
+  return MINI;
+}
+let previaPendiente = null;
+function previa(){
+  const cv = document.getElementById('gcPrev'); if(!cv) return;
+  // si se escribe rápido, se dibuja solo la última versión
+  clearTimeout(previaPendiente);
+  previaPendiente = setTimeout(()=>{
+    G.dibujar(cv, { diseno:st.diseno, importe: importeValido() ? st.importe : 0, para:st.para, de:st.de, mensaje:st.mensaje });
+  }, 60);
+}
+const importeValido = () => typeof st.importe === 'number' && st.importe >= CONFIG.minimo && st.importe <= CONFIG.maximo;
+
+// ═══ PANTALLAS DE COMPRA ═══
+function render(){
+  window.scrollTo(0,0);
+  if(st.step === 0){
+    SCR.innerHTML = `
+      <h1 class="centro">REGALA DON SALO</h1>
+      <p class="sub" style="text-align:center">LA GIFT CARD PER LE EMPANADAS PIÙ BUONE DI TORINO</p>
+      <canvas class="gc-prev" id="gcPrev"></canvas>
+      <div class="gc-card">
+        <div class="gc-row">🎁<span>SCEGLI IL DISEGNO E <b>L'IMPORTO CHE VUOI</b></span></div>
+        <div class="gc-row">🥟<span>VALE PER EMPANADAS E PRODOTTI NEL LOCALE, <b>ANCHE IN PIÙ VOLTE</b>: IL SALDO RESTA SULLA CARD</span></div>
+        <div class="gc-row">📅<span>VALIDA <b>${G.VALIDEZ_MESES} MESI</b> DALL'ATTIVAZIONE</span></div>
+        <div class="gc-row">📲<span>LA RICEVI SUBITO COME IMMAGINE CON QR, PRONTA DA MANDARE SU WHATSAPP</span></div>
+      </div>`;
+    st.importe = st.importe || 30;
+    previa();
+    barra('', 'CREA LA TUA GIFT CARD', true, false); return;
+  }
+  if(st.step === 1){
+    SCR.innerHTML = `${puntos(1)}
+      <h1>DISEGNO E IMPORTO</h1>
+      <canvas class="gc-prev" id="gcPrev"></canvas>
+      <div class="gc-lbl">IL DISEGNO</div>
+      <div class="gc-dis" id="gcDis">${G.DISENOS.map(d=>`<button class="${d.id===st.diseno?'on':''}" onclick="gcDiseno(${d.id})" aria-label="${d.nombre}"><img alt=""></button>`).join('')}</div>
+      <div class="gc-dis-nom" id="gcDisNom">${G.DISENOS.find(d=>d.id===st.diseno).nombre}</div>
+      <div class="gc-lbl">L'IMPORTO</div>
+      <div class="gc-imp"><span>€</span><input id="fImp" inputmode="decimal" autocomplete="off" placeholder="0" value="${st.importe!=null?String(st.importe).replace('.',','):''}"></div>
+      <div class="gc-err" id="fImpErr">DA € ${CONFIG.minimo} A € ${CONFIG.maximo}</div>
+      <div class="gc-chips">${CONFIG.sugeridos.map(n=>`<button class="${st.importe===n?'on':''}" onclick="gcSugerido(${n})">€ ${n}</button>`).join('')}</div>`;
+    previa();
+    miniaturas().then(m=>{ document.querySelectorAll('#gcDis img').forEach((im,i)=>{ im.src = m[G.DISENOS[i].id]; }); });
+    const inp = document.getElementById('fImp');
+    inp.addEventListener('input', ()=>{
+      const t = inp.value.replace(/[^0-9,\.]/g,'').replace(',', '.');
+      const n = parseFloat(t);
+      st.importe = isFinite(n) ? Math.round(n*100)/100 : null;
+      document.getElementById('fImpErr').style.display = (inp.value && !importeValido()) ? 'block' : 'none';
+      document.querySelectorAll('.gc-chips button').forEach((b,i)=>b.classList.toggle('on', st.importe===CONFIG.sugeridos[i]));
+      guardar(); previa(); pintarBarra1();
+    });
+    pintarBarra1(); return;
+  }
+  if(st.step === 2){
+    SCR.innerHTML = `${puntos(2)}
+      <h1>PER CHI È?</h1>
+      <canvas class="gc-prev" id="gcPrev"></canvas>
+      <div class="gc-lbl">PER</div><input class="gc-input" id="fPara" maxlength="30" value="${esc(st.para)}" placeholder="NOME DI CHI LA RICEVE">
+      <div class="gc-lbl">DA</div><input class="gc-input" id="fDe" maxlength="30" value="${esc(st.de)}" placeholder="IL TUO NOME O &quot;TUTTI NOI&quot;">
+      <div class="gc-lbl">UN MESSAGGIO SULLA GIFT CARD</div>
+      <div class="gc-msgs" id="gcMsgs">
+        ${CONFIG.mensajes.map((m,i)=>`<button type="button" data-sel="${i}" onclick="gcMensaje('${i}')">“${esc(m)}”</button>`).join('')}
+        <button type="button" class="esp" data-sel="ninguno" onclick="gcMensaje('ninguno')">NESSUN MESSAGGIO</button>
+        <button type="button" class="esp" data-sel="propio" onclick="gcMensaje('propio')">✏️ VUOI LASCIARE IL TUO MESSAGGIO?</button>
+      </div>
+      <div id="fMsgBox" class="${st.msgSel==='propio'?'':'gc-hidden'}">
+        <textarea class="gc-input" id="fMsg" maxlength="90" placeholder="Scrivi qui il tuo messaggio…">${st.msgSel==='propio'?esc(st.mensaje):''}</textarea>
+        <div class="gc-cont" id="fMsgCont"></div>
+      </div>
+      <h1 style="font-size:20px;margin-top:22px">I TUOI DATI</h1>
+      <p class="sub">SOLO PER CONTATTARTI SE C'È UN PROBLEMA CON IL PAGAMENTO</p>
+      <div class="gc-lbl">NOME E COGNOME</div><input class="gc-input" id="fNome" maxlength="60" value="${esc(st.nome)}" autocomplete="name">
+      <div class="gc-lbl">TELEFONO</div><input class="gc-input" id="fTel" maxlength="20" value="${esc(st.tel)}" inputmode="tel" placeholder="333 1234567" autocomplete="tel">
+      <div class="gc-err" id="fTelErr">NUMERO NON VALIDO</div>
+      <div class="gc-card"><div class="gc-priv">DON SALO TORINO USA NOME E TELEFONO SOLO PER GESTIRE QUESTO ACQUISTO. LI CONSERVIAMO FINO ALLA SCADENZA DELLA GIFT CARD E PUOI CHIEDERCI DI CANCELLARLI QUANDO VUOI SCRIVENDOCI SU WHATSAPP.</div>
+        <label class="gc-check"><input type="checkbox" id="fPriv" ${st.privacy?'checked':''}> HO LETTO E ACCETTO</label></div>`;
+    previa();
+    const upd = ()=>{
+      st.para = document.getElementById('fPara').value.toUpperCase().slice(0,30);
+      st.de = document.getElementById('fDe').value.toUpperCase().slice(0,30);
+      st.mensaje = mensajeElegido();
+      st.nome = document.getElementById('fNome').value.trim().toUpperCase().slice(0,60);
+      st.tel = document.getElementById('fTel').value.replace(/[\s\-\.\/]/g,'').slice(0,20);
+      st.privacy = document.getElementById('fPriv').checked;
+      const telOk = /^\+?\d{9,13}$/.test(st.tel);
+      document.getElementById('fTelErr').style.display = (st.tel && !telOk) ? 'block' : 'none';
+      document.getElementById('fMsgCont').textContent = st.msgSel==='propio' && st.mensaje ? `${st.mensaje.length}/90` : '';
+      document.querySelectorAll('#gcMsgs button').forEach(b=>b.classList.toggle('on', b.dataset.sel===String(st.msgSel)));
+      document.getElementById('gcNext').disabled = !(st.para.trim() && st.de.trim() && st.nome && telOk && st.privacy);
+      guardar(); previa();
+    };
+    ['fPara','fDe','fMsg','fNome','fTel'].forEach(id=>document.getElementById(id).addEventListener('input', upd));
+    gcUpdDatos = upd;
+    document.getElementById('fPriv').addEventListener('change', upd);
+    barra(`GIFT CARD ${eur(st.importe)}`, 'VAI AL PAGAMENTO', false, true); upd(); return;
+  }
+  if(st.step === 3){
+    const cents = Math.round(st.importe*100);
+    SCR.innerHTML = `${puntos(3)}
+      <h1>PAGAMENTO</h1>
+      <div class="gc-code"><div class="l">IL TUO RIFERIMENTO</div><div class="c">${esc(st.ref)}</div><button onclick="gcCopia()" id="btnCopia">📋 COPIA</button></div>
+      <div class="gc-amount"><div class="l">IMPORTO DA PAGARE</div><div class="v">${eur(st.importe)}</div></div>
+      <a class="gc-pay${st.pagoTocado?' tocado':''}" href="${CONFIG.linkSatispay}?amount=${cents}" target="_blank" rel="noopener" onclick="gcPagoTocado()">PAGA CON SATISPAY<small>L'IMPORTO È GIÀ INSERITO · SCRIVI ${esc(st.ref)} NEL MESSAGGIO</small></a>
+      <a class="gc-pay${st.pagoTocado?' tocado':''}" href="${CONFIG.linkSumup}" target="_blank" rel="noopener" onclick="gcPagoTocado()">PAGA CON CARTA<small>INSERISCI ${eur(st.importe)} E SCRIVI ${esc(st.ref)} NELLA NOTA</small></a>
+      <p class="sub" style="text-align:center;margin-top:14px">QUANDO HAI PAGATO, TORNA QUI E TOCCA "HO PAGATO"</p>
+      <button class="gc-link" onclick="gcRicomincia()">ANNULLA E RICOMINCIA</button>`;
+    barra(st.pagoTocado ? `GIFT CARD ${eur(st.importe)}` : 'PRIMA SCEGLI COME PAGARE', 'HO PAGATO', st.pagoTocado, false); return;
+  }
+  if(st.step === 4){ sinBarra(); seguirTarjeta(); return; }
+}
+let gcUpdDatos = null;
+function mensajeElegido(){
+  if(st.msgSel === 'propio'){ const t = document.getElementById('fMsg'); return t ? t.value.replace(/\s+/g,' ').slice(0,90) : st.mensaje; }
+  const i = Number(st.msgSel);
+  return Number.isInteger(i) && CONFIG.mensajes[i] ? CONFIG.mensajes[i] : '';
+}
+window.gcMensaje = sel => {
+  st.msgSel = sel;
+  const box = document.getElementById('fMsgBox');
+  box.classList.toggle('gc-hidden', sel !== 'propio');
+  if(sel === 'propio'){ const t = document.getElementById('fMsg'); t.focus(); }
+  if(gcUpdDatos) gcUpdDatos();
+};
+function pintarBarra1(){
+  const ok = importeValido();
+  barra(ok ? `GIFT CARD ${eur(st.importe)}` : `SCRIVI L'IMPORTO (MIN € ${CONFIG.minimo})`, 'AVANTI', ok, true);
+}
+
+// ── Acciones ──
+window.gcDiseno = id => {
+  st.diseno = id; guardar();
+  document.querySelectorAll('#gcDis button').forEach((b,i)=>b.classList.toggle('on', G.DISENOS[i].id===id));
+  document.getElementById('gcDisNom').textContent = G.DISENOS.find(d=>d.id===id).nombre;
+  previa();
+};
+window.gcSugerido = n => {
+  st.importe = n; guardar();
+  const inp = document.getElementById('fImp'); if(inp) inp.value = String(n);
+  document.getElementById('fImpErr').style.display = 'none';
+  document.querySelectorAll('.gc-chips button').forEach((b,i)=>b.classList.toggle('on', CONFIG.sugeridos[i]===n));
+  previa(); pintarBarra1();
+};
+window.gcIndietro = () => { if(st.step>0 && st.step<3){ st.step--; guardar(); render(); } };
+window.gcPagoTocado = () => {
+  st.pagoTocado = true; guardar();
+  // la barra se habilita sin redibujar, así el link se abre normalmente
+  setTimeout(()=>{ if(st.step===3){ barra(`GIFT CARD ${eur(st.importe)}`, 'HO PAGATO', true, false); document.querySelectorAll('.gc-pay').forEach(a=>a.classList.add('tocado')); } }, 50);
+};
+window.gcCopia = () => { try{ navigator.clipboard.writeText(st.ref); }catch(e){} const b=document.getElementById('btnCopia'); if(b) b.textContent='✓ COPIATO'; };
+window.gcRicomincia = () => {
+  if(!confirm('VUOI ANNULLARE QUESTA GIFT CARD E RICOMINCIARE?')) return;
+  const keep = { nome:st.nome, tel:st.tel };
+  st = Object.assign(NUEVO(), keep); guardar(); render();
+};
+window.gcNuova = () => { const keep = { nome:st.nome, tel:st.tel }; st = Object.assign(NUEVO(), keep); st.step = 1; guardar(); history.replaceState(null,'',location.pathname); render(); };
+window.gcAvanti = async () => {
+  const btn = document.getElementById('gcNext');
+  if(st.step <= 1){ st.step++; guardar(); render(); return; }
+  if(st.step === 2){
+    btn.disabled = true; btn.textContent = 'UN MOMENTO…';
+    try{ await crearGiftcard(); st.step = 3; guardar(); render(); }
+    catch(e){ console.error(e); alert('NON SIAMO RIUSCITI A REGISTRARE LA GIFT CARD. RIPROVA.'); render(); }
+    return;
+  }
+  if(st.step === 3){
+    btn.disabled = true; btn.textContent = 'UN MOMENTO…';
+    try{ await avisarPago(); st.step = 4; guardar(); render(); }
+    catch(e){ console.error(e); alert('RIPROVA TRA UN MOMENTO.'); render(); }
+  }
+};
+
+// Referencia corta para la nota del pago: G-0001, G-0002… (el código de la
+// gift card no se usa como referencia: es lo que vale plata)
+async function nuevaRef(){
+  try{
+    const n = await runTransaction(db, async tx=>{
+      const ref = doc(db,'config','contadorGift'); const s = await tx.get(ref);
+      const v = (s.exists() ? (s.data().n||0) : 0) + 1; tx.set(ref, { n:v }); return v;
+    });
+    return 'G-' + String(n).padStart(4,'0');
+  }catch(e){ console.error('ref', e); return 'G-X' + String(Date.now()).slice(-5); }
+}
+async function crearGiftcard(){
+  if(st.codigo) return;                  // ya creada (volvió a la página)
+  const ref = await nuevaRef();
+  const ahora = Date.now();
+  // Se crea con un código nuevo; si justo existiera (imposible en la práctica),
+  // la regla de Firestore rechaza la creación y se prueba con otro.
+  let codigo = null, ultimoError = null;
+  for(let i = 0; i < 3 && !codigo; i++){
+    const c = G.nuevo();
+    try{
+      await setDoc(doc(db,'giftcards',c), {
+        codigo: c, ref, estado: 'pendiente', origen: 'web',
+        importePedido: st.importe, importe: 0, saldo: 0,
+        diseno: st.diseno, para: st.para.trim(), de: st.de.trim(), mensaje: st.mensaje.trim(),
+        creadoMs: ahora, pagoAvisado: false
+      });
+      codigo = c;
+    }catch(e){ ultimoError = e; }
+  }
+  if(!codigo) throw ultimoError || new Error('sin código');
+  // Datos del que compra: aparte, solo se leen con la sesión del mostrador
+  try{
+    await setDoc(doc(db,'giftcards_privado',codigo), { ref, nome: st.nome, tel: st.tel, privacy: true, creadoMs: ahora });
+  }catch(e){ console.error('privado', e); }
+  st.codigo = codigo; st.ref = ref;
+}
+async function avisarPago(){
+  if(st.avisado) return;
+  await updateDoc(doc(db,'giftcards',st.codigo), { pagoAvisado: true, avisadoMs: Date.now() });
+  st.avisado = true;
+}
+
+// ═══ LA GIFT CARD (después de pagar, o abierta desde el QR) ═══
+let escucha = null, CARD = null;
+function seguirTarjeta(){
+  if(escucha) return;
+  SCR.innerHTML = `${puntos(4)}<div class="gc-spin"></div>`;
+  escucha = onSnapshot(doc(db,'giftcards',st.codigo), sn=>{
+    CARD = sn.exists() ? sn.data() : null;
+    pintarTarjeta(true);
+  }, e=>{ console.error(e); SCR.innerHTML = `<div class="gc-warn" style="margin-top:20px">NON RIUSCIAMO A LEGGERE LA GIFT CARD. CONTROLLA LA CONNESSIONE E RICARICA LA PAGINA.</div>`; });
+}
+function waLink(txt){ return `https://wa.me/${CONFIG.waLocal}?text=${encodeURIComponent(txt)}`; }
+
+async function pintarTarjeta(esCompra){
+  const c = CARD;
+  const top = esCompra ? puntos(4) : '';
+  if(!c){
+    SCR.innerHTML = `${top}<h1 class="centro">GIFT CARD NON TROVATA</h1><p class="sub" style="text-align:center">CONTROLLA IL CODICE O SCRIVICI SU WHATSAPP.</p>
+      <a class="gc-pay" href="${waLink('Ciao! Ho un problema con una gift card')}" target="_blank" rel="noopener">💬 SCRIVICI</a>`;
+    return;
+  }
+  const ahora = Date.now();
+  if(c.estado === 'pendiente'){
+    SCR.innerHTML = `${top}
+      <div class="gc-spin"></div>
+      <h1 class="centro">STIAMO CONTROLLANDO IL PAGAMENTO</h1>
+      <p class="sub" style="text-align:center">DI SOLITO CI VUOLE POCO, NEGLI ORARI DEL LOCALE. LA GIFT CARD APPARE QUI DA SOLA: PUOI ANCHE CHIUDERE LA PAGINA E RIAPRIRLA DOPO.</p>
+      <div class="gc-card"><div class="gc-row">🧾<span>RIFERIMENTO <b>${esc(c.ref||st.ref)}</b></span></div>
+        <div class="gc-row">💶<span>IMPORTO <b>${eur(c.importePedido)}</b></span></div></div>
+      <a class="gc-pay" href="${waLink('Ciao! Ho pagato la gift card '+(c.ref||st.ref||''))}" target="_blank" rel="noopener">💬 HAI BISOGNO? SCRIVICI<small>WHATSAPP</small></a>`;
+    return;
+  }
+  if(c.estado === 'rechazada'){
+    SCR.innerHTML = `${top}<h1 class="centro">PAGAMENTO NON TROVATO</h1>
+      <div class="gc-warn">NON ABBIAMO TROVATO IL PAGAMENTO PER ${esc(c.ref||'')}. SE HAI PAGATO, SCRIVICI E LO RISOLVIAMO SUBITO.</div>
+      <a class="gc-pay" href="${waLink('Ciao! Ho pagato la gift card '+(c.ref||''))}" target="_blank" rel="noopener">💬 SCRIVICI SU WHATSAPP</a>
+      ${esCompra ? `<button class="gc-link" onclick="gcNuova()">CREA UNA NUOVA GIFT CARD</button>` : ''}`;
+    return;
+  }
+  // activa, agotada, anulada o vencida: se muestra la tarjeta
+  const vencida = c.estado === 'activa' && c.venceMs && c.venceMs < ahora;
+  let aviso = '';
+  if(c.estado === 'anulada') aviso = `<div class="gc-warn">QUESTA GIFT CARD NON È PIÙ VALIDA.</div>`;
+  else if(c.estado === 'agotada' || (c.saldo||0) <= 0) aviso = `<div class="gc-warn">GIFT CARD UTILIZZATA PER INTERO. GRAZIE!</div>`;
+  else if(vencida) aviso = `<div class="gc-warn">GIFT CARD SCADUTA IL ${G.fecha(c.venceMs)}.</div>`;
+  const usable = !aviso;
+  const pct = c.importe > 0 ? Math.max(0, Math.min(100, (c.saldo||0) / c.importe * 100)) : 0;
+  SCR.innerHTML = `${top}
+    ${esCompra && usable ? `<h1 class="centro">🎉 LA TUA GIFT CARD È PRONTA!</h1>` : `<h1 class="centro">LA TUA GIFT CARD</h1>`}
+    <canvas class="gc-prev" id="gcCard"></canvas>
+    ${aviso}
+    <div class="gc-saldo"><div><div class="l">SALDO DISPONIBILE</div><div class="v">${eur(usable ? c.saldo : 0)}</div></div>
+      <div class="r">DI ${eur(c.importe)}<br>${c.venceMs ? 'VALIDA FINO AL '+G.fecha(c.venceMs) : ''}</div></div>
+    <div class="gc-bar"><i style="width:${usable?pct:0}%"></i></div>
+    ${usable ? `
+      <button class="gc-pay prim" onclick="gcCondividi()">📲 INVIALA<small>WHATSAPP, MESSAGGI, EMAIL…</small></button>
+      <button class="gc-pay" onclick="gcScarica()">⬇️ SCARICA L'IMMAGINE</button>
+      <button class="gc-pay" onclick="gcCopiaLink()" id="btnLink">🔗 COPIA IL LINK</button>
+      <div class="gc-card"><div class="gc-row">🥟<span>SI USA NEL LOCALE DON SALO TORINO: MOSTRA IL QR O IL CODICE IN CASSA</span></div>
+        <div class="gc-row">🔁<span>PUOI USARLA IN PIÙ VOLTE FINO A ESAURIRE IL SALDO</span></div>
+        <div class="gc-row">🔒<span>IL CODICE VALE COME DENARO: MANDALO SOLO A CHI LA REGALI</span></div></div>` : ''}
+    ${esCompra ? `<button class="gc-link" onclick="gcNuova()">CREA UN'ALTRA GIFT CARD</button>` : `<a class="gc-link" href="${location.pathname}">🎁 REGALANE UNA ANCHE TU</a>`}
+    <div class="gc-pie">DON SALO TORINO · NON CONVERTIBILE IN DENARO</div>`;
+  await G.dibujar(document.getElementById('gcCard'), datosTarjeta(c));
+}
+function datosTarjeta(c){
+  return { diseno:c.diseno, importe:c.importe, para:c.para, de:c.de, mensaje:c.mensaje,
+           codigo:c.codigo, vence:c.venceMs, url:linkTarjeta(c.codigo) };
+}
+async function imagen(){
+  const cv = document.createElement('canvas');
+  await G.dibujar(cv, datosTarjeta(CARD));
+  return G.aBlob(cv);
+}
+const nombreArchivo = () => 'giftcard-don-salo-' + String(CARD.para||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '.png';
+const textoRegalo = () => `🎁 Una gift card Don Salo per te${CARD.para?', '+CARD.para:''}! ${CARD.mensaje?'“'+CARD.mensaje+'” ':''}La usi per empanadas e prodotti nel locale di Torino. Saldo e QR qui: ${linkTarjeta(CARD.codigo)}`;
+window.gcCondividi = async () => {
+  try{
+    const blob = await imagen();
+    const file = new File([blob], nombreArchivo(), { type:'image/png' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], text: textoRegalo() });
+      return;
+    }
+  }catch(e){ if(e && e.name === 'AbortError') return; console.error(e); }
+  // sin compartir con archivo (por ejemplo en la PC): WhatsApp con el link
+  window.open('https://wa.me/?text=' + encodeURIComponent(textoRegalo()), '_blank');
+};
+window.gcScarica = async () => {
+  const blob = await imagen();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombreArchivo();
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+};
+window.gcCopiaLink = () => {
+  try{ navigator.clipboard.writeText(linkTarjeta(CARD.codigo)); }catch(e){}
+  const b = document.getElementById('btnLink'); if(b) b.textContent = '✓ LINK COPIATO';
+};
+
+// ═══ ARRANQUE ═══
+(async()=>{
+  const q = new URLSearchParams(location.search).get('c');
+  if(q){
+    // Vista de una gift card desde el QR o el link
+    sinBarra();
+    const cod = G.normalizar(q);
+    if(!G.valido(cod)){ CARD = null; pintarTarjeta(false); return; }
+    SCR.innerHTML = `<div class="gc-spin"></div>`;
+    // si es la que compró este mismo teléfono, se sigue en vivo (pasa de pendiente a activa sola)
+    if(st.codigo === cod){ st.step = 4; guardar(); seguirTarjeta(); return; }
+    try{ const sn = await getDoc(doc(db,'giftcards',cod)); CARD = sn.exists() ? sn.data() : null; }
+    catch(e){ console.error(e); CARD = null; }
+    pintarTarjeta(false); return;
+  }
+  if(st.step >= 3 && !st.codigo) st.step = 2;   // estado roto: vuelve a los datos
+  render();
+})();
+</script>
+</body>
+</html>
