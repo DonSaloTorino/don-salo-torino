@@ -8896,6 +8896,7 @@ function gkRenderDetalle(){
           <div class="del-acciones">
             ${e==='activa' ? `<button class="del-btn" onclick="gkImagen('${g.id}')">⬇️ Imagen</button><button class="del-btn" onclick="gkCompartir('${g.id}')">📲 Enviar</button><button class="del-btn" onclick="gkImprimir(['${g.id}'])">🖨 Imprimir</button>` : ''}
             ${(e==='activa'||e==='vencida'||e==='pendiente') ? `<button class="del-btn no" onclick="gkAnular('${g.id}')">Anular</button>` : ''}
+            <button class="del-btn no" onclick="gkEliminar('${g.id}')">🗑 Eliminar</button>
           </div>
         </div>
       </div>
@@ -8992,6 +8993,34 @@ window.gkAnular = async function(id){
     });
     if(gkActual && gkActual.id===id){ gkActual = { ...gkActual, estado:'anulada', saldo:0 }; await gkCargarMovs(); }
   }catch(e){ alert('Error: '+e.message); }
+};
+
+// Eliminar: borra la gift card, sus movimientos y los datos del comprador.
+// Para pruebas o errores. No deja rastro: una gift card vendida de verdad se ANULA.
+window.gkEliminar = async function(id){
+  const g = gkTodas.find(x=>x.id===id) || gkPend.find(x=>x.id===id) || (gkActual&&gkActual.id===id?gkActual:null);
+  if(!g) return;
+  const e = gkEstado(g);
+  const cobrada = !!g.activadaMs && e!=='rechazada';
+  let aviso = `ELIMINAR ${GK.formato(id)} PARA SIEMPRE\n\nSe borran la gift card, sus movimientos y los datos del comprador. No se puede deshacer.`;
+  if(cobrada) aviso += `\n\n⚠️ Está cobrada (${gkEur(g.importe)}${g.medioCobro?' por '+g.medioCobro:''}): sale del resumen y del Excel.`;
+  if(e==='activa' && gkC(g.saldo)>0) aviso += `\n⚠️ Tiene saldo ${gkEur(g.saldo)}: si alguien la tiene, ya no la va a poder usar.`;
+  aviso += `\n\nSi fue una venta real, usá ANULAR.\n\nPara confirmar escribí ELIMINAR:`;
+  const r = prompt(aviso);
+  if(r===null) return;
+  if(r.trim().toUpperCase()!=='ELIMINAR'){ alert('No se eliminó nada.'); return; }
+  try{
+    // primero los movimientos y los datos privados, al final la gift card
+    const movs = await getDocs(collection(db,'giftcards',id,'movimientos'));
+    await Promise.all(movs.docs.map(d=>deleteDoc(d.ref)));
+    await deleteDoc(doc(db,'giftcards_privado',id));
+    await deleteDoc(doc(db,'giftcards',id));
+    delete gkPriv[id];
+    gkUltimas = gkUltimas.filter(x=>x.id!==id);
+    if(gkActual && gkActual.id===id){ gkActual=null; gkMovs=[]; }
+    gkRender();
+    alert(`Eliminada ${GK.formato(id)}.`);
+  }catch(err){ alert('No se pudo eliminar del todo.\n\n'+err.message+'\n\nBuscala de nuevo y volvé a intentar.'); }
 };
 
 // ── Lector de QR con la cámara (Chrome en Android; en la PC se escribe el código) ──
