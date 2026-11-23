@@ -188,6 +188,58 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   .stock-fila-total .stock-total-box{ min-width: 0; }
 }
 
+/* ── GANANCIA REAL (FINANZAS) ── */
+.fin-cfg-btn{margin-left:10px;padding:3px 10px;border:1px solid #ddd;border-radius:14px;background:#fff;font-size:10px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;font-family:inherit;}
+.fin-grid{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:18px;}
+@media(max-width:760px){.fin-grid{grid-template-columns:1fr;}}
+.fin-caja{background:#fff;border:1px solid #eee;border-radius:10px;padding:14px 18px;}
+.fin-fila{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px dashed #f0f0f0;}
+.fin-fila .fin-v{font-weight:600;white-space:nowrap;}
+.fin-fila.sub{color:#555;border-bottom:1px solid #ddd;}
+.fin-fila.tot{font-weight:700;border-top:2px solid #111;border-bottom:1px solid #ddd;margin-top:4px;padding-top:7px;}
+.fin-fila.res{font-weight:800;font-size:15px;background:#111;color:#fff;border-radius:6px;padding:9px 10px;margin-top:6px;border:none;}
+.fin-fila.res .fin-neg{color:#fca5a5;}
+.fin-neg{color:#b91c1c;}
+.fin-pos{color:#065f46;}
+.fin-nota{font-size:11px;color:#999;margin-top:8px;}
+.fin-alerta{background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:12px;}
+.fin-eq{background:#f0f9ff;border-color:#bae6fd;}
+.fin-eq-tit{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#0369a1;font-weight:700;}
+.fin-eq-num{font-size:40px;font-weight:700;color:#0c4a6e;margin:6px 0 10px;}
+.fin-eq-num span{font-size:12px;font-weight:500;color:#0369a1;}
+.fin-eq-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #e0f2fe;}
+.fin-eq-det{font-size:11px;color:#64748b;margin-top:10px;line-height:1.6;}
+.fin-tabla-wrap{overflow-x:auto;margin-bottom:24px;}
+.fin-tabla{width:100%;border-collapse:collapse;background:#fff;border:1px solid #eee;border-radius:10px;font-size:13px;}
+.fin-tabla th{font-size:10px;letter-spacing:1.5px;color:#999;text-align:right;padding:10px 12px;border-bottom:1px solid #eee;font-weight:600;}
+.fin-tabla td{text-align:right;padding:9px 12px;border-bottom:1px solid #f3f3f3;white-space:nowrap;}
+.fin-tabla th:first-child,.fin-tabla td:first-child{text-align:left;}
+.fin-tabla td:nth-child(6){font-weight:700;}
+.fin-tabla tr.fin-cero td{color:#bbb;}
+.fin-tabla tr.fin-tot td{font-weight:800;border-top:2px solid #111;background:#fafafa;}
+.fin-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 12px;}
+.fin-modal{background:#fff;border-radius:12px;width:100%;max-width:640px;padding:18px 22px;box-sizing:border-box;}
+.fin-m-cab{display:flex;justify-content:space-between;align-items:center;font-size:15px;letter-spacing:1px;margin-bottom:6px;}
+.fin-x{border:none;background:none;font-size:18px;cursor:pointer;}
+.fin-m-sec{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin:16px 0 8px;border-top:1px solid #eee;padding-top:12px;}
+.fin-m-sec span{font-weight:400;color:#999;letter-spacing:.5px;}
+.fin-m-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;}
+.fin-m-grid label{font-size:11px;color:#555;display:flex;flex-direction:column;gap:4px;}
+.fin-m-grid label small{color:#999;font-size:10px;}
+.fin-m-grid input,.fin-m-fila input{padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;width:100%;}
+.fin-m-grid label.fin-chk{flex-direction:row;align-items:center;grid-column:1/-1;}
+.fin-m-grid label.fin-chk input{width:auto;}
+.fin-m-fila{display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:6px;align-items:center;}
+.fin-m-fila.fin-h{grid-template-columns:160px 120px auto;justify-items:start;}
+.fin-m-fila.fin-h input{width:100%;}
+.fin-m-nota{font-size:10px;color:#999;}
+.fin-del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:6px;cursor:pointer;height:32px;width:32px;}
+.fin-add{margin-top:4px;border:1px dashed #ccc;background:#fafafa;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;}
+.fin-m-pie{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;border-top:1px solid #eee;padding-top:14px;}
+.fin-btn,.fin-btn-sec{padding:9px 18px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;}
+.fin-btn{background:#111;color:#fff;border:none;}
+.fin-btn-sec{background:#fff;border:1px solid #ddd;}
+body.print-stats .fin-cfg-btn{display:none;}
 /* ── IMPRESIÓN DE STATS (botón 🖨 Imprimir PDF) ──
    body.print-stats se activa solo mientras se imprime. El panel se dibuja a
    1000 px de ancho (igual que en la PC) y se achica con zoom para que entre
@@ -1141,8 +1193,8 @@ body.print-stats .period-tabs,body.print-stats .export-bar,body.print-stats .s-l
         <th>Canal</th>
         <th>Items</th>
         <th style="text-align:center;">Emp.</th>
-        <th style="text-align:right;">Costo</th>
-        <th style="text-align:right;">Venta</th>
+        <th style="text-align:right;" title="IVA, comisión de plataforma, mercadería y rider">IVA y costos</th>
+        <th style="text-align:right;" title="Lo que pagó el cliente, IVA incluido">Cobrado</th>
         <th style="text-align:right;">Ganancia</th>
         <th style="text-align:center;">Estado</th>
         <th style="text-align:center;">Acciones</th>
@@ -1977,8 +2029,8 @@ const LISTAS_PRECIOS = [
         }
       },
       // Just Eat: mismos precios que Deliveroo desde el 10/11/2026.
-      // TODO Ra: falta el % de comisión de Just Eat (hasta tenerlo, la
-      // ganancia de Just Eat no descuenta comisión).
+      // La comisión que se usa para la ganancia está en FINANZAS (config/finanzas):
+      // 31,50% desde el 23/11/2026. Este campo ya no se lee.
       justeat: {
         desde: '2026-11-10',
         comision: null,
@@ -2317,23 +2369,14 @@ function cantidadDeliveryValida(qty, lista){ return combinacionCombos(qty, lista
 // Cantidad de empanadas de un pedido (las bebidas no entran en costo ni en venta)
 function empDePedido(o){ return contarPorTipo(o).total; }
 // El costo se cuenta salvo en las devoluciones, donde la empanada se recupera
+// Todo lo que se descuenta de lo cobrado: IVA, comisión, mercadería y rider
+// (y el costo del consumo interno). Cobrado − esto = ganancia del pedido.
 function costoPedido(o){
-  const k=canalKey(o);
-  if(CANALES[k].sinCosto) return 0;
-  const L=listaDePedido(o);
-  let costo=empDePedido(o)*(L.costoEmpanada||COSTO_EMPANADA);
-  // Comisión de la plataforma sobre lo cobrado (Deliveroo 30%)
-  const plat=CANALES[k].delivery ? platDe(k, L, fechaDePedido(o)) : null;
-  if(plat && plat.comision) costo+=ventaPedido(o)*plat.comision;
-  // Las promos con bebida incluyen el costo de esa bebida
-  Object.entries(promosDePedido(o)).forEach(([k2,n])=>{
-    const d=L.promos&&L.promos[k2];
-    if(d&&d.costoBebida) costo+=d.costoBebida*n;
-  });
-  return costo;
+  const f=finPedido(o);
+  return f.fact - f.ganancia + f.interno;
 }
 // Costo por empanada vigente hoy (para consumo interno, pérdidas y exportes)
-function costoEmpanadaHoy(){ return listaHoy().costoEmpanada || COSTO_EMPANADA; }
+function costoEmpanadaHoy(){ return costoEmpanadaEn(new Date().toISOString().split('T')[0]); }
 // Con qué tipo entra la salida al stock, según el origen del pedido.
 // Así en la solapa STOCK se distingue una venta real de un consumo interno
 // o de una devolución, en vez de que aparezca todo como VENTA.
@@ -2370,7 +2413,187 @@ function ventaPedido(o){
   }
   return precioMostrador(n.classicas, n.especiales, promosDePedido(o), L);
 }
-function gananciaPedido(o){ return ventaPedido(o)-costoPedido(o); }
+// Ganancia del pedido con la fórmula nueva (ver FINANZAS, abajo)
+function gananciaPedido(o){ return finPedido(o).ganancia; }
+
+// ═══════════════════════════════════════════════════════
+//  FINANZAS — GANANCIA REAL (desde el 23/11/2026)
+//  Antes la ganancia era "precio cobrado − €2,07 por empanada" (y el 30% en
+//  Deliveroo): no se sacaba el IVA ni la comisión de Glovo, y daba por encima
+//  del máximo posible. Ahora cada pedido se separa en lo que se cobró:
+//    P_emp (empanadas, IVA 10%) · P_beb (bebida de promo, IVA 22%) ·
+//    P_env (envío del delivery propio, IVA 10% provisorio)
+//  GANANCIA DEL PEDIDO (= margen de contribución) =
+//    P_emp/1,10 + P_beb/1,22 + P_env/1,10 − comisión del canal
+//    − costo de las empanadas − costo de las bebidas − pago al rider
+//  Comisión: solo Glovo, Deliveroo y Just Eat (dependen del canal). La de
+//  SumUp/Satispay NO se calcula: decisión de Ra (se ve en el business plan).
+//  Todo es editable desde STATS → ⚙️ Parámetros (config/finanzas).
+//  ventaPedido() sigue siendo el precio de LISTA: no tocar, lo usan otros.
+// ═══════════════════════════════════════════════════════
+const FIN_DEF = {
+  // Costo por empanada con su fecha: cambia en cada entrega del proveedor.
+  // €2,07 = (1,95 proveedor + 0,042 flete) ÷ 0,9645 de merma.
+  costoEmpHist: [ {desde:'0000-01-01', valor:2.20}, {desde:'2026-11-04', valor:2.07} ],
+  ivaEmp:0.10, ivaBeb:0.22, ivaEnv:0.10,          // envío: a confirmar con la contadora
+  precioAgua:1.50, precioBebida:2.00,              // para partir el IVA de las promos
+  costoAgua:0.22,  costoBebida:0.55,
+  bebidasSueltas:false,                            // si se activa, las sueltas suman a precio de lista
+  comGlovo:0.30, descGlovo:0.10, comDeliveroo:0.30, comJustEat:0.315,
+  fijos: [
+    {n:'Alquiler (Celtica di Martano)',           v:751.50},
+    {n:'Préstamo Unicredit',                       v:474.80},
+    {n:'Luce Enel (estimado, factura bimestral)',  v:350.00},
+    {n:'Internet TIM',                             v:81.98},
+    {n:'Celular TIM',                              v:21.95},
+    {n:'SumUp sistema (1)',                        v:48.30},
+    {n:'SumUp sistema (2)',                        v:19.00},
+    {n:'Commercialista (€600,00 al año ÷ 12)',     v:50.00},
+    {n:'Seguros (€798,00 al año ÷ 12)',            v:66.50},
+    {n:'Fondo de reposición',                      v:100.00},
+    {n:'INPS (€4.611,64 al año ÷ 12)',             v:384.30}
+  ],
+  // Por mes 'AAAA-MM': publicidad Deliveroo (neto), mantenimiento y Prime de
+  // Glovo (copiados de las facturas) y días hábiles si difieren de lun-sáb.
+  meses: {}
+};
+let FIN = JSON.parse(JSON.stringify(FIN_DEF));
+let finPromesa = null;
+// Envío y rider viven en config/settings (los mismos de la solapa DELIVERY)
+let finEnvio = 5.99, finRider = 5.00;   // valores por defecto hasta leer config/settings
+
+function finListo(){
+  if(finPromesa) return finPromesa;
+  finPromesa = (async()=>{
+    try{
+      const [a,b] = await Promise.all([ getDoc(doc(db,'config','finanzas')), getDoc(doc(db,'config','settings')) ]);
+      if(a.exists()) FIN = Object.assign(JSON.parse(JSON.stringify(FIN_DEF)), a.data());
+      if(b.exists()){
+        const d=b.data();
+        if(typeof d.deliveryEnvio==='number') finEnvio=d.deliveryEnvio;
+        if(typeof d.deliveryRider==='number') finRider=d.deliveryRider;
+      }
+    }catch(e){ console.error('finListo', e); finPromesa=null; }
+  })();
+  return finPromesa;
+}
+// Costo por empanada vigente en una fecha (YYYY-MM-DD)
+function costoEmpanadaEn(fecha){
+  const h=[...(FIN.costoEmpHist||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)));
+  let v=COSTO_EMPANADA;
+  h.forEach(x=>{ if(String(fecha)>=String(x.desde) && typeof x.valor==='number') v=x.valor; });
+  return v;
+}
+// Qué bebida trae una promo: 'acqua', 'gassata' o null.
+// Antes el contador de bebidas solo miraba duoAgua y duoBebida, y se perdía
+// las de Promo 3 + A y Promo 3 + B: por eso daba 17 aguas en vez de 30.
+function bebidaDePromo(clave, def){
+  if(def && def.bebida) return def.bebida;
+  if(def && def.conBebida===false) return null;
+  if(/Agua$/.test(clave))   return 'acqua';
+  if(/Bebida$/.test(clave)) return 'gassata';
+  return null;
+}
+function bebidasDePromos(o){
+  const L=listaDePedido(o), r={acqua:0, gassata:0};
+  Object.entries(promosDePedido(o)).forEach(([k,n])=>{
+    const t=bebidaDePromo(k, L.promos && L.promos[k]);
+    if(t) r[t]+= (parseInt(n)||0);
+  });
+  return r;
+}
+function finComision(k){
+  if(k==='glovo')     return FIN.comGlovo||0;
+  if(k==='deliveroo') return FIN.comDeliveroo||0;
+  if(k==='justeat')   return FIN.comJustEat||0;
+  return 0;
+}
+// Todo lo económico de UN pedido. Montos en euros, con IVA donde se aclara.
+function finPedido(o){
+  const k=canalKey(o), n=contarPorTipo(o), emp=n.total, f=fechaDePedido(o);
+  const ce=costoEmpanadaEn(f);
+  const r={k, emp, esVenta:true, fact:0, pEmp:0, pBeb:0, pEnv:0, iva:0, neto:0,
+           comision:0, mercEmp:0, mercBeb:0, rider:0, ganancia:0, interno:0};
+  if(CANALES[k] && CANALES[k].esVenta===false){
+    r.esVenta=false;
+    if(k==='interno') r.interno = emp*ce;   // la devolución vuelve al proveedor: sin costo
+    return r;
+  }
+  if(emp===0) return r;
+  let lista = ventaPedido(o);
+  // Glovo: el cliente paga la lista con el descuento que absorbe el local
+  if(k==='glovo') lista = lista*(1-(FIN.descGlovo||0));
+  // Bebidas de promo: a precio de lista con IVA 22%; el resto de la promo es empanada
+  const bp=bebidasDePromos(o);
+  let pBeb = bp.acqua*FIN.precioAgua + bp.gassata*FIN.precioBebida;
+  if(pBeb>lista) pBeb=lista;
+  r.mercBeb = bp.acqua*FIN.costoAgua + bp.gassata*FIN.costoBebida;
+  r.pEmp = lista - pBeb;
+  // Bebidas sueltas: por defecto no suman (decisión de Ra)
+  if(FIN.bebidasSueltas){
+    const ex={acqua:0, gassata:0};
+    (o.items||[]).forEach(i=>{ if(i.tipo==='bebida'){ const c=catBebida(i.nombre); ex[c==='acqua'?'acqua':'gassata'] += parseInt(i.cantidad)||0; } });
+    const sa=Math.max(0, ex.acqua-bp.acqua), sg=Math.max(0, ex.gassata-bp.gassata);
+    pBeb += sa*FIN.precioAgua + sg*FIN.precioBebida;
+    r.mercBeb += sa*FIN.costoAgua + sg*FIN.costoBebida;
+  }
+  r.pBeb = pBeb;
+  if(CANALES[k] && CANALES[k].propio){
+    r.pEnv = (typeof o.envio==='number') ? o.envio : finEnvio;
+    r.rider = finRider;
+  }
+  r.fact = r.pEmp + r.pBeb + r.pEnv;
+  r.neto = r.pEmp/(1+FIN.ivaEmp) + r.pBeb/(1+FIN.ivaBeb) + r.pEnv/(1+FIN.ivaEnv);
+  r.iva  = r.fact - r.neto;
+  // Comisión sobre lo cobrado al cliente, IVA incluido
+  r.comision = (r.pEmp + r.pBeb) * finComision(k);
+  r.mercEmp = emp*ce;
+  r.ganancia = r.neto - r.comision - r.mercEmp - r.mercBeb - r.rider;
+  return r;
+}
+// Suma de pedidos en un acumulador
+function finVacio(){ return {pedidos:0, emp:0, fact:0, iva:0, neto:0, comision:0, mercEmp:0, mercBeb:0, rider:0, ganancia:0, interno:0, empInterno:0}; }
+function finSumar(a, f){
+  if(f.esVenta){ a.pedidos++; a.emp+=f.emp; }
+  else if(f.k==='interno') a.empInterno+=f.emp;
+  ['fact','iva','neto','comision','mercEmp','mercBeb','rider','ganancia','interno'].forEach(c=>a[c]+=f[c]);
+  return a;
+}
+// ── Calendario ──
+function finDiasMes(y,m){ return new Date(y,m,0).getDate(); }            // m: 1-12
+function finHabilesDef(y,m){                                              // lunes a sábado
+  let c=0; for(let d=1; d<=finDiasMes(y,m); d++) if(new Date(y,m-1,d).getDay()!==0) c++; return c;
+}
+function finHabiles(clave){
+  const x=(FIN.meses||{})[clave];
+  if(x && x.diasHabiles>0) return x.diasHabiles;
+  const [y,m]=clave.split('-').map(Number); return finHabilesDef(y,m);
+}
+function finFijoMensual(){ return (FIN.fijos||[]).reduce((a,x)=>a+(Number(x.v)||0),0); }
+function finCostosMes(clave){
+  const x=(FIN.meses||{})[clave]||{};
+  return (Number(x.publiDeliveroo)||0)+(Number(x.mantGlovo)||0)+(Number(x.primeGlovo)||0);
+}
+// Meses que toca un período, con los días calendario de cada uno
+function finMesesDe(desde, hasta){
+  const out=[]; const d=new Date(desde.getFullYear(),desde.getMonth(),desde.getDate());
+  const fin=new Date(hasta.getFullYear(),hasta.getMonth(),hasta.getDate());
+  while(d<=fin){
+    const clave=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    let x=out.find(o=>o.clave===clave);
+    if(!x){ x={clave, dias:0, diasMes:finDiasMes(d.getFullYear(), d.getMonth()+1)}; out.push(x); }
+    x.dias++; d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+// Costos fijos y costos del período, repartidos por días calendario
+function finPeriodo(desde, hasta){
+  const meses=finMesesDe(desde, hasta);
+  let fijos=0, delPeriodo=0, dias=0;
+  meses.forEach(m=>{ fijos+=finFijoMensual()*m.dias/m.diasMes; delPeriodo+=finCostosMes(m.clave)*m.dias/m.diasMes; dias+=m.dias; });
+  const ult=meses.length?meses[meses.length-1].clave:null;
+  return {fijos, delPeriodo, dias, meses, mesEq:ult, habiles: ult?finHabiles(ult):0};
+}
 
 // Consumo: solo aplica a Mostrador (takeaway = va en caja)
 function esTakeaway(o){ return o && o.consumo==='takeaway'; }
@@ -2403,7 +2626,7 @@ function restaurarPlegables(){
 
 // Calcula el resumen de un conjunto de pedidos, separado por turno
 function resumenPorTurno(lista){
-  const vacio=()=>({pedidos:0,emp:0,mangia:0,take:0,deliv:0,interno:0,devol:0,venta:0,costo:0});
+  const vacio=()=>({pedidos:0,emp:0,mangia:0,take:0,deliv:0,interno:0,devol:0,venta:0,costo:0,gan:0});
   const r={pranzo:vacio(), cena:vacio(), total:vacio()};
   soloPedidos(lista).forEach(o=>{
     const t=turnoDePedido(o);
@@ -2419,8 +2642,11 @@ function resumenPorTurno(lista){
         else if(esTakeaway(o)) x.take++;
         else x.mangia++;
       }
-      x.venta+=ventaPedido(o);
+      // venta = lo cobrado (IVA incluido); gan = margen de contribución
+      const fp=finPedido(o);
+      x.venta+=fp.fact;
       x.costo+=costoPedido(o);
+      x.gan+=fp.ganancia;
     });
   });
   return r;
@@ -4936,27 +5162,28 @@ window.exportSerieDiaria=function(){
     ['Período', fechas[0]+' → '+fechas[fechas.length-1]],
     ['Costo por empanada', costoEmpanadaHoy()],
     [],
-    ['Fecha','Día','Empanadas','Pedidos','Almuerzo','Cena','Facturación','Costo','Ganancia','Ticket medio','Emp. por pedido','Consumo interno']
+    // Ganancia = margen de contribución del día (fórmula real: sin IVA, con comisiones)
+    ['Fecha','Día','Empanadas','Pedidos','Almuerzo','Cena','Facturación','IVA','Comisiones','Mercadería y rider','Ganancia','Ticket medio','Emp. por pedido','Consumo interno','Costo consumo interno']
   ];
   const nombreDia=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  let tEmp=0,tPed=0,tVen=0,tCos=0,tPz=0,tCn=0,tInt=0;
+  let tEmp=0,tPed=0,tVen=0,tIva=0,tCom=0,tMer=0,tGan=0,tPz=0,tCn=0,tInt=0,tIntC=0;
   fechas.forEach(f=>{
     const d=dias[f];
-    tEmp+=d.emp; tPed+=d.pedidos; tVen+=d.venta; tCos+=d.costo;
-    tPz+=d.pz; tCn+=d.cn; tInt+=d.interno;
+    tEmp+=d.emp; tPed+=d.pedidos; tVen+=d.venta; tIva+=d.iva; tCom+=d.com; tMer+=d.merc; tGan+=d.gan;
+    tPz+=d.pz; tCn+=d.cn; tInt+=d.interno; tIntC+=d.internoCosto;
     filas.push([
       f,
       nombreDia[new Date(f+'T00:00:00').getDay()],
       d.emp, d.pedidos, d.pz, d.cn,
-      r2(d.venta), r2(d.costo), r2(d.venta-d.costo),
+      r2(d.venta), r2(d.iva), r2(d.com), r2(d.merc), r2(d.gan),
       d.pedidos ? r2(d.venta/d.pedidos) : 0,
       d.pedidos ? r2(d.emp/d.pedidos) : 0,
-      d.interno
+      d.interno, r2(d.internoCosto)
     ]);
   });
   filas.push([]);
-  filas.push(['TOTAL','',tEmp,tPed,tPz,tCn,r2(tVen),r2(tCos),r2(tVen-tCos),
-              tPed?r2(tVen/tPed):0, tPed?r2(tEmp/tPed):0, tInt]);
+  filas.push(['TOTAL','',tEmp,tPed,tPz,tCn,r2(tVen),r2(tIva),r2(tCom),r2(tMer),r2(tGan),
+              tPed?r2(tVen/tPed):0, tPed?r2(tEmp/tPed):0, tInt, r2(tIntC)]);
   filas.push(['PROMEDIO POR DÍA','', r2(tEmp/fechas.length), r2(tPed/fechas.length),
               r2(tPz/fechas.length), r2(tCn/fechas.length), r2(tVen/fechas.length)]);
 
@@ -5040,7 +5267,9 @@ window.exportStats=function(){
     {nombre:'Ranking empanadas',filas:ranking},
     {nombre:'Por dia de semana',filas:porDia},
     {nombre:'Desglose semanal',filas:semanal.length>1?semanal:null},
-    {nombre:'Detalle pedidos',filas:det}
+    {nombre:'Detalle pedidos',filas:det},
+    // Ganancia real del período (mismas cuentas que la pantalla)
+    ...((sMesCache && sMesCache.fin) ? finHojasExcel(sMesCache) : [])
   ].filter(h=>h.filas));
 };
 
@@ -5059,57 +5288,75 @@ window.exportHistorial=function(){
     ['Pedidos encontrados', hCurrentList.length],
     ['Costo por empanada', costoEmpanadaHoy()],
     [],
-    ['Fecha','Hora','Cliente / N° pedido','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Costo','Venta','Ganancia','Promos','Estado','Detalle']
+    // Cobrado = lo que pagó el cliente (IVA incluido). Ganancia con la fórmula real.
+    // En el consumo interno la ganancia es el costo, en negativo.
+    ['Fecha','Hora','Cliente / N° pedido','Canal','Consumo','Classiche','Speciali','Empanadas','Bebidas','Cobrado','IVA','Comisión','Mercadería y rider','Ganancia','Promos','Estado','Detalle']
   ];
-  let tEmp=0,tBeb=0,tCosto=0,tVenta=0,tCla=0,tSpe=0;
+  let tEmp=0,tBeb=0,tCosto=0,tVenta=0,tCla=0,tSpe=0,tIva=0,tCom=0,tMer=0;
   hCurrentList.forEach(o=>{
     const ts=o.timestamp?o.timestamp.toDate():null;
     const n=contarPorTipo(o), beb=contarBeb(o);
-    const costo=costoPedido(o), venta=ventaPedido(o);
+    const fx=finPedido(o);
+    const venta=fx.fact, gan=fx.ganancia-fx.interno, costo=venta-gan;
+    const mer=fx.mercEmp+fx.mercBeb+fx.rider+fx.interno;
     tEmp+=n.total; tBeb+=beb; tCosto+=costo; tVenta+=venta; tCla+=n.classicas; tSpe+=n.especiales;
+    tIva+=fx.iva; tCom+=fx.comision; tMer+=mer;
     filas.push([
       ts?ts.toLocaleDateString('it-IT'):'—',
       ts?ts.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'—',
       MAY(o.cliente||'—'),
       MAY(canalLabel(o)), MAY(consumoLabel(o)),
       n.classicas, n.especiales, n.total, beb,
-      r2(costo), r2(venta), r2(venta-costo),
+      r2(venta), r2(fx.iva), r2(fx.comision), r2(mer), r2(gan),
       MAY(promosLabel(o)),
       MAY(eLabel(o.estado)), MAY(itemsTexto(o))
     ]);
   });
   filas.push([]);
-  filas.push(['TOTALES','','','','',tCla,tSpe,tEmp,tBeb,r2(tCosto),r2(tVenta),r2(tVenta-tCosto)]);
+  filas.push(['TOTALES','','','','',tCla,tSpe,tEmp,tBeb,r2(tVenta),r2(tIva),r2(tCom),r2(tMer),r2(tVenta-tCosto)]);
 
   // Resumen por canal
   const porCanal={};
   hCurrentList.forEach(o=>{
     const k=canalKey(o);
     const n=contarPorTipo(o);
-    if(!porCanal[k])porCanal[k]={pedidos:0,emp:0,cla:0,spe:0,costo:0,venta:0};
+    const fx=finPedido(o);
+    if(!porCanal[k])porCanal[k]={pedidos:0,emp:0,cla:0,spe:0,venta:0,iva:0,com:0,mer:0,gan:0};
     porCanal[k].pedidos++;
     porCanal[k].emp+=n.total;
     porCanal[k].cla+=n.classicas;
     porCanal[k].spe+=n.especiales;
-    porCanal[k].costo+=costoPedido(o);
-    porCanal[k].venta+=ventaPedido(o);
+    porCanal[k].venta+=fx.fact;
+    porCanal[k].iva+=fx.iva;
+    porCanal[k].com+=fx.comision;
+    porCanal[k].mer+=fx.mercEmp+fx.mercBeb+fx.rider+fx.interno;
+    porCanal[k].gan+=fx.ganancia-fx.interno;
   });
-  const resumenCanal=[['Canal','Pedidos','Classiche','Speciali','Empanadas','Costo','Venta','Ganancia','Ganancia por empanada']];
+  const resumenCanal=[['Canal','Pedidos','Classiche','Speciali','Empanadas','Cobrado','IVA','Comisión','Mercadería y rider','Ganancia','Ganancia por empanada']];
   Object.entries(porCanal).sort((a,b)=>b[1].venta-a[1].venta).forEach(([k,v])=>{
     resumenCanal.push([
-      MAY(CANALES[k].label), v.pedidos, v.cla, v.spe, v.emp,
-      r2(v.costo), r2(v.venta), r2(v.venta-v.costo),
-      v.emp?r2((v.venta-v.costo)/v.emp):0
+      MAY(k==='logistica'?'Delivery propio':CANALES[k].label), v.pedidos, v.cla, v.spe, v.emp,
+      r2(v.venta), r2(v.iva), r2(v.com), r2(v.mer), r2(v.gan),
+      v.emp?r2(v.gan/v.emp):0
     ]);
   });
   resumenCanal.push([]);
-  resumenCanal.push(['TOTAL', hCurrentList.length, tCla, tSpe, tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto), tEmp?r2((tVenta-tCosto)/tEmp):0]);
+  resumenCanal.push(['TOTAL', hCurrentList.length, tCla, tSpe, tEmp, r2(tVenta), r2(tIva), r2(tCom), r2(tMer), r2(tVenta-tCosto), tEmp?r2((tVenta-tCosto)/tEmp):0]);
 
-  // Resumen por tipo de empanada
-  const resumenTipo=[['Tipo','Empanadas','Costo','Venta total','Ganancia total']];
-  resumenTipo.push(['Classiche', tCla, r2(tCla*costoEmpanadaHoy()), '', '']);
-  resumenTipo.push(['Speciali',  tSpe, r2(tSpe*costoEmpanadaHoy()), '', '']);
-  resumenTipo.push(['TOTAL',     tEmp, r2(tCosto), r2(tVenta), r2(tVenta-tCosto)]);
+  // Resumen por tipo de empanada (la mercadería con el costo de la fecha de cada pedido)
+  let merCla=0, merSpe=0;
+  hCurrentList.forEach(o=>{
+    const n=contarPorTipo(o), ce=costoEmpanadaEn(fechaDePedido(o)), k=canalKey(o);
+    if(CANALES[k] && CANALES[k].sinCosto) return;
+    merCla+=n.classicas*ce; merSpe+=n.especiales*ce;
+  });
+  const resumenTipo=[['Tipo','Empanadas','Costo de mercadería']];
+  resumenTipo.push(['Classiche', tCla, r2(merCla)]);
+  resumenTipo.push(['Speciali',  tSpe, r2(merSpe)]);
+  resumenTipo.push(['TOTAL',     tEmp, r2(merCla+merSpe)]);
+  resumenTipo.push([]);
+  resumenTipo.push(['Cobrado total', '', r2(tVenta)]);
+  resumenTipo.push(['Ganancia total', '', r2(tVenta-tCosto)]);
 
   // Detalle por ítem
   const det=[['Fecha','Hora','Cliente','Producto','Tipo','Cantidad']];
@@ -5491,6 +5738,7 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
   if(sMesCache && sMesCacheClave===clave && (ahora-sMesCacheHora)<5*60*1000){ sMesPintar(sMesCache); return; }
   cont.innerHTML='<div class="s-loading"><div class="s-spinner"></div>Cargando...</div>';
   try{
+    await finListo();
     const todos=soloPedidos(await pedidosRango(desde,hasta,'asc'));
 
     // ── CONTADORES ──
@@ -5515,7 +5763,9 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       // Bebidas, con las de promo incluidas
       beb:{acqua:0, gassata:0, birra:0},
       // Serie día por día, para exportar
-      dias:{}
+      dias:{},
+      // Ganancia real (FINANZAS): total y por canal
+      fin:finVacio(), finCanal:{}, desde, hasta
     };
     todos.forEach(o=>{
       const n=contarPorTipo(o), emp=n.total, k=canalKey(o);
@@ -5528,9 +5778,13 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       if(esPz){ r.tipos.clPz+=n.classicas; r.tipos.spPz+=n.especiales; }
       else    { r.tipos.clCn+=n.classicas; r.tipos.spCn+=n.especiales; }
 
+      const fp=finPedido(o);
+      finSumar(r.fin, fp);
       if(esVenta){
         r.vPedidos++; r.vEmp+=emp;
-        r.venta+=ventaPedido(o); r.costo+=costoPedido(o);
+        r.venta+=fp.fact; r.costo+=costoPedido(o);
+        if(!r.finCanal[k]) r.finCanal[k]=finVacio();
+        finSumar(r.finCanal[k], fp);
       }
 
       if(!r.canales[k]) r.canales[k]=par();
@@ -5539,8 +5793,9 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
       // Entregas propias, que se siguen aparte de Glovo y del mostrador
       if(CANALES[k].propio){
         sum(r.consegne);
-        r.consegne.venta += ventaPedido(o);
-        r.consegne.envio += (typeof o.envio==='number') ? o.envio : 0;
+        r.consegne.venta += fp.fact - fp.pEnv;
+        r.consegne.envio += fp.pEnv;
+        r.consegne.rider = (r.consegne.rider||0) + fp.rider;
         if(esPz) r.consegne.empPz += emp; else r.consegne.empCn += emp;
       }
 
@@ -5606,17 +5861,21 @@ async function sCargarMes(desdePeriodo, hastaPeriodo){
         if(i.tipo!=='bebida') return;
         exp[catBebida(i.nombre)] += parseInt(i.cantidad)||0;
       });
-      const imp={acqua:(pr.duoAgua||0), gassata:(pr.duoBebida||0), birra:0};
+      // Todas las promos con bebida (antes solo duoAgua/duoBebida: faltaban las de 3)
+      const bpr=bebidasDePromos(o);
+      const imp={acqua:bpr.acqua, gassata:bpr.gassata, birra:0};
       r.beb.acqua   += Math.max(exp.acqua,   imp.acqua);
       r.beb.gassata += Math.max(exp.gassata, imp.gassata);
       r.beb.birra   += exp.birra;
 
       // ── SERIE DIARIA ──
       const fd=fechaDePedido(o);
-      if(!r.dias[fd]) r.dias[fd]={emp:0,pedidos:0,venta:0,costo:0,pz:0,cn:0,interno:0};
+      if(!r.dias[fd]) r.dias[fd]={emp:0,pedidos:0,venta:0,costo:0,pz:0,cn:0,interno:0,iva:0,com:0,merc:0,gan:0,internoCosto:0};
       const d=r.dias[fd];
+      d.internoCosto+=fp.interno;
       if(esVenta){
-        d.emp+=emp; d.pedidos++; d.venta+=ventaPedido(o); d.costo+=costoPedido(o);
+        d.emp+=emp; d.pedidos++; d.venta+=fp.fact; d.costo+=costoPedido(o);
+        d.iva+=fp.iva; d.com+=fp.comision; d.merc+=fp.mercEmp+fp.mercBeb+fp.rider; d.gan+=fp.ganancia;
         if(esPz) d.pz+=emp; else d.cn+=emp;
       }else if(k==='interno') d.interno+=emp;
     });
@@ -5709,14 +5968,14 @@ function sMesPintar(r){
 
   // ── Entregas propias ──
   if(r.consegne.p > 0){
-    const rider = r.consegne.p * (typeof delRider==='number' ? delRider : 5);
+    const rider = r.consegne.rider||0;
     h+='<div class="s-mini-sub-title">Consegne · entregas propias</div><div class="s-mini-grid">';
     h+=caja('🌞 Almuerzo', r.consegne.pz, r.consegne.empPz+' empanadas','promo',pct(r.consegne.pz,r.consegne.p));
     h+=caja('🌙 Cena', r.consegne.cn, r.consegne.empCn+' empanadas','deliv',pct(r.consegne.cn,r.consegne.p));
     h+=caja('Total entregas', r.consegne.p, r.consegne.e+' empanadas · '+dinero(eur(r.consegne.venta)),'gan');
     h+='</div><div class="s-mini-grid">';
     h+=caja('💶 Envíos cobrados', dinero(eur(r.consegne.envio)), r.consegne.p+' entregas');
-    h+=caja('🤝 A pagar al rider', dinero(eur(rider)), r.consegne.p+' × '+eur(typeof delRider==='number'?delRider:5),'interno');
+    h+=caja('🤝 A pagar al rider', dinero(eur(rider)), r.consegne.p+' × '+eur(finRider),'interno');
     h+=caja('📈 Margen de envíos', dinero(eur(r.consegne.envio-rider)),
             r.consegne.p ? dinero(eur((r.consegne.envio-rider)/r.consegne.p))+' por entrega' : '','promo');
     h+='</div>';
@@ -5738,15 +5997,281 @@ function sMesPintar(r){
 
   // ── Lo que no factura y la plata ──
   h+='<div class="s-mini-sub-title">No son ventas · aparte del resto</div><div class="s-mini-grid">';
-  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.interno.e*costoEmpanadaHoy()))+' de costo','interno',pct(r.interno.e,r.salieron), r.interno);
+  h+=caja('🏠 Consumo interno', r.interno.e, r.interno.p+' pedidos · '+dinero(eur(r.fin.interno))+' de costo','interno',pct(r.interno.e,r.salieron), r.interno);
   h+=caja('↩️ Devoluciones', r.devol.e, r.devol.p+' pedidos','devol',pct(r.devol.e,r.salieron), r.devol);
   h+=caja('Ticket promedio', dinero(r.vPedidos?eur(r.venta/r.vPedidos):'—'), r.vPedidos?(r.vEmp/r.vPedidos).toFixed(2)+' empanadas por pedido vendido':'');
-  h+=caja('Facturación', dinero(eur(r.venta)), r.vPedidos+' pedidos vendidos','');
-  h+=caja('Ganancia', dinero(eur(r.venta-r.costo)), r.vEmp?dinero(eur((r.venta-r.costo)/r.vEmp))+' por empanada':'','gan',dinero(pct(r.venta-r.costo,r.venta)));
+  h+=caja('Facturación', dinero(eur(r.venta)), r.vPedidos+' pedidos vendidos · IVA incluido','');
   h+='</div>';
+
+  // La ganancia ya no es una caja suelta: va desglosada, por canal y con el equilibrio
+  h+=finPintar(r);
 
   cont.innerHTML=h;
 }
+
+// ── GANANCIA DEL PERÍODO, POR CANAL Y PUNTO DE EQUILIBRIO ──
+// Un solo cálculo para la pantalla, el PDF y el Excel.
+const FIN_CANALES=['mostrador','qr','glovo','deliveroo','justeat','logistica'];
+function finNombreCanal(k){ return k==='logistica'?'Delivery propio':(CANALES[k]?CANALES[k].label:k); }
+function finCalcular(r){
+  const F=r.fin, per=finPeriodo(r.desde, r.hasta);
+  const merc=F.mercEmp+F.mercBeb;
+  const mc=F.neto-F.comision-merc-F.rider;                 // margen de contribución
+  const ganPer=mc-F.interno-per.delPeriodo;                // ganancia del período
+  const resultado=ganPer-per.fijos;
+  // Control obligatorio: la ganancia nunca puede superar este techo
+  const ivaMin=Math.min(FIN.ivaEmp,FIN.ivaBeb,FIN.ivaEnv);
+  const techo=F.fact/(1+ivaMin) - F.mercEmp - F.interno;
+  const ok = ganPer <= techo + 0.005;
+  const mcEmp = F.emp ? mc/F.emp : 0;
+  const fijoDia = per.habiles ? finFijoMensual()/per.habiles : 0;
+  const eq = mcEmp>0 ? fijoDia/mcEmp : null;
+  const diasVenta = Object.values(r.dias||{}).filter(d=>d.emp>0).length;
+  const prom = diasVenta ? F.emp/diasVenta : 0;
+  const orden=[...FIN_CANALES]; Object.keys(r.finCanal).forEach(k=>{ if(!orden.includes(k)) orden.push(k); });
+  const canales=orden.map(k=>({k, nombre:finNombreCanal(k), v:r.finCanal[k]||finVacio()}));
+  return {F, per, merc, mc, ganPer, resultado, techo, ok, mcEmp, fijoDia, eq, diasVenta, prom,
+          dif: eq!==null ? prom-eq : null, canales};
+}
+function finPintar(r){
+  const c=finCalcular(r), F=c.F, per=c.per;
+  window.__finControl={ganancia:c.ganPer, techo:c.techo, ok:c.ok};   // para revisarlo desde la consola
+  if(!c.ok) console.error('FINANZAS: la ganancia supera el techo', window.__finControl);
+  const E=x=>dinero(eur(x));
+  const neg=x=>x<-0.004?' fin-neg':'';
+  const fila=(txt,val,cls,signo)=>`<div class="fin-fila ${cls||''}"><span>${txt}</span><span class="fin-v${signo?'':neg(val)}">${signo||''}${E(Math.abs(val)<0.005?0:(signo?Math.abs(val):val))}</span></div>`;
+
+  let h='<div class="s-mini-sub-title">💶 Ganancia del período · fórmula real <button class="fin-cfg-btn" onclick="finAbrirCfg()">⚙️ Parámetros</button></div>';
+  if(!c.ok) h+=`<div class="fin-alerta">⚠️ El control no cierra: la ganancia (${eur(c.ganPer)}) supera el máximo posible (${eur(c.techo)}). Avisá antes de usar estos números.</div>`;
+  h+='<div class="fin-grid"><div class="fin-caja">';
+  h+=fila('Facturación (IVA incluido)', F.fact);
+  h+=fila('IVA', F.iva, '', '− ');
+  h+=fila('= Ingreso neto', F.neto, 'sub');
+  h+=fila('Comisiones de plataformas', F.comision, '', '− ');
+  h+=fila('Mercadería (empanadas y bebidas)', c.merc, '', '− ');
+  if(F.rider>0) h+=fila('Pago a riders (delivery propio)', F.rider, '', '− ');
+  h+=fila('= MARGEN DE CONTRIBUCIÓN', c.mc, 'tot');
+  h+=fila('Consumo interno (costo · '+F.empInterno+' empanadas)', F.interno, '', '− ');
+  h+=fila('Costos del período (publicidad, Glovo)', per.delPeriodo, '', '− ');
+  h+=fila('= GANANCIA DEL PERÍODO', c.ganPer, 'tot');
+  h+=fila('Costos fijos ('+per.dias+' días calendario)', per.fijos, '', '− ');
+  h+=fila('= RESULTADO', c.resultado, 'res');
+  const sinCostosMes = per.meses.filter(m=>finCostosMes(m.clave)===0).map(m=>m.clave.split('-').reverse().join('/'));
+  if(sinCostosMes.length) h+=`<div class="fin-nota">Sin costos del período cargados para ${sinCostosMes.join(', ')} (⚙️ Parámetros).</div>`;
+  h+='</div>';
+
+  // Punto de equilibrio: con el MARGEN DE CONTRIBUCIÓN por empanada
+  const n1=x=>x.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1});
+  const mesTxt = per.mesEq ? per.mesEq.split('-').reverse().join('/') : '';
+  h+=`<div class="fin-caja fin-eq">
+      <div class="fin-eq-tit">⚖️ Punto de equilibrio</div>
+      <div class="fin-eq-num">${c.eq!==null?n1(c.eq):'—'}<span> empanadas por día</span></div>
+      <div class="fin-eq-row"><span>Promedio real del período</span><b>${n1(c.prom)}</b></div>
+      <div class="fin-eq-row"><span>Diferencia</span><b class="${c.dif!==null&&c.dif<0?'fin-neg':'fin-pos'}">${c.dif===null?'—':(c.dif>=0?'+':'')+n1(c.dif)}</b></div>
+      <div class="fin-eq-det">Margen de contribución por empanada ${E(c.mcEmp)}<br>
+        Costo fijo por día hábil ${E(c.fijoDia)} (${E(finFijoMensual())} ÷ ${per.habiles} días hábiles de ${mesTxt})<br>
+        Promedio: ${F.emp} empanadas ÷ ${c.diasVenta} días con ventas</div>
+    </div></div>`;
+
+  // Ganancia por canal: la tabla que muestra qué canal deja plata
+  h+='<div class="s-mini-sub-title">Ganancia por canal · margen de contribución de cada pedido</div>';
+  h+=`<div class="fin-tabla-wrap"><table class="fin-tabla"><thead><tr>
+      <th>Canal</th><th>Pedidos</th><th>Empanadas</th><th>Facturación</th><th>Comisión</th><th>Ganancia</th><th>Por empanada</th>
+    </tr></thead><tbody>`;
+  c.canales.forEach(({nombre,v})=>{
+    h+=`<tr${v.pedidos?'':' class="fin-cero"'}><td>${nombre}</td><td>${v.pedidos}</td><td>${v.emp}</td>
+      <td>${E(v.fact)}</td><td>${E(v.comision)}</td><td class="${neg(v.ganancia)}">${E(v.ganancia)}</td>
+      <td class="${neg(v.ganancia)}">${v.emp?E(v.ganancia/v.emp):'—'}</td></tr>`;
+  });
+  h+=`<tr class="fin-tot"><td>Total</td><td>${F.pedidos}</td><td>${F.emp}</td><td>${E(F.fact)}</td><td>${E(F.comision)}</td>
+      <td>${E(c.mc)}</td><td>${F.emp?E(c.mcEmp):'—'}</td></tr></tbody></table></div>`;
+  return h;
+}
+// Las mismas cuentas, para el Excel de STATS
+function finHojasExcel(r){
+  const c=finCalcular(r), F=c.F, per=c.per;
+  const des=[
+    ['DON SALO — GANANCIA DEL PERÍODO'],
+    ['Período', cocFechaStr(r.desde)+' → '+cocFechaStr(r.hasta)],
+    ['Días calendario', per.dias],
+    [],
+    ['Concepto','Importe'],
+    ['Facturación (IVA incluido)', r2(F.fact)],
+    ['− IVA', r2(F.iva)],
+    ['= Ingreso neto', r2(F.neto)],
+    ['− Comisiones de plataformas', r2(F.comision)],
+    ['− Mercadería (empanadas y bebidas)', r2(c.merc)],
+    ['− Pago a riders (delivery propio)', r2(F.rider)],
+    ['= MARGEN DE CONTRIBUCIÓN', r2(c.mc)],
+    ['− Consumo interno (costo)', r2(F.interno)],
+    ['− Costos del período (publicidad, Glovo)', r2(per.delPeriodo)],
+    ['= GANANCIA DEL PERÍODO', r2(c.ganPer)],
+    ['− Costos fijos (días calendario)', r2(per.fijos)],
+    ['= RESULTADO', r2(c.resultado)],
+    [],
+    ['PUNTO DE EQUILIBRIO'],
+    ['Margen de contribución por empanada', r2(c.mcEmp)],
+    ['Costo fijo por día hábil', r2(c.fijoDia)],
+    ['Días hábiles del mes', per.habiles],
+    ['Equilibrio (empanadas por día)', c.eq!==null?r2(c.eq):'—'],
+    ['Promedio real (empanadas por día con ventas)', r2(c.prom)],
+    ['Diferencia', c.dif!==null?r2(c.dif):'—'],
+    [],
+    ['CONTROL: la ganancia no puede superar', r2(c.techo)],
+    ['Resultado del control', c.ok?'OK':'NO CIERRA']
+  ];
+  const can=[['Canal','Pedidos','Empanadas','Facturación','IVA','Comisión','Mercadería y rider','Ganancia','Ganancia por empanada']];
+  c.canales.forEach(({nombre,v})=>can.push([nombre, v.pedidos, v.emp, r2(v.fact), r2(v.iva), r2(v.comision),
+    r2(v.mercEmp+v.mercBeb+v.rider), r2(v.ganancia), v.emp?r2(v.ganancia/v.emp):0]));
+  can.push(['TOTAL', F.pedidos, F.emp, r2(F.fact), r2(F.iva), r2(F.comision), r2(c.merc+F.rider), r2(c.mc), F.emp?r2(c.mcEmp):0]);
+  const fij=[['Costo fijo','Por mes']];
+  (FIN.fijos||[]).forEach(x=>fij.push([x.n, r2(x.v)]));
+  fij.push(['TOTAL POR MES', r2(finFijoMensual())]);
+  return [{nombre:'Ganancia',filas:des},{nombre:'Ganancia por canal',filas:can},{nombre:'Costos fijos',filas:fij}];
+}
+
+// ── PARÁMETROS DE GANANCIA (⚙️ en STATS) ──
+// Se guardan en config/finanzas. Envío y rider se guardan donde siempre
+// (config/settings), así DELIVERY y STATS usan el mismo número.
+let finMesCfg=null;
+function finEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const finPct=x=>Math.round((Number(x)||0)*10000)/100;      // 0.315 → 31.5
+window.finAbrirCfg=async function(){
+  await finListo();
+  const hoy=new Date();
+  if(!finMesCfg) finMesCfg=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+  let ov=document.getElementById('fin-cfg');
+  if(!ov){ ov=document.createElement('div'); ov.id='fin-cfg'; ov.className='fin-ov'; document.body.appendChild(ov); }
+  const num=(id,v,step)=>`<input type="number" step="${step||'0.01'}" min="0" id="${id}" value="${v}">`;
+  const hist=[...(FIN.costoEmpHist||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)));
+  ov.innerHTML=`<div class="fin-modal">
+    <div class="fin-m-cab"><b>⚙️ Parámetros de ganancia</b><button class="fin-x" onclick="finCerrarCfg()">✕</button></div>
+    <div class="fin-m-sec">Costo por empanada <span>(cambia con cada entrega: se aplica desde la fecha)</span></div>
+    <div id="fin-hist">${hist.map((x,i)=>`<div class="fin-m-fila fin-h">
+      <input type="date" value="${x.desde==='0000-01-01'?'':finEsc(x.desde)}" ${x.desde==='0000-01-01'?'disabled title="Desde el principio"':''}>
+      <input type="number" step="0.01" min="0" value="${x.valor}">
+      ${x.desde==='0000-01-01'?'<span class="fin-m-nota">desde el principio</span>':'<button class="fin-del" onclick="this.parentNode.remove()">✕</button>'}</div>`).join('')}</div>
+    <button class="fin-add" onclick="finAgregarFila('fin-hist','hist')">+ Nuevo costo desde una fecha</button>
+
+    <div class="fin-m-sec">IVA y bebidas</div>
+    <div class="fin-m-grid">
+      <label>IVA empanadas %${num('fin-ivaEmp',finPct(FIN.ivaEmp),'0.1')}</label>
+      <label>IVA bebidas %${num('fin-ivaBeb',finPct(FIN.ivaBeb),'0.1')}</label>
+      <label>IVA envío % <small>(a confirmar)</small>${num('fin-ivaEnv',finPct(FIN.ivaEnv),'0.1')}</label>
+      <label>Precio agua €${num('fin-pAgua',FIN.precioAgua)}</label>
+      <label>Precio bebida €${num('fin-pBeb',FIN.precioBebida)}</label>
+      <label>Costo agua €${num('fin-cAgua',FIN.costoAgua)}</label>
+      <label>Costo bebida €${num('fin-cBeb',FIN.costoBebida)}</label>
+      <label class="fin-chk"><input type="checkbox" id="fin-sueltas" ${FIN.bebidasSueltas?'checked':''}> Sumar las bebidas sueltas a la facturación</label>
+    </div>
+
+    <div class="fin-m-sec">Plataformas y delivery propio</div>
+    <div class="fin-m-grid">
+      <label>Comisión Glovo %${num('fin-cGlovo',finPct(FIN.comGlovo),'0.1')}</label>
+      <label>Descuento Glovo vigente %${num('fin-dGlovo',finPct(FIN.descGlovo),'0.1')}</label>
+      <label>Comisión Deliveroo %${num('fin-cDeliveroo',finPct(FIN.comDeliveroo),'0.1')}</label>
+      <label>Comisión Just Eat %${num('fin-cJustEat',finPct(FIN.comJustEat),'0.1')}</label>
+      <label>Envío cobrado €${num('fin-envio',finEnvio)}</label>
+      <label>Pago al rider €${num('fin-rider',finRider)}</label>
+    </div>
+
+    <div class="fin-m-sec">Costos fijos por mes <span>(total ${eur(finFijoMensual())})</span></div>
+    <div id="fin-fijos">${(FIN.fijos||[]).map(x=>`<div class="fin-m-fila fin-f">
+      <input type="text" value="${finEsc(x.n)}" maxlength="80"><input type="number" step="0.01" min="0" value="${x.v}">
+      <button class="fin-del" onclick="this.parentNode.remove()">✕</button></div>`).join('')}</div>
+    <button class="fin-add" onclick="finAgregarFila('fin-fijos','fijo')">+ Agregar costo fijo</button>
+
+    <div class="fin-m-sec">Costos del mes <span>(copiados de las facturas)</span></div>
+    <div class="fin-m-grid">
+      <label>Mes<input type="month" id="fin-mes" value="${finMesCfg}" onchange="finCambiarMes(this.value)"></label>
+      <div id="fin-mes-campos" style="display:contents;"></div>
+    </div>
+
+    <div class="fin-m-pie">
+      <button class="fin-btn-sec" onclick="finCerrarCfg()">Cancelar</button>
+      <button class="fin-btn" id="fin-guardar" onclick="finGuardarCfg()">Guardar</button>
+    </div>
+  </div>`;
+  ov.style.display='flex';
+  finPintarMes();
+};
+// Los campos del mes se guardan en memoria al cambiar de mes, y se graban todos al final
+let finMesesEdit=null;
+function finPintarMes(){
+  if(!finMesesEdit) finMesesEdit=JSON.parse(JSON.stringify(FIN.meses||{}));
+  const c=finMesCfg, x=finMesesEdit[c]||{};
+  const [y,m]=c.split('-').map(Number);
+  const box=document.getElementById('fin-mes-campos');
+  const v=k=>(x[k]===undefined||x[k]===null)?'':x[k];
+  box.innerHTML=`
+    <label>Publicidad Deliveroo € <small>"Annunci Marketer", neto</small><input type="number" step="0.01" min="0" id="fin-m-publi" value="${v('publiDeliveroo')}"></label>
+    <label>Mantenimiento Glovo € <small>"Costo di manutenzione"</small><input type="number" step="0.01" min="0" id="fin-m-mant" value="${v('mantGlovo')}"></label>
+    <label>Prime Glovo € <small>"Supplemento Glovo Prime"</small><input type="number" step="0.01" min="0" id="fin-m-prime" value="${v('primeGlovo')}"></label>
+    <label>Días hábiles <small>(lun a sáb: ${finHabilesDef(y,m)})</small><input type="number" step="1" min="1" max="31" id="fin-m-hab" value="${v('diasHabiles')}" placeholder="${finHabilesDef(y,m)}"></label>`;
+}
+function finLeerMes(){
+  const g=id=>{ const t=document.getElementById(id).value.trim(); return t===''?null:Number(t); };
+  const x={publiDeliveroo:g('fin-m-publi'), mantGlovo:g('fin-m-mant'), primeGlovo:g('fin-m-prime'), diasHabiles:g('fin-m-hab')};
+  Object.keys(x).forEach(k=>{ if(x[k]===null || isNaN(x[k])) delete x[k]; });
+  if(Object.keys(x).length) finMesesEdit[finMesCfg]=x; else delete finMesesEdit[finMesCfg];
+}
+window.finCambiarMes=function(v){ if(!v) return; finLeerMes(); finMesCfg=v; finPintarMes(); };
+window.finAgregarFila=function(id,tipo){
+  const d=document.createElement('div');
+  d.className='fin-m-fila '+(tipo==='hist'?'fin-h':'fin-f');
+  d.innerHTML = tipo==='hist'
+    ? '<input type="date"><input type="number" step="0.01" min="0"><button class="fin-del" onclick="this.parentNode.remove()">✕</button>'
+    : '<input type="text" maxlength="80" placeholder="Concepto"><input type="number" step="0.01" min="0" placeholder="€ por mes"><button class="fin-del" onclick="this.parentNode.remove()">✕</button>';
+  document.getElementById(id).appendChild(d);
+};
+window.finCerrarCfg=function(){ const ov=document.getElementById('fin-cfg'); if(ov) ov.style.display='none'; finMesesEdit=null; };
+window.finGuardarCfg=async function(){
+  const n=id=>Number(document.getElementById(id).value);
+  const p=id=>n(id)/100;
+  // Costo por empanada con fecha
+  const hist=[];
+  for(const row of document.querySelectorAll('#fin-hist .fin-h')){
+    const [fd,vl]=row.querySelectorAll('input');
+    const desde = fd.disabled ? '0000-01-01' : fd.value;
+    const valor = Number(vl.value);
+    if(!desde && vl.value==='') continue;
+    if(!desde){ alert('Falta la fecha de un costo por empanada.'); return; }
+    if(!(valor>0)){ alert('El costo por empanada tiene que ser mayor que cero.'); return; }
+    hist.push({desde, valor});
+  }
+  const fijos=[];
+  for(const row of document.querySelectorAll('#fin-fijos .fin-f')){
+    const [t,vl]=row.querySelectorAll('input');
+    if(!t.value.trim() && vl.value==='') continue;
+    const v=Number(vl.value);
+    if(!t.value.trim() || isNaN(v) || v<0){ alert('Revisá los costos fijos: cada uno necesita concepto e importe.'); return; }
+    fijos.push({n:t.value.trim(), v});
+  }
+  finLeerMes();
+  const nuevo={
+    costoEmpHist:hist,
+    ivaEmp:p('fin-ivaEmp'), ivaBeb:p('fin-ivaBeb'), ivaEnv:p('fin-ivaEnv'),
+    precioAgua:n('fin-pAgua'), precioBebida:n('fin-pBeb'), costoAgua:n('fin-cAgua'), costoBebida:n('fin-cBeb'),
+    bebidasSueltas:document.getElementById('fin-sueltas').checked,
+    comGlovo:p('fin-cGlovo'), descGlovo:p('fin-dGlovo'), comDeliveroo:p('fin-cDeliveroo'), comJustEat:p('fin-cJustEat'),
+    fijos, meses:finMesesEdit||{}, modificadoMs:Date.now()
+  };
+  const env=n('fin-envio'), rid=n('fin-rider');
+  const nums=[nuevo.ivaEmp,nuevo.ivaBeb,nuevo.ivaEnv,nuevo.precioAgua,nuevo.precioBebida,nuevo.costoAgua,nuevo.costoBebida,nuevo.comGlovo,nuevo.descGlovo,nuevo.comDeliveroo,nuevo.comJustEat,env,rid];
+  if(nums.some(x=>isNaN(x)||x<0) || nuevo.ivaEmp>=1 || nuevo.comGlovo>=1 || nuevo.descGlovo>=1){ alert('Hay un valor vacío o fuera de rango.'); return; }
+  const btn=document.getElementById('fin-guardar'); btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    await setDoc(doc(db,'config','finanzas'), nuevo);
+    await setDoc(doc(db,'config','settings'), {deliveryEnvio:env, deliveryRider:rid}, {merge:true});
+    FIN=Object.assign(JSON.parse(JSON.stringify(FIN_DEF)), nuevo);
+    finEnvio=env; finRider=rid;
+    if(typeof delEnvio!=='undefined'){ delEnvio=env; delRider=rid; }
+    finCerrarCfg();
+    sMesCache=null;                 // se recalcula con los valores nuevos
+    sLoadData();
+  }catch(e){ alert('Error al guardar: '+e.message); btn.disabled=false; btn.textContent='Guardar'; }
+};
+
 
 // Dibuja las tres tarjetas de Almuerzo / Cena / Total del período
 function pintarTurnos(r){
@@ -5756,14 +6281,14 @@ function pintarTurnos(r){
   const cajaT=(tit,v,cls)=>`<div class="s-mini ${cls}">
       <div class="s-mini-label">${tit}</div>
       <div class="s-mini-num">${v.emp}${pctT(v.emp,r.total.emp)?'<span class="s-mini-pct">('+pctT(v.emp,r.total.emp)+')</span>':''}</div>
-      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${dinero(eur(v.venta))}<br>ganancia ${dinero(eur(v.venta-v.costo))}</div>
+      <div class="s-mini-sub">${v.pedidos} ${v.pedidos===1?'pedido':'pedidos'} · ${dinero(eur(v.venta))}<br>margen ${dinero(eur(v.gan))}</div>
     </div>`;
   cont.innerHTML = cajaT('🌞 Almuerzo', r.pranzo, 'promo')
     + cajaT('🌙 Cena', r.cena, 'deliv')
     + `<div class="s-mini gan">
         <div class="s-mini-label">Total del período</div>
         <div class="s-mini-num">${r.total.emp}</div>
-        <div class="s-mini-sub">${r.total.pedidos} pedidos · ${dinero(eur(r.total.venta))}<br>ganancia ${dinero(eur(r.total.venta-r.total.costo))}</div>
+        <div class="s-mini-sub">${r.total.pedidos} pedidos · ${dinero(eur(r.total.venta))}<br>margen ${dinero(eur(r.total.gan))}</div>
       </div>`;
 }
 
@@ -5790,6 +6315,7 @@ async function sLoadData(){
       : 'sin días trabajados';
   document.getElementById('s-counters').innerHTML=`<div class="s-counter promedio"><div class="s-c-label">📈 Promedio diario</div><div class="s-c-num">${promTxt}</div><div class="s-c-sub">${promSub}</div></div><div class="s-counter dark"><div class="s-c-label">Empanadas hoy</div><div class="s-c-num">${cE(tO)}</div><div class="s-c-sub">${tO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Esta semana</div><div class="s-c-num">${cE(wO)}</div><div class="s-c-sub">${wO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Este mes</div><div class="s-c-num">${cE(mO)}</div><div class="s-c-sub">${mO.length} pedidos</div></div><div class="s-counter"><div class="s-c-label">Bebidas · período</div><div class="s-c-num">${beb}</div><div class="s-c-sub">💧 ${bebD.acqua} · 🥤 ${bebD.gassata} · 🍺 ${bebD.birra}</div></div>`;
   // Almuerzo y cena del período. La venta se ve; la ganancia se tapa.
+  await finListo();
   sTurnosCache=resumenPorTurno(os);
   pintarTurnos(sTurnosCache);
 
@@ -5998,6 +6524,7 @@ window.histLoad=async function(){
   const f=fIn.value,t=tIn.value;
   const desdeH=f?new Date(f+'T00:00:00'):new Date('2024-01-01');
   const hastaH=t?new Date(t+'T23:59:59'):new Date();
+  await finListo();
   hAll=soloPedidos(await pedidosRango(desdeH,hastaH,'desc'));hRender(hAll);
 };
 window.histFilter=function(){const q=document.getElementById('hist-search').value.toLowerCase().trim();hRender(q?hAll.filter(o=>(o.cliente||'').toLowerCase().includes(q)):hAll);};
@@ -6067,7 +6594,9 @@ function hRender(list){
     const n=contarPorTipo(o);
     const ec=n.total;
     const ck=canalKey(o);
-    const costo=costoPedido(o), venta=ventaPedido(o), gan=venta-costo;
+    // Cobrado (IVA incluido) − IVA y costos = ganancia del pedido (fórmula nueva)
+    const fpH=finPedido(o);
+    const venta=fpH.fact, gan=fpH.ganancia-fpH.interno, costo=venta-gan;
     tEmp+=ec; tCosto+=costo; tVenta+=venta;
     dEmp+=ec; dCosto+=costo; dVenta+=venta; dPed++;
     uEmp+=ec; uCosto+=costo; uVenta+=venta; uPed++;
