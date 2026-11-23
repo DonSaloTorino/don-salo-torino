@@ -725,7 +725,8 @@ const CONFIG = {
   minimoColleghi: 5,
   minEmpanadas: 2,
   colchonStock: 15,      // con 15 o menos, el sabor no se ofrece
-  precio: { classica: 4.00, speciale: 4.50 },
+  // Desde el 23/11/2026 todas a €4,00 (decisión de Ra: se ve más oferta)
+  precio: { classica: 4.00, speciale: 4.00 },
   linkSumup: "https://pay.sumup.com/b2c/QZO129JM",
   linkSatispay: "https://www.satispay.com/app/pay/shops/a0c469b9-5625-41f3-831e-a10d8fb23a95",
   waLocal: "393514446737"
@@ -884,7 +885,7 @@ function render(){
       <div class="tv-entrega tv-centro">🛵 CONSEGNA PER <b>${EMPRESA.nombre}</b><br>${entrega}</div>
       ${esHoyCerrado() ? `<div class="tv-cerrado">GLI ORDINI PER OGGI SONO CHIUSI. QUESTO ORDINE È PER ${fechaLegible(FECHA)}.</div>` : ''}
       <div class="tv-card">
-        <div class="tv-row">🥟<span>SCEGLI LE EMPANADAS CHE VUOI, <b>MINIMO ${CONFIG.minEmpanadas}</b>. CLASSICHE <b>${eur(CONFIG.precio.classica)}</b> · SPECIALI <b>${eur(CONFIG.precio.speciale)}</b></span></div>
+        <div class="tv-row">🥟<span>SCEGLI LE EMPANADAS CHE VUOI, <b>MINIMO ${CONFIG.minEmpanadas}</b>. ${CONFIG.precio.classica===CONFIG.precio.speciale ? `TUTTE A <b>${eur(CONFIG.precio.classica)}</b>, ANCHE LE SPECIALI` : `CLASSICHE <b>${eur(CONFIG.precio.classica)}</b> · SPECIALI <b>${eur(CONFIG.precio.speciale)}</b>`}</span></div>
         <div class="tv-row">🥤<span>PUOI AGGIUNGERE BIBITE E UN DOLCE</span></div>
         <div class="tv-row">⏰<span>ORDINI ENTRO LE <b>12:30</b> DI ${fechaLegible(FECHA)}</span></div>
         <div class="tv-row">🛵<span>CONSEGNA GRATUITA IN UFFICIO CON ALMENO <b>${CONFIG.minimoColleghi} COLLEGHI</b></span></div>
