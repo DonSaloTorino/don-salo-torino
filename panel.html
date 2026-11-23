@@ -2026,6 +2026,8 @@ const LISTAS_PRECIOS = [
       deliveroo: {
         comision: 0.30,
         sueltas: { classica: 5.50, speciale: 5.75 },
+        // Bebidas en la app (desde el 23/11/2026 entran en la facturación)
+        bebidas: { acqua: 2.50, gassata: 3.00 },
         combos: {
           dueTavola: { label:'Due A Tavola', n:6,  precio:33.00 },
           treTavola: { label:'Tre A Tavola', n:9,  precio:49.50 },
@@ -2039,6 +2041,8 @@ const LISTAS_PRECIOS = [
         desde: '2026-11-10',
         comision: null,
         sueltas: { classica: 5.50, speciale: 5.75 },
+        // Bebidas en la app (desde el 23/11/2026 entran en la facturación)
+        bebidas: { acqua: 2.50, gassata: 3.00 },
         combos: {
           dueTavola: { label:'Due A Tavola', n:6,  precio:33.00 },
           treTavola: { label:'Tre A Tavola', n:9,  precio:49.50 },
@@ -2555,8 +2559,19 @@ function finPedido(o){
   if(pBeb>lista) pBeb=lista;
   r.mercBeb = bp.acqua*FIN.costoAgua + bp.gassata*FIN.costoBebida;
   r.pEmp = lista - pBeb;
+  // Bebidas en Deliveroo y Just Eat: se cobran a su precio de la app
+  // (agua €2,50 / bebida €3,00), con IVA 22% y dentro de la comisión.
+  const platB = CANALES[k] && CANALES[k].delivery ? platDe(k, listaDePedido(o), f) : null;
+  if(platB && platB.bebidas){
+    (o.items||[]).forEach(i=>{
+      if(i.tipo!=='bebida') return;
+      const q=parseInt(i.cantidad)||0, c=catBebida(i.nombre)==='acqua'?'acqua':'gassata';
+      pBeb += q*(platB.bebidas[c]||0);
+      r.mercBeb += q*(c==='acqua'?FIN.costoAgua:FIN.costoBebida);
+    });
+  }
   // Bebidas sueltas: por defecto no suman (decisión de Ra)
-  if(FIN.bebidasSueltas){
+  else if(FIN.bebidasSueltas){
     const ex={acqua:0, gassata:0};
     (o.items||[]).forEach(i=>{ if(i.tipo==='bebida'){ const c=catBebida(i.nombre); ex[c==='acqua'?'acqua':'gassata'] += parseInt(i.cantidad)||0; } });
     const sa=Math.max(0, ex.acqua-bp.acqua), sg=Math.max(0, ex.gassata-bp.gassata);
@@ -3203,7 +3218,10 @@ function precioEnVivo(){
   if(platV){
     const cub=Object.entries(comboQ).reduce((a,[k,n])=>a+((platV.combos[k]||{}).n||0)*n,0);
     const aviso = cub>total ? `⚠️ los combos cubren ${cub} y hay ${total}` : '';
-    return {texto:eur(precioPlataforma(c,s,comboQ,platV)), aviso};
+    // + las bebidas al precio de la app
+    let beb=0;
+    if(platV.bebidas) BEB.forEach(b=>{ const q=bQ[b.id]||0; if(q) beb+=q*(platV.bebidas[catBebida(b.nombre)==='acqua'?'acqua':'gassata']||0); });
+    return {texto:eur(precioPlataforma(c,s,comboQ,platV)+beb), aviso};
   }
   if(CANALES[canalActivo] && CANALES[canalActivo].delivery && L.combosDelivery){
     const comb=combinacionCombos(total,L);
