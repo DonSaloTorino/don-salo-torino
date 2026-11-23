@@ -233,6 +233,10 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .fin-m-fila.fin-h{grid-template-columns:160px 120px auto;justify-items:start;}
 .fin-m-fila.fin-h input{width:100%;}
 .fin-m-nota{font-size:10px;color:#999;}
+.fin-fijo{border:1px solid #eee;border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fcfcfc;}
+.fin-fijo .fin-m-fila.fin-f{grid-template-columns:1fr auto 32px;}
+.fin-fhist{padding-left:14px;}
+.fin-add-chico{font-size:10px;padding:4px 10px;margin:2px 0 0 14px;}
 .fin-del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:6px;cursor:pointer;height:32px;width:32px;}
 .fin-add{margin-top:4px;border:1px dashed #ccc;background:#fafafa;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;}
 .fin-m-pie{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;border-top:1px solid #eee;padding-top:14px;}
@@ -2439,19 +2443,25 @@ const FIN_DEF = {
   precioAgua:1.50, precioBebida:2.00,              // para partir el IVA de las promos
   costoAgua:0.22,  costoBebida:0.55,
   bebidasSueltas:false,                            // si se activa, las sueltas suman a precio de lista
-  comGlovo:0.30, descGlovo:0.10, comDeliveroo:0.30, comJustEat:0.315,
+  comGlovo:0.30, comDeliveroo:0.30, comJustEat:0.315,
+  // Descuento de Glovo con fecha: no existía en octubre. El 31/10 fue la
+  // prueba del fin de semana al 15%; el 10% permanente arranca en noviembre.
+  descGlovoHist: [ {desde:'0000-01-01', valor:0}, {desde:'2026-10-31', valor:0.15}, {desde:'2026-11-01', valor:0.10} ],
+  // Costos fijos por mes. Cada renglón tiene sus importes con fecha: el
+  // alquiler sube por contrato, el préstamo termina, el INPS cambia cada año.
+  // Así un cambio no recalcula los meses anteriores.
   fijos: [
-    {n:'Alquiler (Celtica di Martano)',           v:751.50},
-    {n:'Préstamo Unicredit',                       v:474.80},
-    {n:'Luce Enel (estimado, factura bimestral)',  v:350.00},
-    {n:'Internet TIM',                             v:81.98},
-    {n:'Celular TIM',                              v:21.95},
-    {n:'SumUp sistema (1)',                        v:48.30},
-    {n:'SumUp sistema (2)',                        v:19.00},
-    {n:'Commercialista (€600,00 al año ÷ 12)',     v:50.00},
-    {n:'Seguros (€798,00 al año ÷ 12)',            v:66.50},
-    {n:'Fondo de reposición',                      v:100.00},
-    {n:'INPS (€4.611,64 al año ÷ 12)',             v:384.30}
+    {n:'Alquiler (Celtica di Martano)',           hist:[{desde:'0000-01-01', valor:751.50}]},
+    {n:'Préstamo Unicredit',                       hist:[{desde:'0000-01-01', valor:474.80}]},
+    {n:'Luce Enel (estimado, factura bimestral)',  hist:[{desde:'0000-01-01', valor:350.00}]},
+    {n:'Internet TIM',                             hist:[{desde:'0000-01-01', valor:81.98}]},
+    {n:'Celular TIM',                              hist:[{desde:'0000-01-01', valor:21.95}]},
+    {n:'SumUp sistema (1)',                        hist:[{desde:'0000-01-01', valor:48.30}]},
+    {n:'SumUp sistema (2)',                        hist:[{desde:'0000-01-01', valor:19.00}]},
+    {n:'Commercialista (€600,00 al año ÷ 12)',     hist:[{desde:'0000-01-01', valor:50.00}]},
+    {n:'Seguros (€798,00 al año ÷ 12)',            hist:[{desde:'0000-01-01', valor:66.50}]},
+    {n:'Fondo de reposición',                      hist:[{desde:'0000-01-01', valor:100.00}]},
+    {n:'INPS (€4.611,64 al año ÷ 12)',             hist:[{desde:'0000-01-01', valor:384.30}]}
   ],
   // Por mes 'AAAA-MM': publicidad Deliveroo (neto), mantenimiento y Prime de
   // Glovo (copiados de las facturas) y días hábiles si difieren de lun-sáb.
@@ -2467,7 +2477,7 @@ function finListo(){
   finPromesa = (async()=>{
     try{
       const [a,b] = await Promise.all([ getDoc(doc(db,'config','finanzas')), getDoc(doc(db,'config','settings')) ]);
-      if(a.exists()) FIN = Object.assign(JSON.parse(JSON.stringify(FIN_DEF)), a.data());
+      if(a.exists()) FIN = finNormalizar(Object.assign(JSON.parse(JSON.stringify(FIN_DEF)), a.data()));
       if(b.exists()){
         const d=b.data();
         if(typeof d.deliveryEnvio==='number') finEnvio=d.deliveryEnvio;
@@ -2477,12 +2487,28 @@ function finListo(){
   })();
   return finPromesa;
 }
-// Costo por empanada vigente en una fecha (YYYY-MM-DD)
-function costoEmpanadaEn(fecha){
-  const h=[...(FIN.costoEmpHist||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)));
-  let v=COSTO_EMPANADA;
+// Valor vigente en una fecha (YYYY-MM-DD) dentro de una lista [{desde, valor}]
+function finValorEn(hist, fecha, def){
+  const h=[...(hist||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)));
+  let v=def;
   h.forEach(x=>{ if(String(fecha)>=String(x.desde) && typeof x.valor==='number') v=x.valor; });
   return v;
+}
+// Costo por empanada vigente en una fecha (YYYY-MM-DD)
+function costoEmpanadaEn(fecha){ return finValorEn(FIN.costoEmpHist, fecha, COSTO_EMPANADA); }
+// Descuento de Glovo vigente en una fecha
+function descGlovoEn(fecha){ return finValorEn(FIN.descGlovoHist, fecha, 0); }
+// Costo fijo mensual vigente en una fecha (suma de todos los renglones)
+function finFijoEn(fecha){ return (FIN.fijos||[]).reduce((a,x)=>a+(Number(finValorEn(x.hist, fecha, 0))||0),0); }
+// Lo guardado con la versión anterior (un solo número) pasa al formato con fecha
+function finNormalizar(F){
+  if(!Array.isArray(F.descGlovoHist)){
+    const d = typeof F.descGlovo==='number' ? F.descGlovo : 0.10;
+    F.descGlovoHist=[{desde:'0000-01-01', valor:0}, {desde:'2026-10-31', valor:0.15}, {desde:'2026-11-01', valor:d}];
+  }
+  delete F.descGlovo;
+  F.fijos=(F.fijos||[]).map(x=>Array.isArray(x.hist) ? x : {n:x.n, hist:[{desde:'0000-01-01', valor:Number(x.v)||0}]});
+  return F;
 }
 // Qué bebida trae una promo: 'acqua', 'gassata' o null.
 // Antes el contador de bebidas solo miraba duoAgua y duoBebida, y se perdía
@@ -2522,7 +2548,7 @@ function finPedido(o){
   if(emp===0) return r;
   let lista = ventaPedido(o);
   // Glovo: el cliente paga la lista con el descuento que absorbe el local
-  if(k==='glovo') lista = lista*(1-(FIN.descGlovo||0));
+  if(k==='glovo') lista = lista*(1-descGlovoEn(f));
   // Bebidas de promo: a precio de lista con IVA 22%; el resto de la promo es empanada
   const bp=bebidasDePromos(o);
   let pBeb = bp.acqua*FIN.precioAgua + bp.gassata*FIN.precioBebida;
@@ -2569,7 +2595,8 @@ function finHabiles(clave){
   if(x && x.diasHabiles>0) return x.diasHabiles;
   const [y,m]=clave.split('-').map(Number); return finHabilesDef(y,m);
 }
-function finFijoMensual(){ return (FIN.fijos||[]).reduce((a,x)=>a+(Number(x.v)||0),0); }
+// Costo fijo mensual vigente en una fecha (por defecto, hoy)
+function finFijoMensual(fecha){ return finFijoEn(fecha || cocFechaStr(new Date())); }
 function finCostosMes(clave){
   const x=(FIN.meses||{})[clave]||{};
   return (Number(x.publiDeliveroo)||0)+(Number(x.mantGlovo)||0)+(Number(x.primeGlovo)||0);
@@ -2590,7 +2617,15 @@ function finMesesDe(desde, hasta){
 function finPeriodo(desde, hasta){
   const meses=finMesesDe(desde, hasta);
   let fijos=0, delPeriodo=0, dias=0;
-  meses.forEach(m=>{ fijos+=finFijoMensual()*m.dias/m.diasMes; delPeriodo+=finCostosMes(m.clave)*m.dias/m.diasMes; dias+=m.dias; });
+  // Costos del mes: se reparten por los días del mes que caen en el período
+  meses.forEach(m=>{ delPeriodo+=finCostosMes(m.clave)*m.dias/m.diasMes; dias+=m.dias; });
+  // Costos fijos: día por día, con el importe vigente ese día (÷ días de su mes)
+  const d=new Date(desde.getFullYear(),desde.getMonth(),desde.getDate());
+  const fin=new Date(hasta.getFullYear(),hasta.getMonth(),hasta.getDate());
+  while(d<=fin){
+    fijos += finFijoEn(cocFechaStr(d)) / finDiasMes(d.getFullYear(), d.getMonth()+1);
+    d.setDate(d.getDate()+1);
+  }
   const ult=meses.length?meses[meses.length-1].clave:null;
   return {fijos, delPeriodo, dias, meses, mesEq:ult, habiles: ult?finHabiles(ult):0};
 }
@@ -3990,7 +4025,18 @@ setInterval(()=>{ if(auth.currentUser) delRevisarProgramadas(); }, 5*60*1000);
 //  · PARTE 2 de 3. Confirmar un pago todavía NO imprime, NO descuenta stock y
 //    NO entra en estadísticas: eso es la parte 3 (comanda de las 12:30).
 // ═══════════════════════════════════════════════════════
-const TAV_PRECIO = { classica:4.00, speciale:4.50 };   // igual que tavolo.html
+// Precios de tavolo.html con fecha: desde el 23/11/2026 todas a €4,00.
+// Para controlar el total se usa la lista del día en que se hizo el pedido.
+const TAV_PRECIOS = [
+  { desde:'0000-01-01', classica:4.00, speciale:4.50 },
+  { desde:'2026-11-23', classica:4.00, speciale:4.00 }
+];
+function tavPrecioDe(p){
+  const f = p && p.creadoMs ? cocFechaStr(new Date(p.creadoMs)) : String((p&&p.fecha)||cocFechaStr(new Date()));
+  let L=TAV_PRECIOS[0];
+  TAV_PRECIOS.forEach(x=>{ if(f>=x.desde) L=x; });
+  return L;
+}
 const TAV_MINIMO = 5;                                  // colegas para entrega gratis
 const TAV_CUTOFF = 12.5;                               // 12:30
 const TAV_EXTRAS = {
@@ -4106,11 +4152,12 @@ function tavRefrescar(){
 // El total lo calcula la página del empleado; acá se recalcula con los precios
 // para que un total tocado a mano no pase sin que lo veas.
 function tavCuentas(p){
+  const PR=tavPrecioDe(p);
   let cl=0, sp=0, emp=0, ext=0;
   Object.entries(p.empanadas||{}).forEach(([sabor,q])=>{
     q = parseInt(q)||0;
-    if(tipoDeSabor(sabor)==='speciale'){ sp+=q; emp+=q*TAV_PRECIO.speciale; }
-    else { cl+=q; emp+=q*TAV_PRECIO.classica; }
+    if(tipoDeSabor(sabor)==='speciale'){ sp+=q; emp+=q*PR.speciale; }
+    else { cl+=q; emp+=q*PR.classica; }
   });
   const extras=[];
   [p.bibite||{}, p.dolci||{}].forEach(obj=>Object.entries(obj).forEach(([k,q])=>{
@@ -6045,13 +6092,14 @@ function finCalcular(r){
   const techo=F.fact/(1+ivaMin) - F.mercEmp - F.interno;
   const ok = ganPer <= techo + 0.005;
   const mcEmp = F.emp ? mc/F.emp : 0;
-  const fijoDia = per.habiles ? finFijoMensual()/per.habiles : 0;
+  const fijoMes = finFijoMensual(cocFechaStr(r.hasta));
+  const fijoDia = per.habiles ? fijoMes/per.habiles : 0;
   const eq = mcEmp>0 ? fijoDia/mcEmp : null;
   const diasVenta = Object.values(r.dias||{}).filter(d=>d.emp>0).length;
   const prom = diasVenta ? F.emp/diasVenta : 0;
   const orden=[...FIN_CANALES]; Object.keys(r.finCanal).forEach(k=>{ if(!orden.includes(k)) orden.push(k); });
   const canales=orden.map(k=>({k, nombre:finNombreCanal(k), v:r.finCanal[k]||finVacio()}));
-  return {F, per, merc, mc, ganPer, resultado, techo, ok, mcEmp, fijoDia, eq, diasVenta, prom,
+  return {F, per, merc, mc, ganPer, resultado, techo, ok, mcEmp, fijoMes, fijoDia, eq, diasVenta, prom,
           dif: eq!==null ? prom-eq : null, canales};
 }
 function finPintar(r){
@@ -6090,7 +6138,7 @@ function finPintar(r){
       <div class="fin-eq-row"><span>Promedio real del período</span><b>${n1(c.prom)}</b></div>
       <div class="fin-eq-row"><span>Diferencia</span><b class="${c.dif!==null&&c.dif<0?'fin-neg':'fin-pos'}">${c.dif===null?'—':(c.dif>=0?'+':'')+n1(c.dif)}</b></div>
       <div class="fin-eq-det">Margen de contribución por empanada ${E(c.mcEmp)}<br>
-        Costo fijo por día hábil ${E(c.fijoDia)} (${E(finFijoMensual())} ÷ ${per.habiles} días hábiles de ${mesTxt})<br>
+        Costo fijo por día hábil ${E(c.fijoDia)} (${E(c.fijoMes)} ÷ ${per.habiles} días hábiles de ${mesTxt})<br>
         Promedio: ${F.emp} empanadas ÷ ${c.diasVenta} días con ventas</div>
     </div></div>`;
 
@@ -6145,9 +6193,12 @@ function finHojasExcel(r){
   c.canales.forEach(({nombre,v})=>can.push([nombre, v.pedidos, v.emp, r2(v.fact), r2(v.iva), r2(v.comision),
     r2(v.mercEmp+v.mercBeb+v.rider), r2(v.ganancia), v.emp?r2(v.ganancia/v.emp):0]));
   can.push(['TOTAL', F.pedidos, F.emp, r2(F.fact), r2(F.iva), r2(F.comision), r2(c.merc+F.rider), r2(c.mc), F.emp?r2(c.mcEmp):0]);
-  const fij=[['Costo fijo','Por mes']];
-  (FIN.fijos||[]).forEach(x=>fij.push([x.n, r2(x.v)]));
-  fij.push(['TOTAL POR MES', r2(finFijoMensual())]);
+  const fHasta=cocFechaStr(r.hasta);
+  const fij=[['Costo fijo','Por mes, vigente al '+fHasta,'Importes con fecha']];
+  (FIN.fijos||[]).forEach(x=>fij.push([x.n, r2(finValorEn(x.hist,fHasta,0)),
+    [...(x.hist||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)))
+      .map(h=>(h.desde==='0000-01-01'?'desde el principio':'desde '+h.desde)+': '+eur(h.valor)).join(' · ')]));
+  fij.push(['TOTAL POR MES', r2(finFijoMensual(fHasta))]);
   return [{nombre:'Ganancia',filas:des},{nombre:'Ganancia por canal',filas:can},{nombre:'Costos fijos',filas:fij}];
 }
 
@@ -6165,6 +6216,12 @@ window.finAbrirCfg=async function(){
   if(!ov){ ov=document.createElement('div'); ov.id='fin-cfg'; ov.className='fin-ov'; document.body.appendChild(ov); }
   const num=(id,v,step)=>`<input type="number" step="${step||'0.01'}" min="0" id="${id}" value="${v}">`;
   const hist=[...(FIN.costoEmpHist||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)));
+  const ord=h=>[...(h||[])].sort((a,b)=>String(a.desde).localeCompare(String(b.desde)));
+  // Una fila "desde [fecha] → valor". La primera ("desde el principio") no lleva fecha ni se borra.
+  const filaH=(x,mult)=>`<div class="fin-m-fila fin-h">
+      <input type="date" value="${x.desde==='0000-01-01'?'':finEsc(x.desde)}" ${x.desde==='0000-01-01'?'disabled title="Desde el principio"':''}>
+      <input type="number" step="0.01" min="0" value="${Math.round(x.valor*(mult||1)*100)/100}">
+      ${x.desde==='0000-01-01'?'<span class="fin-m-nota">desde el principio</span>':'<button class="fin-del" onclick="this.parentNode.remove()">✕</button>'}</div>`;
   ov.innerHTML=`<div class="fin-modal">
     <div class="fin-m-cab"><b>⚙️ Parámetros de ganancia</b><button class="fin-x" onclick="finCerrarCfg()">✕</button></div>
     <div class="fin-m-sec">Costo por empanada <span>(cambia con cada entrega: se aplica desde la fecha)</span></div>
@@ -6189,18 +6246,25 @@ window.finAbrirCfg=async function(){
     <div class="fin-m-sec">Plataformas y delivery propio</div>
     <div class="fin-m-grid">
       <label>Comisión Glovo %${num('fin-cGlovo',finPct(FIN.comGlovo),'0.1')}</label>
-      <label>Descuento Glovo vigente %${num('fin-dGlovo',finPct(FIN.descGlovo),'0.1')}</label>
       <label>Comisión Deliveroo %${num('fin-cDeliveroo',finPct(FIN.comDeliveroo),'0.1')}</label>
       <label>Comisión Just Eat %${num('fin-cJustEat',finPct(FIN.comJustEat),'0.1')}</label>
       <label>Envío cobrado €${num('fin-envio',finEnvio)}</label>
       <label>Pago al rider €${num('fin-rider',finRider)}</label>
     </div>
 
-    <div class="fin-m-sec">Costos fijos por mes <span>(total ${eur(finFijoMensual())})</span></div>
-    <div id="fin-fijos">${(FIN.fijos||[]).map(x=>`<div class="fin-m-fila fin-f">
-      <input type="text" value="${finEsc(x.n)}" maxlength="80"><input type="number" step="0.01" min="0" value="${x.v}">
-      <button class="fin-del" onclick="this.parentNode.remove()">✕</button></div>`).join('')}</div>
-    <button class="fin-add" onclick="finAgregarFila('fin-fijos','fijo')">+ Agregar costo fijo</button>
+    <div class="fin-m-sec">Descuento de Glovo % <span>(se aplica desde la fecha; antes no había)</span></div>
+    <div id="fin-dglovo">${ord(FIN.descGlovoHist).map(x=>filaH(x,100)).join('')}</div>
+    <button class="fin-add" onclick="finAgregarFila('fin-dglovo','hist')">+ Nuevo descuento desde una fecha</button>
+
+    <div class="fin-m-sec">Costos fijos por mes <span>(hoy: ${eur(finFijoMensual())} · cada importe vale desde su fecha)</span></div>
+    <div id="fin-fijos">${(FIN.fijos||[]).map(x=>`<div class="fin-fijo">
+      <div class="fin-m-fila fin-f"><input type="text" value="${finEsc(x.n)}" maxlength="80" placeholder="Concepto">
+        <span class="fin-m-nota">€ por mes</span>
+        <button class="fin-del" title="Quitar este costo fijo" onclick="this.closest('.fin-fijo').remove()">✕</button></div>
+      <div class="fin-fhist">${ord(x.hist).map(h=>filaH(h)).join('')}</div>
+      <button class="fin-add fin-add-chico" onclick="finAgregarCambio(this)">+ Cambio de importe desde una fecha</button>
+    </div>`).join('')}</div>
+    <button class="fin-add" onclick="finAgregarFijo()">+ Agregar costo fijo</button>
 
     <div class="fin-m-sec">Costos del mes <span>(copiados de las facturas)</span></div>
     <div class="fin-m-grid">
@@ -6245,6 +6309,22 @@ window.finAgregarFila=function(id,tipo){
     : '<input type="text" maxlength="80" placeholder="Concepto"><input type="number" step="0.01" min="0" placeholder="€ por mes"><button class="fin-del" onclick="this.parentNode.remove()">✕</button>';
   document.getElementById(id).appendChild(d);
 };
+// Nuevo importe con fecha para un costo fijo (por ejemplo: sube el alquiler, termina el préstamo → 0)
+window.finAgregarCambio=function(btn){
+  const d=document.createElement('div');
+  d.className='fin-m-fila fin-h';
+  d.innerHTML='<input type="date"><input type="number" step="0.01" min="0" placeholder="€ por mes"><button class="fin-del" onclick="this.parentNode.remove()">✕</button>';
+  btn.previousElementSibling.appendChild(d);
+};
+window.finAgregarFijo=function(){
+  const b=document.createElement('div'); b.className='fin-fijo';
+  b.innerHTML=`<div class="fin-m-fila fin-f"><input type="text" maxlength="80" placeholder="Concepto">
+      <span class="fin-m-nota">€ por mes</span>
+      <button class="fin-del" title="Quitar este costo fijo" onclick="this.closest('.fin-fijo').remove()">✕</button></div>
+    <div class="fin-fhist"><div class="fin-m-fila fin-h"><input type="date" title="Desde cuándo se paga"><input type="number" step="0.01" min="0" placeholder="€ por mes"><span class="fin-m-nota">desde esta fecha</span></div></div>
+    <button class="fin-add fin-add-chico" onclick="finAgregarCambio(this)">+ Cambio de importe desde una fecha</button>`;
+  document.getElementById('fin-fijos').appendChild(b);
+};
 window.finCerrarCfg=function(){ const ov=document.getElementById('fin-cfg'); if(ov) ov.style.display='none'; finMesesEdit=null; };
 window.finGuardarCfg=async function(){
   const n=id=>Number(document.getElementById(id).value);
@@ -6260,13 +6340,33 @@ window.finGuardarCfg=async function(){
     if(!(valor>0)){ alert('El costo por empanada tiene que ser mayor que cero.'); return; }
     hist.push({desde, valor});
   }
+  // Lee filas "desde → valor" de un contenedor. Devuelve null si hay un error.
+  const leerHist=(cont, mult, nombre)=>{
+    const out=[];
+    for(const row of cont.querySelectorAll('.fin-h')){
+      const [fd,vl]=row.querySelectorAll('input');
+      const desde = fd.disabled ? '0000-01-01' : fd.value;
+      if(!fd.disabled && !fd.value && vl.value==='') continue;
+      const v=Number(vl.value);
+      if(!desde){ alert('Falta la fecha en '+nombre+'.'); return null; }
+      if(vl.value==='' || isNaN(v) || v<0){ alert('Falta el importe en '+nombre+'.'); return null; }
+      if(out.some(x=>x.desde===desde)){ alert('Hay dos importes con la misma fecha en '+nombre+'.'); return null; }
+      out.push({desde, valor:Math.round(v/mult*1e6)/1e6});
+    }
+    return out.sort((a,b)=>a.desde.localeCompare(b.desde));
+  };
+  const descGlovoHist=leerHist(document.getElementById('fin-dglovo'),100,'el descuento de Glovo');
+  if(!descGlovoHist) return;
+  if(descGlovoHist.some(x=>x.valor>=1)){ alert('El descuento de Glovo tiene que ser menor que 100%.'); return; }
   const fijos=[];
-  for(const row of document.querySelectorAll('#fin-fijos .fin-f')){
-    const [t,vl]=row.querySelectorAll('input');
-    if(!t.value.trim() && vl.value==='') continue;
-    const v=Number(vl.value);
-    if(!t.value.trim() || isNaN(v) || v<0){ alert('Revisá los costos fijos: cada uno necesita concepto e importe.'); return; }
-    fijos.push({n:t.value.trim(), v});
+  for(const blk of document.querySelectorAll('#fin-fijos .fin-fijo')){
+    const nom=blk.querySelector('.fin-f input').value.trim();
+    const hh=leerHist(blk.querySelector('.fin-fhist'),1,'"'+(nom||'un costo fijo')+'"');
+    if(!hh) return;
+    if(!nom && !hh.length) continue;
+    if(!nom){ alert('A un costo fijo le falta el concepto.'); return; }
+    if(!hh.length){ alert('A "'+nom+'" le falta el importe.'); return; }
+    fijos.push({n:nom, hist:hh});
   }
   finLeerMes();
   const nuevo={
@@ -6274,17 +6374,17 @@ window.finGuardarCfg=async function(){
     ivaEmp:p('fin-ivaEmp'), ivaBeb:p('fin-ivaBeb'), ivaEnv:p('fin-ivaEnv'),
     precioAgua:n('fin-pAgua'), precioBebida:n('fin-pBeb'), costoAgua:n('fin-cAgua'), costoBebida:n('fin-cBeb'),
     bebidasSueltas:document.getElementById('fin-sueltas').checked,
-    comGlovo:p('fin-cGlovo'), descGlovo:p('fin-dGlovo'), comDeliveroo:p('fin-cDeliveroo'), comJustEat:p('fin-cJustEat'),
+    comGlovo:p('fin-cGlovo'), descGlovoHist, comDeliveroo:p('fin-cDeliveroo'), comJustEat:p('fin-cJustEat'),
     fijos, meses:finMesesEdit||{}, modificadoMs:Date.now()
   };
   const env=n('fin-envio'), rid=n('fin-rider');
-  const nums=[nuevo.ivaEmp,nuevo.ivaBeb,nuevo.ivaEnv,nuevo.precioAgua,nuevo.precioBebida,nuevo.costoAgua,nuevo.costoBebida,nuevo.comGlovo,nuevo.descGlovo,nuevo.comDeliveroo,nuevo.comJustEat,env,rid];
-  if(nums.some(x=>isNaN(x)||x<0) || nuevo.ivaEmp>=1 || nuevo.comGlovo>=1 || nuevo.descGlovo>=1){ alert('Hay un valor vacío o fuera de rango.'); return; }
+  const nums=[nuevo.ivaEmp,nuevo.ivaBeb,nuevo.ivaEnv,nuevo.precioAgua,nuevo.precioBebida,nuevo.costoAgua,nuevo.costoBebida,nuevo.comGlovo,nuevo.comDeliveroo,nuevo.comJustEat,env,rid];
+  if(nums.some(x=>isNaN(x)||x<0) || nuevo.ivaEmp>=1 || nuevo.comGlovo>=1){ alert('Hay un valor vacío o fuera de rango.'); return; }
   const btn=document.getElementById('fin-guardar'); btn.disabled=true; btn.textContent='Guardando...';
   try{
     await setDoc(doc(db,'config','finanzas'), nuevo);
     await setDoc(doc(db,'config','settings'), {deliveryEnvio:env, deliveryRider:rid}, {merge:true});
-    FIN=Object.assign(JSON.parse(JSON.stringify(FIN_DEF)), nuevo);
+    FIN=finNormalizar(Object.assign(JSON.parse(JSON.stringify(FIN_DEF)), nuevo));
     finEnvio=env; finRider=rid;
     if(typeof delEnvio!=='undefined'){ delEnvio=env; delRider=rid; }
     finCerrarCfg();
