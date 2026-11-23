@@ -188,6 +188,46 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
   .stock-fila-total .stock-total-box{ min-width: 0; }
 }
 
+/* ── IMPRESIÓN DE STATS (botón 🖨 Imprimir PDF) ──
+   body.print-stats se activa solo mientras se imprime. El panel se dibuja a
+   1000 px de ancho (igual que en la PC) y se achica con zoom para que entre
+   en 2 hojas A4. El zoom lo calcula imprimirStats() midiendo el alto real. */
+#s-print-head{display:none;}
+body.print-stats .stats-panel{width:1000px;max-width:none;padding:0;margin:0;}
+body.print-stats #s-print-head{display:block;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px;}
+body.print-stats .sph-tit{font-size:18px;font-weight:700;letter-spacing:2px;}
+body.print-stats .sph-sub{font-size:11px;color:#555;margin-top:3px;letter-spacing:.5px;}
+/* En papel todo se achica: los textos chicos se agrandan para que se lean,
+   y se recortan espacios para que entre más en cada hoja */
+body.print-stats .s-section-title{font-size:13px;color:#666;margin-bottom:8px;}
+body.print-stats .s-fixed-label,body.print-stats .s-c-label,body.print-stats .s-mini-label{font-size:12px;letter-spacing:1.5px;color:#777;}
+body.print-stats .s-fixed-sub,body.print-stats .s-c-sub,body.print-stats .s-mini-sub,body.print-stats .s-mini-turnos,
+body.print-stats .s-bar-label,body.print-stats .s-weekly-dates,body.print-stats .s-bar-day{font-size:12px;color:#666;}
+body.print-stats .s-fixed-card.dark .s-fixed-label,body.print-stats .s-fixed-card.dark .s-fixed-sub,
+body.print-stats .s-counter.dark .s-c-label,body.print-stats .s-counter.dark .s-c-sub,
+body.print-stats .s-mini.gan .s-mini-label,body.print-stats .s-mini.gan .s-mini-sub,body.print-stats .s-mini.gan .s-mini-turnos{color:rgba(255,255,255,.75);}
+body.print-stats .s-period-label{font-size:13px;margin-bottom:10px;}
+body.print-stats .s-fixed-row,body.print-stats .s-counters{margin-bottom:12px;gap:10px;}
+body.print-stats .s-fixed-card,body.print-stats .s-counter{padding:12px 16px;}
+body.print-stats .s-mini{padding:10px 13px;}
+body.print-stats .s-mini-grid{gap:8px;margin-bottom:10px;}
+body.print-stats .s-chart-wrap,body.print-stats .s-weekly-wrap,body.print-stats .s-compare-grid,body.print-stats .s-period-total-box{margin-bottom:14px;}
+body.print-stats .s-chart-wrap,body.print-stats .s-weekly-wrap,body.print-stats .s-ranking,body.print-stats .s-compare-card{padding:14px 18px;}
+body.print-stats .s-weekly-row{padding:6px 0;}
+body.print-stats .s-rank-row{padding:6px 0;}
+body.print-stats .s-rank-name,body.print-stats .s-weekly-label{font-size:14px;}
+body.print-stats .s-period-total-box{padding:14px 24px;}
+body.print-stats .s-period-total-num{font-size:44px;}
+body.print-stats .period-tabs,body.print-stats .export-bar,body.print-stats .s-loading,body.print-stats .fab-btn{display:none!important;}
+@media print {
+  body.print-stats{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body.print-stats .stats-panel{zoom:var(--print-zoom,0.7);}
+  body.print-stats .s-fixed-card,body.print-stats .s-counter,body.print-stats .s-mini,
+  body.print-stats .s-compare-card,body.print-stats .s-rank-row,body.print-stats .s-weekly-row,
+  body.print-stats .s-chart-wrap,body.print-stats .s-period-total-box,body.print-stats .s-base-aviso{break-inside:avoid;}
+  body.print-stats .s-section-title{break-after:avoid;}
+  body.print-stats .modal-overlay,body.print-stats [id$="-panel"]:not(#stats-panel){display:none!important;}
+}
 @media print {
   body{background:#fff;} .header,.stats-bar,.card-footer,.no-print{display:none!important;}
   .orders-grid{grid-template-columns:1fr;gap:12px;} .order-card{break-inside:avoid;border:1px solid #ccc;}
@@ -1020,6 +1060,8 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 </div>
 
 <div class="stats-panel" id="stats-panel">
+  <!-- Solo aparece al imprimir: título, período y fecha de impresión -->
+  <div id="s-print-head"><div class="sph-tit">DON SALO TORINO · ESTADÍSTICAS</div><div class="sph-sub" id="s-print-sub"></div></div>
   <!-- Contadores fijos: siempre visibles independiente del filtro -->
   <div class="s-fixed-row" id="s-fixed-row">
     <div class="s-fixed-card dark">
@@ -1055,6 +1097,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
     <button class="xls-btn" onclick="exportStats()">📊 Descargar Excel</button>
     <button class="stock-btn stock-btn-sec" id="btn-dinero" onclick="toggleDinero()">👁 Ver importes</button>
     <button class="xls-btn" style="background:#7e22ce;" onclick="exportSerieDiaria()">📈 Serie diaria</button>
+    <button class="xls-btn" style="background:#111;" onclick="imprimirStats()">🖨 Imprimir PDF</button>
     <span class="export-hint">Exporta el período que estás viendo</span>
   </div>
   <div class="s-period-label" id="s-period-label"></div>
@@ -4842,6 +4885,45 @@ window.exportPedidos=function(){
 // Un renglón por día: empanadas, pedidos, facturación y el reparto entre
 // almuerzo y cena. Es lo que hace falta para ver si un cambio de precios o de
 // stock movió el volumen, que no se ve en un total del mes.
+// ── IMPRIMIR STATS EN PDF ──
+// Imprime lo que estás viendo, desde "mes anterior" hasta el ranking, en un
+// máximo de 2 hojas A4. Si los importes están tapados, salen tapados: tocá
+// "Ver importes" antes si los querés en el papel. En la ventana de imprimir
+// se elige "Guardar como PDF".
+const PRINT_ANCHO = 1000;                 // ancho al que se dibuja (px)
+const PRINT_HOJA_W = 718;                 // A4 con márgenes de 10 mm: 190 mm ≈ 718 px
+const PRINT_HOJA_H = 1047;                // 277 mm ≈ 1047 px
+const PRINT_HOJAS  = 2;
+window.imprimirStats=function(){
+  if(document.getElementById('s-content').style.display==='none'){
+    alert('Esperá a que terminen de cargar las estadísticas.'); return;
+  }
+  const a=new Date();
+  const per=(document.getElementById('s-period-label').textContent||'').trim();
+  document.getElementById('s-print-sub').textContent =
+    (per?per+' · ':'') + 'Impreso el '+a.toLocaleDateString('es-AR')+' a las '+a.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  // Tamaño de hoja solo para esta impresión: no cambia otras impresiones del panel
+  const pg=document.createElement('style');
+  pg.id='print-stats-page';
+  pg.textContent='@page{size:A4 portrait;margin:10mm;}';
+  document.head.appendChild(pg);
+  document.body.classList.add('print-stats');
+  // Se mide el alto ya con el diseño de impresión y se calcula el zoom.
+  // Se deja un margen por los saltos de hoja (ninguna tarjeta se corta).
+  const alto=document.getElementById('stats-panel').scrollHeight;
+  const zAncho=PRINT_HOJA_W/PRINT_ANCHO;
+  const zAlto=(PRINT_HOJAS*PRINT_HOJA_H - 160)/Math.max(alto,1);
+  const z=Math.max(0.35, Math.min(zAncho, zAlto));
+  document.documentElement.style.setProperty('--print-zoom', z.toFixed(3));
+  const limpiar=()=>{
+    document.body.classList.remove('print-stats');
+    document.documentElement.style.removeProperty('--print-zoom');
+    document.getElementById('print-stats-page')?.remove();
+  };
+  window.addEventListener('afterprint', limpiar, {once:true});
+  setTimeout(()=>window.print(), 60);
+};
+
 window.exportSerieDiaria=function(){
   if(!sMesCache || !sMesCache.dias){ alert('Abrí STATS y esperá a que carguen los datos.'); return; }
   const dias=sMesCache.dias;
