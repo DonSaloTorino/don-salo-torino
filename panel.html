@@ -4260,6 +4260,7 @@ function tavRenderEmpresas(){
         <button class="del-btn" data-id="${id}" onclick="tavWhatsapp(this.dataset.id)">📲 Mandar por WhatsApp</button>
         <button class="del-btn est" data-id="${id}" onclick="tavEditarEmpresa(this.dataset.id)">✏️ Modificar</button>
         <button class="del-btn ${on?'no':'ok'}" data-id="${id}" onclick="tavActivar(this.dataset.id,${on?'false':'true'})">${on?'⏸ Pausar':'▶ Activar'}</button>
+        <button class="del-btn no" data-id="${id}" onclick="tavEliminarEmpresa(this.dataset.id)">🗑 Eliminar</button>
       </div>
     </div>`;
   }).join('');
@@ -4393,6 +4394,26 @@ window.tavActivar=async function(cod, activa){
   if(!activa && !confirm(`Pausar ${MAY(e.nombre||cod)}?\n\nLos empleados no van a poder pedir hasta que la actives de nuevo. Los pedidos ya hechos no se tocan.`)) return;
   try{ await setDoc(doc(db,'tavolo_empresas',cod),{ activa },{ merge:true }); }
   catch(err){ alert('Error: '+err.message); }
+};
+// Eliminar: borra la empresa y su link deja de funcionar. Los pedidos ya hechos
+// NO se borran (son historial). Si tiene pedidos de hoy o de días que vienen
+// sin anular, no deja: primero se anulan, o se pausa la empresa.
+window.tavEliminarEmpresa=async function(cod){
+  const e=tavEmpresa(cod); if(!e) return;
+  const nom=MAY(e.nombre||cod);
+  try{ await tavEscucharPedidos(); }catch(err){ alert('No se pudieron revisar los pedidos: '+err.message); return; }
+  const vivos=tavPedidos.filter(p=>p.empresa===cod && p.estado!=='rechazado');
+  if(vivos.length){
+    alert(`${nom} tiene ${vivos.length} ${vivos.length===1?'pedido':'pedidos'} de hoy o de días que vienen sin anular.\n\nAnulalos o borralos primero. Si solo querés que no pidan por un tiempo, usá PAUSAR.`);
+    return;
+  }
+  const r=prompt(`ELIMINAR ${nom} PARA SIEMPRE\n\nEl link de los empleados deja de funcionar. Los pedidos que ya hicieron quedan guardados. No se puede deshacer.\n\nSi solo querés frenarla por un tiempo, usá PAUSAR.\n\nPara confirmar escribí ELIMINAR:`);
+  if(r===null) return;
+  if(r.trim().toUpperCase()!=='ELIMINAR'){ alert('No se eliminó nada.'); return; }
+  try{
+    await deleteDoc(doc(db,'tavolo_empresas',cod));
+    if(tavFormAbierto===cod){ tavFormAbierto=null; tavRender(); }
+  }catch(err){ alert('Error: '+err.message); }
 };
 window.tavCopiarLink=async function(cod, btn){
   const link=tavLink(cod);
